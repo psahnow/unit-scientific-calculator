@@ -1,0 +1,64 @@
+// Autocomplete suggestions for the math input (DESIGN.md §4.2).
+import { expandedUnits, normalizeSymbol, lookupUnit } from './units/registry';
+import { CONSTANTS } from './units/constants.data';
+import { LETTER_FUNCS } from './parser';
+import { symbolToLatex } from './latex';
+
+export interface Suggestion {
+  kind: 'unit' | 'const' | 'func' | 'var';
+  label: string; // shown symbol
+  detail: string; // name
+  insert: string; // LaTeX to insert
+}
+
+const FUNC_LATEX: Record<string, string> = {
+  sin: '\\sin', cos: '\\cos', tan: '\\tan', sec: '\\sec', csc: '\\csc', cot: '\\cot', asin: '\\arcsin', acos: '\\arccos',
+  atan: '\\arctan', arcsin: '\\arcsin', arccos: '\\arccos', arctan: '\\arctan', sinh: '\\sinh', cosh: '\\cosh', tanh: '\\tanh',
+  ln: '\\ln', log: '\\log', exp: '\\exp', min: '\\min', max: '\\max',
+};
+
+export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterNumber: boolean): Suggestion[] {
+  const prefix = normalizeSymbol(prefixRaw);
+  if (!prefix) return [];
+  const lp = prefix.toLowerCase();
+  const out: Suggestion[] = [];
+  const add = (s: Suggestion) => {
+    if (!out.some((o) => o.kind === s.kind && o.label === s.label)) out.push(s);
+  };
+
+  // Ambiguous symbols (lb → lbm / lbf) always prompt (D20).
+  const exact = lookupUnit(prefix);
+  if (exact?.ambiguous && (prefix === 'lb' || prefix === 'lbs')) {
+    for (const id of exact.ambiguous) {
+      const u = lookupUnit(id)!;
+      add({ kind: 'unit', label: u.id, detail: u.name, insert: `\\unit{${symbolToLatex(u.id)}}` });
+    }
+  }
+  if (exact && !exact.ambiguous) add({ kind: 'unit', label: exact.id, detail: exact.name, insert: `\\unit{${symbolToLatex(exact.id)}}` });
+
+  if (!afterNumber) {
+    for (const v of vars) if (v.toLowerCase().startsWith(lp) && v !== prefix) add({ kind: 'var', label: v, detail: 'variable', insert: varLatex(v) });
+    for (const f of LETTER_FUNCS)
+      if (f.startsWith(lp) && f.length > 1)
+        add({ kind: 'func', label: f, detail: 'function', insert: `${FUNC_LATEX[f] ?? `\\operatorname{${f}}`}\\left(#0\\right)` });
+  }
+  const units = expandedUnits();
+  // symbol prefix matches (case-sensitive first), then name matches
+  for (const u of units) if (u.id.startsWith(prefix) || u.aliases.some((a) => a.startsWith(prefix))) add(unitSug(u.id, u.name));
+  for (const u of units) if (u.id.toLowerCase().startsWith(lp)) add(unitSug(u.id, u.name));
+  if (lp.length >= 2) for (const u of units) if (u.name.toLowerCase().startsWith(lp)) add(unitSug(u.id, u.name));
+  for (const c of CONSTANTS)
+    if (c.key.toLowerCase().startsWith(lp) || (lp.length >= 3 && c.name.toLowerCase().includes(lp)))
+      add({ kind: 'const', label: c.key, detail: c.name, insert: `\\const{${c.latex}}` });
+  return out.slice(0, 12);
+}
+
+function unitSug(id: string, name: string): Suggestion {
+  return { kind: 'unit', label: id, detail: name, insert: `\\unit{${symbolToLatex(id)}}` };
+}
+
+export function varLatex(name: string): string {
+  const [base, sub] = name.split('_');
+  const b = symbolToLatex(base);
+  return sub ? `${b}_{${sub}}` : b;
+}
