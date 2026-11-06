@@ -6,7 +6,7 @@ import { isUnitOnly } from './ast';
 import * as Q from './quantity';
 import { type Quantity, CalcError, scalar, describe } from './quantity';
 import { dim, dimEq, isDimlessLoose, isAngle, DIMLESS } from './dim';
-import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, combine, parseUnitExpr } from './units/registry';
+import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, combine, parseUnitExpr, formatUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
 
 export type Value = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] };
@@ -343,7 +343,10 @@ function exactTrig(fn: string, rad: number): N.Num | null {
 }
 
 function requireDimless(x: Quantity, fn: string): number {
-  if (!isDimlessLoose(x.dim)) throw new CalcError(`${fn} expects a dimensionless number; got ${describe(x)}`);
+  if (!isDimlessLoose(x.dim)) {
+    const u = formatUnit(x.unit) || describe(x);
+    throw new CalcError(`${fn} needs a plain number, but this has units (${u}). Divide by a unit to use its value, like ${fn}(x / 1 ${x.unit[0]?.id ?? 'm'})`);
+  }
   return N.toNumber(x.si);
 }
 

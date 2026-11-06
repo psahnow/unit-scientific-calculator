@@ -206,10 +206,11 @@ export function parseUnitExpr(input: string): UnitExpr {
     ws();
     if (peek() === '^') {
       i++;
-      const m = /^\(?(-?\d+(?:\.\d+)?(?:\/\d+)?)\)?/.exec(s.slice(i));
+      // ^2 or ^(1/2); a ")" only belongs to the exponent if the exponent opened one: (kg·s^2) keeps its ")"
+      const m = /^(?:\((-?\d+(?:\.\d+)?(?:\/\d+)?)\)|(-?\d+(?:\.\d+)?(?:\/\d+)?))/.exec(s.slice(i));
       if (!m) throw new Error('Bad exponent');
       i += m[0].length;
-      const [a, b] = m[1].split('/');
+      const [a, b] = (m[1] ?? m[2]).split('/');
       const p = Number(a) / (b ? Number(b) : 1);
       return e.map((t) => ({ id: t.id, power: t.power * p }));
     }
