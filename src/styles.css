@@ -1676,11 +1676,17 @@ html.osk-open .app.with-toolbox {
   }
 }
 
-/* keep the keyboard's text glyphs (⌫ ↵) centred in their keys */
-.ML__keyboard .dim-backspace,
-.ML__keyboard .dim-return {
+/* keep every action key's glyph (⇧ ← → ⌫ ↵) centred in its key (MathLive aligns some to the bottom) */
+.ML__keyboard .MLK__layer .action,
+.ML__keyboard .MLK__layer .shift {
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+.ML__keyboard .MLK__layer .action svg,
+.ML__keyboard .MLK__layer .shift svg {
+  display: block;
+  margin: auto;
 }
