@@ -37,7 +37,7 @@ function example(insert: string): string {
 describe('toolbox keys', () => {
   const keys = GROUPS.flatMap((g) => g.keys.map((k) => ({ ...k, group: g.label })));
   it('has keys in every group', () => {
-    for (const g of GROUPS) expect(g.keys.length).toBeGreaterThan(0);
+    for (const g of GROUPS) if (!g.browser) expect(g.keys.length).toBeGreaterThan(0);
   });
   for (const k of keys) {
     it(`${k.group}: ${k.label} → ${k.insert}`, () => {

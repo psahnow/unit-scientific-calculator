@@ -1,4 +1,14 @@
 // Function toolbox keys (DESIGN.md §3.5). Plain data, so tests can check every key evaluates.
+import { CONSTANTS } from '../engine/units/constants.data';
+import { toNumber } from '../engine/num';
+
+/** Constants as keys: symbol with its subscript, value and unit in the tooltip (D35). */
+const CONST_KEYS: Key[] = CONSTANTS.map((c) => {
+  const [base, sub] = c.key.split('_');
+  const v = toNumber(c.value);
+  const shown = Math.abs(v) >= 1e5 || Math.abs(v) < 1e-3 ? v.toExponential(6).replace(/\.?0+e/, 'e') : String(Number(v.toPrecision(10)));
+  return { label: base, sub, insert: `\\const{${c.latex}}`, title: `${c.name}: ${shown} ${c.unit.replace(/\*/g, '·')}` };
+});
 const LOWER: [string, string, string][] = [
   ['α', 'alpha', 'alpha'], ['β', 'beta', 'beta'], ['γ', 'gamma', 'gamma (shear strain)'], ['δ', 'delta', 'delta (deflection)'],
   ['ε', 'varepsilon', 'epsilon (strain)'], ['ϵ', 'epsilon', 'lunate epsilon'], ['ζ', 'zeta', 'zeta (damping ratio)'], ['η', 'eta', 'eta (efficiency)'],
@@ -18,6 +28,8 @@ const GREEK_KEYS: Key[] = [...LOWER, ...UPPER].map(([label, cmd, title]) => ({ l
 
 export interface Key {
   label: string;
+  /** Subscript shown after the label (k_B → k with a small B). */
+  sub?: string;
   /** LaTeX inserted at the caret; #0 is where the caret lands, #? are further placeholders. */
   insert: string;
   title: string;
@@ -27,7 +39,7 @@ export interface Key {
 const fn = (name: string, cmd = `\\operatorname{${name}}`) => `${cmd}\\left(#0\\right)`;
 const fn2 = (name: string, cmd = `\\operatorname{${name}}`) => `${cmd}\\left(#0,#?\\right)`;
 
-export const GROUPS: { id: string; label: string; keys: Key[] }[] = [
+export const GROUPS: { id: string; label: string; keys: Key[]; browser?: 'units' }[] = [
   {
     id: 'trig',
     label: 'Trig',
@@ -149,4 +161,7 @@ export const GROUPS: { id: string; label: string; keys: Key[] }[] = [
       ...GREEK_KEYS,
     ],
   },
+  { id: 'constants', label: 'Constants', keys: CONST_KEYS },
+  // the Units tab is a searchable list of every unit, drawn by the Toolbox (D35)
+  { id: 'units', label: 'Units', keys: [], browser: 'units' },
 ];

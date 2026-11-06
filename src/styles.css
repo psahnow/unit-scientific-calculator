@@ -1248,3 +1248,74 @@ body {
   max-height: 200px;
   overflow: auto;
 }
+
+/* toolbox: constants subscripts and the units browser (D35) */
+.tb-key sub {
+  font-size: 0.65em;
+  margin-left: 1px;
+}
+.tb-units {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 12px 10px;
+  gap: 6px;
+}
+.tb-units-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+}
+.tb-units-bar .unit-search {
+  margin: 0;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+.tb-units-all {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.muted {
+  color: var(--fg-muted);
+}
+.tb-units-list {
+  overflow-y: auto;
+  max-height: 32vh;
+}
+.tb-unit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 4px 6px;
+}
+.tb-unit {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.tb-unit .sym {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--unit);
+}
+.tb-unit .nm {
+  color: var(--fg-muted);
+}
+.tb-unit:hover {
+  border-color: var(--accent);
+}
+.tb-unit.off {
+  opacity: 0.55;
+  border-style: dashed;
+}
+.tb-units-empty {
+  padding: 10px 4px;
+}

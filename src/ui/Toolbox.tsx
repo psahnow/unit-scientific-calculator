@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { insertIntoMath } from './MathInput';
 import { useStore } from '../state/store';
 import { GROUPS } from './toolbox.data';
+import { UNITS } from '../engine/units/units.data';
+import { expandedUnits, getUnit } from '../engine/units/registry';
+import { isUnitOn, packagesOf, PACKAGE_BY_ID } from '../engine/units/packages';
+import { symbolToLatex } from '../engine/latex';
 
 export function ToolboxButton({ open, onToggle }: { open: boolean; onToggle(): void }) {
   return (
@@ -74,6 +78,9 @@ export function Toolbox({ onClose }: { onClose(): void }) {
           ✕
         </button>
       </div>
+      {group.browser === 'units' ? (
+        <UnitsBrowser insert={insert} />
+      ) : (
       <div className="tb-keys" role="tabpanel">
         {group.keys.map((k) => (
           <button
@@ -84,9 +91,71 @@ export function Toolbox({ onClose }: { onClose(): void }) {
             onClick={() => insert(k.insert)}
           >
             {k.label}
+            {k.sub && <sub>{k.sub}</sub>}
           </button>
         ))}
       </div>
+      )}
     </section>
+  );
+}
+
+/** Every unit, grouped by kind, with search; units from packages that are off are shown dimmed (D35). */
+function UnitsBrowser({ insert }: { insert(latex: string): void }) {
+  const [q, setQ] = useState('');
+  const [all, setAll] = useState(false);
+  useStore((st) => st.ws.settings.packages); // re-render when packages change
+  const lq = q.trim().toLowerCase();
+  const match = (u: (typeof UNITS)[number]) =>
+    !lq || u.id.toLowerCase().includes(lq) || u.name.toLowerCase().includes(lq) || u.aliases.some((a) => a.toLowerCase().includes(lq));
+  const groups = new Map<string, typeof UNITS>();
+  let hidden = 0;
+  // the catalogue (plus kg); when searching, also prefixed forms like mm, kN, MPa
+  const source = lq ? expandedUnits() : [getUnit('kg'), ...UNITS];
+  for (const u of source) {
+    if (!match(u)) continue;
+    if (!all && !isUnitOn(u)) {
+      hidden++;
+      continue;
+    }
+    if (!groups.has(u.category)) groups.set(u.category, []);
+    groups.get(u.category)!.push(u);
+  }
+  return (
+    <div className="tb-units" role="tabpanel">
+      <div className="tb-units-bar">
+        <input className="unit-search" placeholder="Search units: name or symbol (e.g. pascal, psi)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search units" />
+        <label className="tb-units-all">
+          <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show units from packages that are off
+          {!all && hidden > 0 && <span className="muted"> ({hidden} hidden)</span>}
+        </label>
+      </div>
+      <div className="tb-units-list">
+        {[...groups.entries()].map(([cat, us]) => (
+          <div key={cat} className="tb-unit-group">
+            <div className="unit-group-label">{cat}</div>
+            <div className="tb-unit-chips">
+              {us.map((u) => {
+                const on = isUnitOn(u);
+                const pk = packagesOf(u).map((id) => PACKAGE_BY_ID.get(id)?.name ?? id);
+                return (
+                  <button
+                    key={u.id}
+                    className={`tb-unit ${on ? '' : 'off'}`}
+                    title={`${u.name}${pk.length ? ` (${pk.join(' / ')}${on ? '' : ', off for this worksheet'})` : ''}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => insert(`\\unit{${symbolToLatex(u.id)}}`)}
+                  >
+                    <span className="sym">{u.id}</span>
+                    <span className="nm">{u.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {groups.size === 0 && <div className="muted tb-units-empty">No units match “{q}”.</div>}
+      </div>
+    </div>
   );
 }
