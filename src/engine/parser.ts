@@ -1,5 +1,6 @@
 // LaTeX (MathLive) → AST. Resolves letter runs into variables, units, constants (DESIGN.md §4).
 import type { Availability } from './units/packages';
+import { packagesOf, PACKAGE_BY_ID } from './units/packages';
 import { tokenize, type Tok } from './latex';
 import type { Node, ParsedRow, ChipFix, Cond, CmpOp } from './ast';
 import { isUnitOnly } from './ast';
@@ -367,7 +368,7 @@ class Parser {
     }
     if (t.t === 'num') {
       // ^23 without braces means ^2 then 3
-      if (t.v.length > 1) {
+      if (t.v.length > 1 && !/[eE]/.test(t.v)) {
         this.toks.splice(this.i, 1, { ...t, v: t.v[0] }, { ...t, v: t.v.slice(1) });
       }
       this.i++;
@@ -830,6 +831,14 @@ class Parser {
           const found = lookupUnit(segName);
           const u = found && (!this.ctx.units || this.ctx.units(found)) ? found : undefined;
           if (found && !u && !this.blocked.includes(found.id)) this.blocked.push(found.id);
+          // "2slug" with Mechanical off: say so instead of reading s·L·µg (D31)
+          // (a word whose letters each stand alone, like VA → V·A, may still be read letter by letter)
+          const lettersStandAlone = () =>
+            seg.every((r) => isVar(r.v) || (() => { const l = lookupUnit(r.v); return !!l && (!this.ctx.units || this.ctx.units(l)); })());
+          if (found && !u && i === 0 && j === run.length - 1 && seg.length > 1 && !allVars && !lettersStandAlone()) {
+            const pk = packagesOf(found).map((id) => PACKAGE_BY_ID.get(id)?.name ?? id);
+            throw Object.assign(new ParseError(`“${segName}” is a unit from ${pk.join(' / ')}, which is off for this worksheet`), { blocked: [...this.blocked] });
+          }
           const prevVal = prevIsValue || nodes.length > 0;
           if (u && (!allVars || (prevVal && seg.length > 1))) {
             nodes.push({ k: 'unit', id: u.id });

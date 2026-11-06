@@ -1,5 +1,5 @@
 // Smart simplify (DESIGN.md §5.4). Only the display unit changes; the SI magnitude never does.
-import { type Dim, dimEq, isDimless, dropAngle } from './dim';
+import { type Dim, dimEq, isDimless, dropAngle, dim } from './dim';
 import { type UnitExpr, getUnit, combine, unitDim, unitFactor, lookupUnit } from './units/registry';
 import { UNITS, SI_PREFIXES, type UnitDef } from './units/units.data';
 import { isExact, cmp } from './num';
@@ -78,6 +78,12 @@ export function simplify(input: UnitExpr, d: Dim): Simplified {
       const id = prefixedFor(target, e);
       if (id) e = [{ id, power: 1 }];
     }
+  }
+
+  // 4c. 1/ms, 1/s → kHz, Hz (D31). Only exactly time⁻¹ (rad/s and rpm keep their angle).
+  if (e.length === 1 && e[0].power === -1 && dimEq(getUnit(e[0].id).dim, dim({ T: 1 })) && dimEq(d, dim({ T: -1 }))) {
+    const hz = prefixedFor(getUnit('Hz'), e);
+    if (hz) e = [{ id: hz, power: 1 }];
   }
 
   // 6. Angles: arc length & tangential velocity drop the radian (rad·m → m, rad·m/s → m/s).

@@ -24,7 +24,13 @@ for (const u of UNITS) {
   if (!/^[a-zå]+$/.test(n) || n.length < 4) continue;
   for (const v of [n, n.replace(/metre$/, 'meter'), n.replace(/litre$/, 'liter')]) if (!nameMap.has(v)) nameMap.set(v, u);
 }
-for (const [k, id] of [['feet', 'ft'], ['inches', 'in'], ['inch', 'in'], ['foot', 'ft'], ['pounds', 'lbm'], ['pound', 'lbm'], ['hours', 'h'], ['hour', 'h'], ['minutes', 'min'], ['seconds', 's'], ['degrees', '°']] as const) {
+for (const [k, id] of [
+  ['feet', 'ft'], ['inches', 'in'], ['inch', 'in'], ['foot', 'ft'], ['pounds', 'lbm'], ['pound', 'lbm'], ['hours', 'h'], ['hour', 'h'],
+  ['minutes', 'min'], ['seconds', 's'], ['degrees', '°'], ['celsius', '°C'], ['centigrade', '°C'], ['fahrenheit', '°F'], ['rankine', '°R'],
+  ['gallon', 'gal'], ['gallons', 'gal'], ['atmosphere', 'atm'], ['atmospheres', 'atm'], ['horsepower', 'hp'], ['calorie', 'cal'],
+  ['calories', 'cal'], ['btu', 'BTU'], ['btus', 'BTU'], ['tons', 'ton'], ['days', 'd'], ['day', 'd'], ['weeks', 'wk'], ['week', 'wk'],
+  ['years', 'yr'], ['year', 'yr'], ['microns', 'µm'], ['micron', 'µm'], ['kips', 'kip'], ['thou', 'mil'],
+] as const) {
   const u = UNIT_BY_ID.get(id);
   if (u) nameMap.set(k, u);
 }

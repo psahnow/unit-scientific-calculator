@@ -1203,3 +1203,8 @@ body {
   color: var(--fg-muted);
   flex: none;
 }
+
+.row-notice.info {
+  background: var(--accent-soft);
+  color: var(--fg);
+}

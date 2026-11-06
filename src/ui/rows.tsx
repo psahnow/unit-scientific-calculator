@@ -20,6 +20,8 @@ export interface RowCtx {
   shadows?: boolean;
   /** A warning to show under the row (D24 scope hints). */
   notice?: string;
+  /** Information to show under the row (how something was read). */
+  info?: string;
   /** A unit chip on this row comes from packages that are off (D26). */
   packageHint?: { unit: string; packages: string[]; typed?: boolean };
 }
@@ -169,6 +171,11 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
               Turn on {PACKAGE_BY_ID.get(id)?.name ?? id}
             </button>
           ))}
+        </div>
+      )}
+      {ctx.info && !ctx.notice && (
+        <div className="row-notice info" role="note">
+          <span aria-hidden>ⓘ</span> {ctx.info}
         </div>
       )}
       {ctx.notice && (

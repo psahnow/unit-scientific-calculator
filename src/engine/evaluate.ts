@@ -154,12 +154,14 @@ export function evaluate(n: Node, env: Env): Value {
       if (!fd) throw new CalcError(`“${n.name}” isn't a function: define it like ${n.name}(x) = …`);
       if (fd.params.length !== n.args.length)
         throw new CalcError(`${n.name} expects ${fd.params.length} argument${fd.params.length === 1 ? '' : 's'}`);
-      if ((env.depth ?? 0) > 200) throw new CalcError('Too much recursion');
+      if ((env.depth ?? 0) > 200) throw new RecursionError(`“${n.name}” keeps calling itself and never stops: give it a case that doesn't call ${n.name}, e.g. with a piecewise { }`);
       const locals = new Map(env.locals ?? []);
       fd.params.forEach((p, i) => locals.set(p, evaluate(n.args[i], env)));
       try {
         return evaluate(fd.body, { ...(fd.env ?? env), locals, depth: (env.depth ?? 0) + 1 });
       } catch (e) {
+        // one "f: " prefix at most, and none on the self-call explanation
+        if (e instanceof RecursionError || (e instanceof CalcError && e.message.startsWith(`${n.name}: `))) throw e;
         if (e instanceof CalcError) throw new CalcError(`${n.name}: ${e.message}`);
         throw e;
       }
@@ -310,6 +312,8 @@ function condHolds(c: Cond, env: Env): boolean {
   }
   return true;
 }
+
+class RecursionError extends CalcError {}
 
 function absQ(x: Quantity): Quantity {
   if (x.tempKind === 'absolute') throw new CalcError("Can't take abs of an absolute temperature");

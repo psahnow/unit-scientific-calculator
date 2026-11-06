@@ -85,7 +85,10 @@ export function tokenize(src: string): Tok[] {
         // MathLive digit grouping "{,}" or "\," inside numbers
         if (src.startsWith('{,}', j) && /[0-9]/.test(src[j + 3] ?? '')) j += 3;
       }
-      toks.push({ t: 'num', v: src.slice(i, j).replace(/\{,\}/g, ''), s, e: j });
+      // E-notation: 6.02e23, 1.5E-3, 2e+5 (D31). A digit must follow, so 2e alone is still 2·e.
+      const ex = /^[eE][+\-−]?[0-9]+/.exec(src.slice(j));
+      if (ex && j > i) j += ex[0].length;
+      toks.push({ t: 'num', v: src.slice(i, j).replace(/\{,\}/g, '').replace('−', '-'), s, e: j });
       i = j;
       continue;
     }

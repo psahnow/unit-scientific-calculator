@@ -45,7 +45,7 @@ describe('package and scope explanations (findings 14, 17, 18)', () => {
   it('2Torr with Chemistry off says the unit is in a package that is off', () => {
     const res = run([{ id: 'x', type: 'expr', latex: '2Torr' }], []);
     const row = res.rows.get('x');
-    expect(row?.kind === 'error' && row.message).toBe('“Torr” is a unit from a package that is off for this worksheet');
+    expect(row?.kind === 'error' && row.message).toBe('“Torr” is a unit from Physics / Chemistry, which is off for this worksheet');
     expect(res.packageHints.get('x')).toMatchObject({ unit: 'Torr', typed: true });
   });
   it('an undefined name that exists only in another folder says so', () => {

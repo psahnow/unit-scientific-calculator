@@ -67,6 +67,8 @@ export interface WorksheetResult {
   shadows: Set<string>;
   /** Per-row warnings, e.g. a bare “F” read as farad because F is only defined in another folder. */
   notices: Map<string, string>;
+  /** Per-row information (not a problem), e.g. how an ambiguous unit was read. */
+  infos: Map<string, string>;
   /** Rows using a unit chip from a package that is off: the packages that would provide it. */
   packageHints: Map<string, { unit: string; packages: string[]; typed?: boolean }>;
 }
@@ -175,6 +177,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   //     probably a reference that can't see that folder: warn, and don't auto-chip it, so the
   //     reading stays open until the user picks the chip on purpose (D24).
   const notices = new Map<string, string>();
+  const infos = new Map<string, string>();
   const folderTitle = (id: string) => {
     const f = rowById.get(id);
     if (f?.type !== 'folder') return 'another folder';
@@ -187,6 +190,9 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   for (const r of rows) {
     const fixes = chips.get(r.id);
     if (r.type !== 'expr' || !fixes) continue;
+    // bare "lb" falls back to pound-mass (D20): say so on the row
+    if (fixes.some((c) => c.id === 'lbm' && (c.text === 'lb' || c.text === 'lbs')))
+      infos.set(r.id, '“lb” is read as pound-mass (lbm). For pound-force, use lbf.');
     const here = r.parent ?? null;
     const kept: ChipFix[] = [];
     for (const c of fixes) {
@@ -406,7 +412,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
-  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, packageHints };
+  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, infos, packageHints };
 }
 
 class CycleError extends CalcError {}

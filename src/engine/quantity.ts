@@ -118,9 +118,12 @@ export function neg(a: Quantity): Quantity {
   return { ...a, si: N.neg(a.si) };
 }
 
+/** %, ‰, ppm, µε are how a ratio is shown; in a product the value is already in the number (D31). */
+const noRatio = (u: UnitExpr) => u.filter((t) => getUnit(t.id).category !== 'Ratio');
+
 export function mul(a: Quantity, b: Quantity): Quantity {
   if (a.tempKind === 'absolute' || b.tempKind === 'absolute') throw new CalcError(ABS_TEMP_MSG('multiply'));
-  return finishProduct(N.mul(a.si, b.si), dimMul(a.dim, b.dim), a.unit.concat(b.unit));
+  return finishProduct(N.mul(a.si, b.si), dimMul(a.dim, b.dim), noRatio(a.unit).concat(noRatio(b.unit)));
 }
 
 export function div(a: Quantity, b: Quantity): Quantity {
@@ -128,7 +131,7 @@ export function div(a: Quantity, b: Quantity): Quantity {
   return finishProduct(
     N.div(a.si, b.si),
     dimDiv(a.dim, b.dim),
-    a.unit.concat(b.unit.map((t) => ({ id: t.id, power: -t.power }))),
+    noRatio(a.unit).concat(noRatio(b.unit).map((t) => ({ id: t.id, power: -t.power }))),
   );
 }
 
