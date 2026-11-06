@@ -3,7 +3,7 @@ import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContex
 import type { ChipFix, ParsedRow, Node } from './ast';
 import { isUnitOnly } from './ast';
 import * as N from './num';
-import { evaluate, type Value, type FuncDef, type Env, unifyList } from './evaluate';
+import { evaluate, type Value, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, type Quantity } from './quantity';
 import { parseUnitExpr, type UnitExpr } from './units/registry';
 import { dimEq, DIMLESS } from './dim';
@@ -27,7 +27,17 @@ export interface TableColumn {
 }
 
 export type Row =
-  | { id: string; type: 'expr'; latex: string; parent?: string; displayUnit?: string; displayMode?: DisplayMode; slider?: SliderConfig }
+  | {
+      id: string;
+      type: 'expr';
+      latex: string;
+      parent?: string;
+      displayUnit?: string;
+      displayMode?: DisplayMode;
+      slider?: SliderConfig;
+      /** 'folder': the definition is only visible inside its folder (D24). Default: global. */
+      scope?: 'folder';
+    }
   | { id: string; type: 'note'; text: string; parent?: string }
   | { id: string; type: 'folder'; title: string; collapsed?: boolean; parent?: undefined }
   | { id: string; type: 'table'; columns: TableColumn[]; parent?: string };
@@ -48,7 +58,12 @@ export interface WorksheetResult {
   rows: Map<string, RowResult>;
   columns: Map<string, ColumnResult>;
   chips: Map<string, ChipFix[]>;
+  /** Every name defined anywhere. */
   defined: Set<string>;
+  /** Names visible from a scope: a folder id, or null for top level. */
+  varsIn(scope: string | null): string[];
+  /** Folder-scoped definition rows that shadow a global of the same name. */
+  shadows: Set<string>;
 }
 
 export interface EvalSettings {
@@ -59,87 +74,144 @@ type DefSource =
   | { kind: 'row'; rowId: string }
   | { kind: 'col'; rowId: string; colId: string };
 
+type Scope = string | null;
+
+/** Definitions visible at one level: the global level, or one folder's local level. */
+interface Level {
+  vars: Map<string, DefSource[]>;
+  funcs: Map<string, string[]>;
+}
+
+const newLevel = (): Level => ({ vars: new Map(), funcs: new Map() });
+function push<T>(m: Map<string, T[]>, k: string, v: T) {
+  if (!m.has(k)) m.set(k, []);
+  m.get(k)!.push(v);
+}
+const srcKey = (s: DefSource) => (s.kind === 'row' ? s.rowId : s.rowId + '/' + s.colId);
+
+/** The folder a definition row is scoped to (D24), or null if it is global. */
+export function definitionScope(r: Row): Scope {
+  return r.type === 'expr' && r.scope === 'folder' && r.parent ? r.parent : null;
+}
+
 export function evaluateWorksheet(rows: Row[], settings: EvalSettings): WorksheetResult {
   const results = new Map<string, RowResult>();
   const colResults = new Map<string, ColumnResult>();
   const chips = new Map<string, ChipFix[]>();
+  const rowById = new Map(rows.map((r) => [r.id, r]));
+  /** Where a row's own expression is evaluated (lexical scope): its folder, if any. */
+  const scopeOf = (rowId: string): Scope => rowById.get(rowId)?.parent ?? null;
 
-  // 1. Collect definitions.
-  const varDefs = new Map<string, DefSource[]>();
-  const funcDefs = new Map<string, string[]>();
-  const add = (m: Map<string, unknown[]>, k: string, v: unknown) => {
-    if (!m.has(k)) m.set(k, []);
-    m.get(k)!.push(v);
+  // 1. Collect definitions into the global level or a folder's local level.
+  const global = newLevel();
+  const locals = new Map<string, Level>();
+  const levelFor = (scope: Scope) => {
+    if (scope === null) return global;
+    if (!locals.has(scope)) locals.set(scope, newLevel());
+    return locals.get(scope)!;
   };
   for (const r of rows) {
     if (r.type === 'expr') {
       const d = safePeek(r.latex);
-      if (d?.kind === 'var') add(varDefs, d.name, { kind: 'row', rowId: r.id });
-      if (d?.kind === 'func') add(funcDefs, d.name, r.id);
+      const lv = levelFor(definitionScope(r));
+      if (d?.kind === 'var') push<DefSource>(lv.vars, d.name, { kind: 'row', rowId: r.id });
+      if (d?.kind === 'func') push(lv.funcs, d.name, r.id);
     } else if (r.type === 'table') {
       for (const c of r.columns) {
         const name = columnName(c.header);
-        if (name) add(varDefs, name, { kind: 'col', rowId: r.id, colId: c.id });
+        if (name) push<DefSource>(global.vars, name, { kind: 'col', rowId: r.id, colId: c.id });
       }
     }
   }
-  const ctx: ParseContext = { vars: new Set(varDefs.keys()), funcs: new Set(funcDefs.keys()) };
-  const duplicate = (name: string) => (varDefs.get(name)?.length ?? 0) + (funcDefs.get(name)?.length ?? 0) > 1;
+  const duplicateIn = (lv: Level, name: string) => (lv.vars.get(name)?.length ?? 0) + (lv.funcs.get(name)?.length ?? 0) > 1;
+  const dupMessage = (lv: Level, name: string) => `“${name}” is defined more than once${lv === global ? '' : ' in this folder'}`;
+  /** The level that answers `name` when looked up from `scope`: the folder's own, else global. */
+  const levelOf = (scope: Scope, name: string): Level => {
+    const lv = scope !== null ? locals.get(scope) : undefined;
+    return lv && (lv.vars.has(name) || lv.funcs.has(name)) ? lv : global;
+  };
 
-  // 2. Parse.
+  const ctxCache = new Map<Scope, ParseContext>();
+  const ctxFor = (scope: Scope): ParseContext => {
+    let c = ctxCache.get(scope);
+    if (!c) {
+      const lv = scope !== null ? locals.get(scope) : undefined;
+      c = {
+        vars: new Set([...global.vars.keys(), ...(lv?.vars.keys() ?? [])]),
+        funcs: new Set([...global.funcs.keys(), ...(lv?.funcs.keys() ?? [])]),
+      };
+      ctxCache.set(scope, c);
+    }
+    return c;
+  };
+
+  // 2. Parse each row with the names visible from its folder.
   const parsed = new Map<string, ParsedRow | Error>();
   for (const r of rows) {
     if (r.type !== 'expr') continue;
     try {
-      const p = parseRow(r.latex, ctx);
+      const p = parseRow(r.latex, ctxFor(r.parent ?? null));
       parsed.set(r.id, p.row);
       if (p.chips.length) chips.set(r.id, p.chips);
     } catch (e) {
       parsed.set(r.id, e as Error);
     }
   }
-  const rowById = new Map(rows.map((r) => [r.id, r]));
 
-  // 3. Lazy evaluation with cycle detection.
+  // 3. Lazy evaluation with cycle detection, cached per definition.
   const varCache = new Map<string, Value | Error>();
-  const visiting: string[] = [];
+  const visiting: { key: string; name: string }[] = [];
 
-  const env: Env = {
-    angle: settings.angle,
-    getVar(name) {
-      const srcs = varDefs.get(name);
-      if (!srcs) return undefined;
-      if (duplicate(name)) throw new CalcError(`“${name}” is defined more than once`);
-      const cached = varCache.get(name);
-      if (cached instanceof Error) throw new CalcError(`depends on “${name}”, which has an error`);
-      if (cached) return cached;
-      if (visiting.includes(name)) {
-        const cycle = visiting.slice(visiting.indexOf(name)).concat(name).join(' → ');
-        throw new CycleError(`Circular definition: ${cycle}`);
-      }
-      visiting.push(name);
-      try {
-        const src = srcs[0];
-        const v = src.kind === 'row' ? evalRowValue(src.rowId) : evalColumn(src.rowId, src.colId);
-        varCache.set(name, v);
-        return v;
-      } catch (e) {
-        if (e instanceof CycleError) throw e;
-        varCache.set(name, e as Error);
-        throw e;
-      } finally {
-        visiting.pop();
-      }
-    },
-    getFunc(name) {
-      const ids = funcDefs.get(name);
-      if (!ids) return undefined;
-      if (duplicate(name)) throw new CalcError(`“${name}” is defined more than once`);
-      const p = parsed.get(ids[0]);
-      if (!p || p instanceof Error || p.kind !== 'fdef') throw new CalcError(`“${name}” has an error`);
-      return { params: p.params, body: p.expr } as FuncDef;
-    },
-  };
+  function valueOf(name: string, src: DefSource): Value {
+    const key = srcKey(src);
+    const cached = varCache.get(key);
+    if (cached instanceof Error) throw new CalcError(`depends on “${name}”, which has an error`);
+    if (cached) return cached;
+    const at = visiting.findIndex((v) => v.key === key);
+    if (at >= 0) {
+      const cycle = visiting.slice(at).map((v) => v.name).concat(name).join(' → ');
+      throw new CycleError(`Circular definition: ${cycle}`);
+    }
+    visiting.push({ key, name });
+    try {
+      const v = src.kind === 'row' ? evalRowValue(src.rowId) : evalColumn(src.rowId, src.colId);
+      varCache.set(key, v);
+      return v;
+    } catch (e) {
+      if (e instanceof CycleError) throw e;
+      varCache.set(key, e as Error);
+      throw e;
+    } finally {
+      visiting.pop();
+    }
+  }
+
+  const envCache = new Map<Scope, Env>();
+  function envFor(scope: Scope): Env {
+    const hit = envCache.get(scope);
+    if (hit) return hit;
+    const env: Env = {
+      angle: settings.angle,
+      getVar(name) {
+        const lv = levelOf(scope, name);
+        const srcs = lv.vars.get(name);
+        if (!srcs) return undefined;
+        if (duplicateIn(lv, name)) throw new CalcError(dupMessage(lv, name));
+        return valueOf(name, srcs[0]);
+      },
+      getFunc(name) {
+        const lv = levelOf(scope, name);
+        const ids = lv.funcs.get(name);
+        if (!ids) return undefined;
+        if (duplicateIn(lv, name)) throw new CalcError(dupMessage(lv, name));
+        const p = parsed.get(ids[0]);
+        if (!p || p instanceof Error || p.kind !== 'fdef') throw new CalcError(`“${name}” has an error`);
+        return { params: p.params, body: p.expr, env: envFor(scopeOf(ids[0])) };
+      },
+    };
+    envCache.set(scope, env);
+    return env;
+  }
 
   /** Evaluate an expr row's value with its display unit applied (what dependents inherit). */
   const rowValueCache = new Map<string, { value: Value; auto: UnitExpr; unitError?: string }>();
@@ -150,7 +222,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     const p = parsed.get(rowId)!;
     if (p instanceof Error) throw p;
     if (p.kind === 'empty' || p.kind === 'fdef') throw new CalcError('No value');
-    let value = evaluate(p.expr, env);
+    let value = evaluate(p.expr, envFor(scopeOf(rowId)));
     const auto = value.t === 'q' ? value.q.unit : (value.items[0]?.unit ?? []);
     let unitError: string | undefined;
     if (r.displayUnit) {
@@ -177,6 +249,9 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     const t = rowById.get(rowId) as Extract<Row, { type: 'table' }>;
     const c = t.columns.find((x) => x.id === colId)!;
     const unit = c.unit ? parseUnitExpr(c.unit) : undefined;
+    const scope = t.parent ?? null;
+    const env = envFor(scope);
+    const ctx = ctxFor(scope);
     let v: Value;
     if (isInputHeader(c.header)) {
       const items: Quantity[] = [];
@@ -199,6 +274,8 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   // 4. Produce per-row results.
+  const shadows = new Set<string>();
+  const isGlobalName = (name: string) => global.vars.has(name) || global.funcs.has(name);
   for (const r of rows) {
     if (r.type === 'expr') {
       const p = parsed.get(r.id)!;
@@ -210,14 +287,18 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         results.set(r.id, { kind: 'none' });
         continue;
       }
+      const own = levelFor(definitionScope(r));
       if (p.kind === 'fdef') {
-        results.set(r.id, duplicate(p.name) ? { kind: 'error', message: `“${p.name}” is defined more than once`, defName: p.name } : { kind: 'func', name: p.name });
+        if (own !== global && isGlobalName(p.name)) shadows.add(r.id);
+        results.set(r.id, duplicateIn(own, p.name) ? { kind: 'error', message: dupMessage(own, p.name), defName: p.name } : { kind: 'func', name: p.name });
         continue;
       }
       const defName = p.kind === 'def' ? p.name : undefined;
+      if (defName && own !== global && isGlobalName(defName)) shadows.add(r.id);
       try {
-        if (defName && duplicate(defName)) throw new CalcError(`“${defName}” is defined more than once`);
-        const full = defName ? (env.getVar(defName), evalRowFull(r.id)) : evalRowFull(r.id);
+        if (defName && duplicateIn(own, defName)) throw new CalcError(dupMessage(own, defName));
+        if (defName) valueOf(defName, { kind: 'row', rowId: r.id });
+        const full = evalRowFull(r.id);
         results.set(r.id, { kind: 'value', value: full.value, defName, unitError: full.unitError, autoUnit: full.auto, literal: !!defName && isLiteral(p.expr) });
       } catch (e) {
         results.set(r.id, { kind: 'error', message: friendly(e as Error), defName });
@@ -227,7 +308,8 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         const name = columnName(c.header);
         const isInput = isInputHeader(c.header);
         try {
-          const v = name ? env.getVar(name)! : evalColumn(r.id, c.id);
+          if (name && duplicateIn(global, name)) throw new CalcError(dupMessage(global, name));
+          const v = name ? valueOf(name, { kind: 'col', rowId: r.id, colId: c.id }) : evalColumn(r.id, c.id);
           colResults.set(c.id, { values: v.t === 'list' ? v.items : [v.q], isInput });
         } catch (e) {
           colResults.set(c.id, { error: friendly(e as Error), isInput });
@@ -236,7 +318,8 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     }
   }
 
-  return { rows: results, columns: colResults, chips, defined: ctx.vars };
+  const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
+  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows };
 }
 
 class CycleError extends CalcError {}

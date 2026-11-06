@@ -864,3 +864,40 @@ td.computed {
 .result .fden {
   padding: 0 0.15em;
 }
+
+/* variable scope switch (D24): always shown when folder-only, otherwise on hover/focus */
+.scope-btn {
+  flex: none;
+  margin-top: 9px;
+  margin-right: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.row:hover .scope-btn,
+.row.focused .scope-btn,
+.scope-btn:focus-visible,
+.scope-btn.local {
+  opacity: 1;
+}
+.scope-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+.scope-btn.local {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (max-width: 640px) {
+  .scope-btn {
+    opacity: 1;
+  }
+}

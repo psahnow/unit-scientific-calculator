@@ -13,6 +13,8 @@ export type Value = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] };
 export interface FuncDef {
   params: string[];
   body: Node;
+  /** Scope the function was defined in; its body looks names up there (lexical scoping). */
+  env?: Env;
 }
 
 export interface Env {
@@ -155,7 +157,7 @@ export function evaluate(n: Node, env: Env): Value {
       const locals = new Map(env.locals ?? []);
       fd.params.forEach((p, i) => locals.set(p, evaluate(n.args[i], env)));
       try {
-        return evaluate(fd.body, { ...env, locals, depth: (env.depth ?? 0) + 1 });
+        return evaluate(fd.body, { ...(fd.env ?? env), locals, depth: (env.depth ?? 0) + 1 });
       } catch (e) {
         if (e instanceof CalcError) throw new CalcError(`${n.name}: ${e.message}`);
         throw e;

@@ -50,6 +50,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D21 | Defined variable vs. unit symbol after a number | **The variable wins**: with `F` defined, `2F` is 2×F, not 2 farads. Chips, and runs that aren't defined variables (`6N`), still mean the unit. A run of several letters made only of defined variables (`Pa` with `P` and `a` defined) means the unit after a number |
 | D22 | Where results appear | **On their own line below the input**, right-aligned and typeset like printed math, so the sheet reads like a scientific worksheet. Every row with a value gets the result box, plain typed values included (`L = 1.5 m` → `= 1.5 m`), for consistency. A row counts as a plain typed value (and can become a slider) only when it is a number (optionally ×10ⁿ) with units |
 | D23 | `MPa·mm²` and similar products of named units | **Collapse to the named unit** (`N`), prefixed to keep the value. Stresses (`N/mm²`), torque (`N·m`) and `kW·h` stay as written |
+| D24 | Variable scope | Global by default; a **per-row global/folder switch** limits a definition to its folder. Folder definitions win inside their folder and may shadow globals; lookups are lexical |
 
 ---
 
@@ -91,7 +92,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 |---|---|
 | **Expression** | Either a definition (`X = 6 N`, `f(x) = …`) or a bare expression (`F/A`). Shows a result with a unit dropdown unless it defines a function. |
 | **Note** | Plain text, started with `"` as in Desmos. |
-| **Folder** | Collapsible, nestable one level (as in Desmos). Rows can be dragged in and out. A folder doesn't change scope: every name is global to the worksheet. |
+| **Folder** | Collapsible, nestable one level (as in Desmos). Rows can be dragged in and out. Names are global by default; a definition row inside a folder has a **global / folder** switch that limits it to that folder (D24). |
 | **Slider** | Any `name = number unit` definition can be turned into a slider. Min, max and step take units, in the same dimension as the value. Dragging rewrites the number in the source. |
 | **Table** | Columns have a header cell (a variable such as `x₁`, or an expression such as `y₁ = f(x₁)`) and a column unit dropdown. Typed cells are numbers in the column's unit. Computed columns evaluate row by row. Each column behaves as a list variable. |
 
@@ -238,7 +239,13 @@ Each rule is a separate, unit-tested pass in `simplify.ts`. Weights and tie-brea
 - `rad` counts as dimensionless where physics needs it (`ω·r` where ω in rad/s → m/s). This is done by letting `A` (angle) exponents cancel to 0 when the result is shown in a non-angle unit. Strict mismatches (`30° + 2 m`) are still errors.
 
 ### 5.7 Variables, functions, dependency graph
-- All names are global to the worksheet (folders only organise rows). Redefining a name already in use is an error on both rows, as in Desmos.
+- **Scope (D24).** Names are global by default. A variable or function defined inside a folder can be switched to **folder** scope with the pill on its row (`◎ global` / `▣ folder`; the folder pill stays visible). Then:
+  - Rows inside that folder (expressions and tables) see the folder's own definition first, then globals. So folder A can have `F = 3 N` and folder B `F = 5 N`, and each folder's `2F` uses its own.
+  - A folder definition may shadow a global of the same name; only that folder is affected, and the pill's tooltip says it overrides the global.
+  - Rows outside the folder can't see it. A bare `F` there falls back to its normal meaning: a global `F`, or the farad (D17).
+  - Lookups are lexical: a row is always computed in the folder it sits in, even when it defines a global (`G = 2F` inside A uses A's `F` everywhere `G` is used). Functions also look names up where they were defined.
+  - Redefining a name at the same level is still an error on both rows: two globals, or two folder definitions in the same folder. A folder-scoped row moved out of its folder becomes global again. Table columns are always global.
+- Redefining a global name already in use is an error on both rows, as in Desmos.
 - Names: one letter, optionally Greek, with an optional subscript (`σ_max`, `F_1`, `L_beam`). Multi-letter identifiers are allowed through a subscript. Bare multi-letter runs are read as unit, function, or implicit multiplication, as in Desmos.
 - **Reserved:** unit symbols *as chips* are never identifiers, so `m` can be both a variable and (as a chip) the metre unit. Constants and built-in function names are reserved.
 - **Dependency graph:** each row's free identifiers become edges. A change re-evaluates the affected rows in topological order. Cycles are flagged on every row in the cycle.

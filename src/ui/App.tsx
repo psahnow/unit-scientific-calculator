@@ -11,7 +11,14 @@ export function App() {
   const { rows, settings } = s.ws;
   const result = useMemo(() => evaluateWorksheet(rows, { angle: settings.angle }), [rows, settings.angle]);
   const fmt: FormatOptions = { sigFigs: settings.sigFigs, notation: settings.notation, sciAbove: settings.sciAbove, mode: settings.exactDefault ? 'auto' : 'decimal' };
-  const vars = useMemo(() => [...result.defined], [result]);
+  // names visible from each folder (folder-scoped definitions only count inside their folder)
+  const varsFor = useMemo(() => {
+    const cache = new Map<string | null, string[]>();
+    return (scope: string | null) => {
+      if (!cache.has(scope)) cache.set(scope, result.varsIn(scope));
+      return cache.get(scope)!;
+    };
+  }, [result]);
 
   // theme
   useEffect(() => {
@@ -113,11 +120,11 @@ export function App() {
                 </span>
               </div>
               {row.type === 'expr' && (
-                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars, number: n }} />
+                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id) }} />
               )}
               {row.type === 'note' && <NoteRow row={row} />}
               {row.type === 'folder' && <FolderRow row={row} count={childCount} />}
-              {row.type === 'table' && <TableRow row={row} cols={result.columns} fmt={fmt} vars={vars} />}
+              {row.type === 'table' && <TableRow row={row} cols={result.columns} fmt={fmt} vars={varsFor(row.parent ?? null)} />}
             </div>
           );
         })}

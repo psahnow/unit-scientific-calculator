@@ -15,6 +15,8 @@ export interface RowCtx {
   fmt: FormatOptions;
   vars: string[];
   number: number;
+  /** This folder-scoped definition hides a global of the same name inside its folder. */
+  shadows?: boolean;
 }
 
 type ExprRow = Extract<Row, { type: 'expr' }>;
@@ -104,6 +106,24 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
     </div>
   );
 
+  const defName = r?.kind === 'value' || r?.kind === 'error' ? r.defName : r?.kind === 'func' ? r.name : undefined;
+  const local = row.scope === 'folder';
+  const scopeBtn =
+    row.parent && defName ? (
+      <button
+        className={`scope-btn ${local ? 'local' : ''}`}
+        title={
+          local
+            ? `“${defName}” is only defined inside this folder${ctx.shadows ? ' (it overrides the global one here)' : ''}. Click to make it global.`
+            : `“${defName}” is global. Click to limit it to this folder, so other folders can define their own.`
+        }
+        aria-pressed={local}
+        onClick={() => s.updateRow(row.id, { scope: local ? undefined : 'folder' })}
+      >
+        {local ? '▣ folder' : '◎ global'}
+      </button>
+    ) : null;
+
   return (
     <div className={`row-body col ${row.slider ? 'has-slider' : ''}`}>
       <div className="row-top">
@@ -123,6 +143,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
             onBlur={onBlur}
           />
         </div>
+        {scopeBtn}
         {actions}
       </div>
       {resultEl && <div className="row-result">{resultEl}</div>}
