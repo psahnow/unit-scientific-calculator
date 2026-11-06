@@ -17,6 +17,8 @@ function example(insert: string): string {
   let l = insert.replace('#0', first).replace(/#\?/g, '2');
   if (l.startsWith('^') || l === '!') l = '3' + l; // postfix keys act on the value before the caret
   if (l.includes(r`\degree`)) l = '30' + l;
+  // a Greek letter is a name: check it can be defined and used
+  if (/^\\[A-Za-z]+$/.test(l) && !['\\pi'].includes(l)) l = `${l}=2`;
   return l;
 }
 

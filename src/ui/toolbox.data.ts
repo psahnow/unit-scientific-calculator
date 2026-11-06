@@ -1,4 +1,21 @@
 // Function toolbox keys (DESIGN.md §3.5). Plain data, so tests can check every key evaluates.
+const LOWER: [string, string, string][] = [
+  ['α', 'alpha', 'alpha'], ['β', 'beta', 'beta'], ['γ', 'gamma', 'gamma (shear strain)'], ['δ', 'delta', 'delta (deflection)'],
+  ['ε', 'varepsilon', 'epsilon (strain)'], ['ϵ', 'epsilon', 'lunate epsilon'], ['ζ', 'zeta', 'zeta (damping ratio)'], ['η', 'eta', 'eta (efficiency)'],
+  ['θ', 'theta', 'theta (angle)'], ['ϑ', 'vartheta', 'script theta'], ['ι', 'iota', 'iota'], ['κ', 'kappa', 'kappa'],
+  ['λ', 'lambda', 'lambda (wavelength)'], ['μ', 'mu', 'mu (friction, viscosity)'], ['ν', 'nu', "nu (Poisson's ratio)"], ['ξ', 'xi', 'xi'],
+  ['π', 'pi', 'pi (the constant 3.14159…)'], ['ρ', 'rho', 'rho (density)'], ['σ', 'sigma', 'sigma (stress)'], ['τ', 'tau', 'tau (shear stress, torque)'],
+  ['υ', 'upsilon', 'upsilon'], ['ϕ', 'phi', 'phi'], ['φ', 'varphi', 'curly phi'], ['χ', 'chi', 'chi'],
+  ['ψ', 'psi', 'psi'], ['ω', 'omega', 'omega (angular velocity)'],
+];
+const UPPER: [string, string, string][] = [
+  ['Γ', 'Gamma', 'capital gamma. Γ( ) is the gamma function'], ['Δ', 'Delta', 'capital delta (change)'], ['Θ', 'Theta', 'capital theta'],
+  ['Λ', 'Lambda', 'capital lambda'], ['Ξ', 'Xi', 'capital xi'], ['Π', 'Pi', 'capital pi'], ['Σ', 'Sigma', 'capital sigma'],
+  ['Υ', 'Upsilon', 'capital upsilon'], ['Φ', 'Phi', 'capital phi (flux)'], ['Ψ', 'Psi', 'capital psi'],
+  ['Ω', 'Omega', 'capital omega. On its own after a number it means the ohm unit'],
+];
+const GREEK_KEYS: Key[] = [...LOWER, ...UPPER].map(([label, cmd, title]) => ({ label, insert: `\\${cmd}`, title: `Greek ${title}` }));
+
 export interface Key {
   label: string;
   /** LaTeX inserted at the caret; #0 is where the caret lands, #? are further placeholders. */
@@ -103,5 +120,11 @@ export const GROUPS: { id: string; label: string; keys: Key[] }[] = [
       { label: '[ , ]', insert: '\\left[#0\\right]', title: 'List' },
     ],
   },
+  {
+    id: 'greek',
+    label: 'Greek',
+    keys: [
+      ...GREEK_KEYS,
+    ],
+  },
 ];
-

@@ -122,6 +122,7 @@ The **ƒ(x) Functions** button in the toolbar opens a keypad drawer docked to th
 - **Rounding:** |x|, round, floor, ceil, sign, mod, gcd, lcm.
 - **Special:** Γ(x), x!, nCr, nPr, erf, erfc.
 - **Statistics:** mean, median, stdev, var, sum, count, min, max, list brackets.
+- **Greek:** all lower-case letters (with ε/ϵ, θ/ϑ, ϕ/φ variants) and the capitals that differ from Latin (Γ Δ Θ Λ Ξ Π Σ Υ Φ Ψ Ω), each with a tooltip on its usual engineering meaning.
 
 A key inserts at the caret of the expression being edited (the last one focused) and puts the caret in the first argument; clicking a key doesn't take focus away. With no expression edited yet, it starts a new row at the end. Each key's tooltip says what it does. Γ(n) and nCr/nPr/gcd/lcm are exact for whole numbers; `Γ(…)` typed directly is the gamma function unless `Γ` is a user variable.
 
