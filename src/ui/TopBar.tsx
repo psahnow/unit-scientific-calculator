@@ -94,10 +94,10 @@ export function TopBar() {
       </span>
       <input className="title-input" value={s.ws.title} onChange={(e) => s.setTitle(e.target.value)} aria-label="Worksheet title" />
       <div className="spacer" />
-      <button className="icon-btn" title="Undo (Ctrl+Z)" disabled={!s.past.length} onClick={s.undo}>
+      <button className="icon-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!s.past.length} onClick={s.undo}>
         ↶
       </button>
-      <button className="icon-btn" title="Redo (Ctrl+Shift+Z)" disabled={!s.future.length} onClick={s.redo}>
+      <button className="icon-btn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled={!s.future.length} onClick={s.redo}>
         ↷
       </button>
       <div className="seg" role="group" aria-label="Angle mode">
@@ -117,7 +117,7 @@ export function TopBar() {
         >
           {s.theme === 'dark' ? '☀' : '☾'}
         </button>
-        <button className="icon-btn" title="Settings" onClick={() => settings.setOpen(!settings.open)}>
+        <button className="icon-btn" title="Settings" aria-label="Settings" onClick={() => settings.setOpen(!settings.open)}>
           ⚙
         </button>
         {settings.open && (

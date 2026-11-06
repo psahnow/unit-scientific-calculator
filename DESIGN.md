@@ -57,6 +57,14 @@
 | D28 | Error wording | **Plain language about the screen**, never LaTeX tokens; empty leftover power/subscript boxes are ignored |
 | D29 | Fixes from manual testing | Spelled-out unit names work as bare letters (`5 newton`, `3 metres`, `2 kilonewtons`, `4 feet`). A unit typed from a package that is off says so (with a turn-on link) instead of "T isn't defined"; a name only defined in another folder says which folder. Exponents keep digits (`10^23`). A table input column of plain numbers accepts any unit (it says what the numbers mean). |
 | D30 | Name and look | **Dimensional**, styled as an engineering notebook: paper, ink, a pencil margin rule, boxed answers; light first with a graphite dark option |
+| D31 | Pre-release engine fixes | E-notation (`6.02e23`, `1.5E-3`) is a number; a whole word that is an off-package unit says so (no `2slug` = s·L·µg); self-calling functions explain once; %/‰/ppm/µε drop out of products (`20 %·50 = 10`); more spelled-out names (celsius, gallons…); 1/time shows as Hz; a bare `lb` says it was read as lbm |
+| D32 | Stability | Crash boundaries (one row, or the whole app with a recovery screen and export); light/dark is a per-browser preference; import checks and repairs every field; a banner warns when the browser can't save; exports are `.dimensional.json` (old `.usc.json` still import) |
+| D33 | Solve, ans, copy | `solve(lhs = rhs, x[, guess | lo, hi])` by Brent's method, skipping poles; the unknown's units come from the guess, its current value or the equation (`solve(F/A = 250 MPa, A)` → an area). `ans` = the answer of the nearest row above. Each result has a copy button |
+| D34 | Custom units and table paste | ⚙ Custom units: `symbol = number unit` (bag = 25 kg), usable everywhere, may build on each other. Pasting a tab/comma/semicolon block into a table fills input columns across and down |
+| D35 | Toolbox: Constants and Units | Constants tab (value and unit in each tooltip); Units tab: searchable list of every unit by kind, package units shown dimmed when off; clicking inserts a chip |
+| D36 | Print / PDF | ☰ → Print / save as PDF: white paper, heading with title and date, boxed answers, no controls or empty rows, rows kept whole |
+| D37 | Usability | Quick fix "+ Add q =" on undefined names; focusing a definition highlights its uses; ✎ renames a definition everywhere it means that definition; Alt+↑/↓ move rows, Ctrl+. Functions, Ctrl+/ shortcuts panel; first-run welcome; DEG-mode notes; on-screen maths keyboard on touch devices |
+| D38 | Release engineering | Deferred recalculation keeps typing responsive on big sheets; MathLive in its own lazily loaded chunk (main bundle 122 kB gzipped); IBM Plex self-hosted; installable offline web app (manifest, icons, service worker with a build-stamped precache); share image; Playwright browser tests in Edge |
 
 ---
 
@@ -486,6 +494,7 @@ The undo stack is per worksheet and holds whole-row snapshots. It covers text ed
 ---
 
 ## 11. Testing strategy
+- **Browser tests (Playwright, `npm run test:e2e`, D38):** typing with chips and live results, `*` → `·` and multi-digit exponents, unit dropdown search and conversion, toolbox insertion, drag-and-drop keeping chips, undo/redo, export → import round-trip, no sideways scroll at 375 px.
 - **Engine tests (Vitest)**, a table of `input → expected value + display unit`:
   - `6 N / 2 mm²` → `3 N/mm²`; dropdown → MPa `3`; → psi `435.113…`
   - `2 m + 30 mm` → `2.03 m`; `30 mm + 2 m` → `2030 mm`

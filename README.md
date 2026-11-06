@@ -8,7 +8,9 @@
 npm install
 npm run dev        # http://localhost:5173
 npm test           # engine unit tests (Vitest)
-npm run build      # type-check + production build into dist/
+npm run test:e2e   # browser tests (Playwright, uses the installed Microsoft Edge; PW_CHANNEL=chrome for Chrome)
+npm run build      # type-check + production build into dist/ (also writes the offline precache list)
+npm run preview    # serve the production build, e.g. to try offline mode
 ```
 
 ## Deploy to Cloudflare Pages

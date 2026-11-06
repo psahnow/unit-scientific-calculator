@@ -116,7 +116,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       {fracAvail && (
         <button
           className="icon-btn"
-          title="Toggle fraction / decimal"
+          title="Toggle fraction / decimal" aria-label="Toggle fraction or decimal"
           onClick={() => s.updateRow(row.id, { displayMode: mode === 'fraction' ? 'decimal' : mode === 'decimal' ? 'fraction' : ctx.fmt.mode === 'auto' && /\//.test(formatQuantity(q!, fmt).value) ? 'decimal' : 'fraction' })}
         >
           a/b
@@ -126,6 +126,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         <button
           className={`icon-btn ${row.slider ? 'on' : ''}`}
           title={row.slider ? 'Remove slider' : 'Make slider'}
+          aria-label={row.slider ? 'Remove slider' : 'Make slider'}
           onClick={() => {
             if (row.slider) s.updateRow(row.id, { slider: undefined });
             else {
@@ -355,10 +356,10 @@ export function RowMenu({ id }: { id: string }) {
   const s = useStore();
   return (
     <>
-      <button className="icon-btn" title="Duplicate" onClick={() => s.duplicateRow(id)}>
+      <button className="icon-btn" title="Duplicate" aria-label="Duplicate row" onClick={() => s.duplicateRow(id)}>
         ⧉
       </button>
-      <button className="icon-btn danger" title="Delete" onClick={() => s.deleteRow(id)}>
+      <button className="icon-btn danger" title="Delete" aria-label="Delete row" onClick={() => s.deleteRow(id)}>
         ✕
       </button>
     </>
@@ -431,7 +432,7 @@ export function FolderRow({ row, count }: { row: Extract<Row, { type: 'folder' }
         {row.collapsed && <span className="folder-count">{count} item{count === 1 ? '' : 's'}</span>}
       </div>
       <div className="row-actions">
-        <button className="icon-btn" title="Add expression in folder" onClick={() => s.addRow('expr', row.id, { parent: row.id })}>
+        <button className="icon-btn" title="Add expression in folder" aria-label="Add expression in folder" onClick={() => s.addRow('expr', row.id, { parent: row.id })}>
           +
         </button>
         <RowMenu id={row.id} />
