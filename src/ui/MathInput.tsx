@@ -132,6 +132,20 @@ export function MathInput(p: Props) {
           return;
         }
       }
+      if (e.key === 'Escape') {
+        // MathLive would otherwise enter raw-LaTeX mode, which is confusing here
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (e.key === '*' && !e.ctrlKey && !e.metaKey) {
+        // typeset multiplication as a centred dot, never an asterisk
+        e.preventDefault();
+        e.stopPropagation();
+        mf.executeCommand(['insert', '\\cdot', { format: 'latex' }]);
+        props.current.onChange(mf.getValue('latex'));
+        return;
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();

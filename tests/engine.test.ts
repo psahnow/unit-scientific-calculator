@@ -166,3 +166,21 @@ describe('unit parsing', () => {
     }
   });
 });
+
+describe('literal rows', () => {
+  const literal = (latex: string) => {
+    const r = run([latex]).rows.get('r0');
+    return r?.kind === 'value' && r.literal;
+  };
+  it('plain typed values are literal', () => {
+    expect(literal(String.raw`X=6\unit{N}`)).toBe(true);
+    expect(literal('X=-2.5')).toBe(true);
+    expect(literal(String.raw`X=3\cdot10^5\unit{MPa}`)).toBe(true);
+    expect(literal(String.raw`X=2\unit{mm}^2`)).toBe(true);
+  });
+  it('computed values are not', () => {
+    expect(literal(String.raw`X=3\cdot10^5\unit{MPa}/7`)).toBe(false);
+    expect(literal('X=2+3')).toBe(false);
+    expect(literal(String.raw`X=\sqrt{2}`)).toBe(false);
+  });
+});

@@ -48,6 +48,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D19 | Default significant figures | 10, trailing zeros trimmed |
 | D20 | Typing `lb` | Always opens the autocomplete prompt (lbm or lbf), even after a number. If you don't pick (e.g. focus leaves the row), it falls back to lbm (D14) |
 | D21 | Defined variable vs. unit symbol after a number | **The variable wins**: with `F` defined, `2F` is 2×F, not 2 farads. Chips, and runs that aren't defined variables (`6N`), still mean the unit. A run of several letters made only of defined variables (`Pa` with `P` and `a` defined) means the unit after a number |
+| D22 | Where results appear | **On their own line below the input**, right-aligned and typeset like printed math, so the sheet reads like a scientific worksheet. A row counts as a plain typed value only when it is a number (optionally ×10ⁿ) with units; `3·10⁵ MPa/7` is computed and gets a result line |
 
 ---
 
@@ -78,7 +79,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-- **One full-width expression list.** It is the Desmos graphing calculator's left panel with the graph taken away. The window is wide, so the result sits right-aligned on the same row as its input (as in Desmos scientific). On narrow windows (< 640 px) the result wraps onto its own line below the input.
+- **One full-width expression list.** It is the Desmos graphing calculator's left panel with the graph taken away. Each computed result sits on its own line below its input, right-aligned in a tinted display box, at every window width (D22). A plain typed value (`L = 1.5 m`) shows only its unit chip at the end of the input line. Results are typeset: serif digits, `×10⁻³⁴` exponents as superscripts, exact fractions stacked, units upright.
 - **Row gutter:** row number, a drag handle (on hover), and an icon for the row type. A row with an error shows ⚠ in the gutter.
 - **Row hover actions:** duplicate, delete, "move to folder", and "set display unit…".
 - **Top bar:** worksheet title, undo/redo, RAD/DEG toggle, settings (⚙), export, import. ☰ opens a worksheet list (several worksheets in localStorage).

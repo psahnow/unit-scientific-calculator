@@ -1,7 +1,7 @@
 :root {
   --bg: #ffffff;
   --bg-soft: #f6f7f9;
-  --bg-gutter: #f1f3f5;
+  --bg-gutter: #f4f6f9;
   --fg: #1f2328;
   --fg-muted: #6b7280;
   --border: #e3e6ea;
@@ -16,6 +16,10 @@
   --focus: #2f72dc;
   --shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
   --radius: 8px;
+  --result-bg: #f3f6fa;
+  --result-border: #dfe5ed;
+  --serif: KaTeX_Main, 'Latin Modern Roman', 'Cambria Math', Cambria, 'Times New Roman', serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, Menlo, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -35,6 +39,8 @@
     --error: #ff8f5c;
     --error-soft: #3a2218;
     --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    --result-bg: #1b2027;
+    --result-border: #2b323c;
     color-scheme: dark;
   }
 }
@@ -54,6 +60,8 @@
   --error: #ff8f5c;
   --error-soft: #3a2218;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  --result-bg: #1b2027;
+  --result-border: #2b323c;
   color-scheme: dark;
 }
 
@@ -102,8 +110,9 @@ textarea {
   border: 1px solid transparent;
   border-radius: 6px;
   padding: 4px 8px;
-  font-size: 17px;
-  font-weight: 600;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 400;
   min-width: 120px;
   flex: 0 1 320px;
   background: transparent;
@@ -168,6 +177,8 @@ textarea {
   overflow: hidden;
 }
 .seg button {
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
   border: none;
   background: transparent;
   padding: 3px 9px;
@@ -314,7 +325,8 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 6px;
+  padding-top: 12px;
+  font-family: var(--mono);
   font-size: 11px;
   color: var(--fg-muted);
   user-select: none;
@@ -348,7 +360,7 @@ textarea {
 }
 .row-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
 }
 .row-line {
@@ -361,6 +373,7 @@ textarea {
 .row-actions {
   display: flex;
   align-items: center;
+  padding-top: 8px;
   gap: 2px;
   opacity: 0;
   transition: opacity 0.1s;
@@ -452,36 +465,83 @@ math-field::part(menu-toggle) {
   border-radius: 0 !important;
 }
 
-/* result */
+/* result: its own line below the input, right-aligned like a calculator display */
+.row-result {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 8px 24px;
+  min-width: 0;
+}
 .result {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  font-size: 18px;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--serif);
+  font-size: 21px;
   white-space: nowrap;
   max-width: 100%;
+  min-width: 0;
+}
+.row-result .result:not(.error) {
+  background: var(--result-bg);
+  border: 1px solid var(--result-border);
+  border-radius: 6px;
+  padding: 3px 6px 3px 12px;
 }
 .result .eq {
   color: var(--fg-muted);
 }
 .result .val {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+.result .sci .times {
+  margin: 0 0.15em;
+}
+.result .sci sup {
+  font-size: 0.68em;
+  vertical-align: 0.55em;
+  line-height: 0;
+}
+.result.literal {
+  margin-left: auto;
 }
 .result.error {
   color: var(--error);
   background: var(--error-soft);
+  font-family: inherit;
   font-size: 13px;
   padding: 3px 8px;
   border-radius: 6px;
   white-space: normal;
-  max-width: 420px;
+  max-width: 520px;
 }
 .result .warn {
   color: var(--error);
   font-size: 14px;
+}
+/* units in the result read as typeset upright units, with a quiet dropdown cue */
+.result .unit-chip {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 400;
+  background: transparent;
+  border-radius: 4px;
+  padding: 0 4px;
+  color: var(--unit);
+}
+.result .unit-chip:hover {
+  border-color: var(--unit);
+  background: var(--unit-soft);
+}
+.result .unit-chip.muted {
+  border-color: transparent;
+  color: var(--fg-muted);
+}
+.result .unit-chip.muted:hover {
+  border-color: var(--border-strong);
 }
 
 .unit-wrap {
@@ -758,7 +818,8 @@ td.computed {
   color: var(--accent);
 }
 .footer {
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
   color: var(--fg-muted);
   padding: 10px 16px;
   border-top: 1px solid var(--border);
@@ -768,9 +829,8 @@ td.computed {
   .row-line {
     flex-wrap: wrap;
   }
-  .result {
-    flex-basis: 100%;
-    justify-content: flex-end;
+  .row-result {
+    padding-left: 0;
   }
   .row-actions {
     opacity: 1;
@@ -781,4 +841,27 @@ td.computed {
   .gutter {
     width: 32px;
   }
+}
+
+/* table values match the typeset results */
+.cell,
+td.computed {
+  font-family: var(--serif);
+  font-size: 16px;
+}
+.result .frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  font-size: 0.82em;
+  line-height: 1.1;
+  margin: 0 0.1em;
+}
+.result .fnum {
+  border-bottom: 1px solid currentColor;
+  padding: 0 0.15em;
+}
+.result .fden {
+  padding: 0 0.15em;
 }

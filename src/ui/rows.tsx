@@ -68,7 +68,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       resultEl = (
         <div className="result">
           <span className="eq">=</span>
-          <span className="val">{val}</span>
+          <span className="val">{typesetNumber(val)}</span>
           {unitText || r.value.t === 'list' || row.displayUnit ? unitBtn : <UnitButton {...{ q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
           {r.unitError && <span className="warn" title={r.unitError}>⚠</span>}
         </div>
@@ -76,10 +76,42 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
     }
   }
 
+  const literalChip = r?.kind === 'value' && r.literal && !row.displayUnit;
+  const actions = (
+    <div className="row-actions">
+      {fracAvail && (
+        <button
+          className="icon-btn"
+          title="Toggle fraction / decimal"
+          onClick={() => s.updateRow(row.id, { displayMode: mode === 'fraction' ? 'decimal' : mode === 'decimal' ? 'fraction' : ctx.fmt.mode === 'auto' && /\//.test(formatQuantity(q!, fmt).value) ? 'decimal' : 'fraction' })}
+        >
+          a/b
+        </button>
+      )}
+      {r?.kind === 'value' && r.literal && sliderMatch && (
+        <button
+          className={`icon-btn ${row.slider ? 'on' : ''}`}
+          title={row.slider ? 'Remove slider' : 'Make slider'}
+          onClick={() => {
+            if (row.slider) s.updateRow(row.id, { slider: undefined });
+            else {
+              const v = Number(sliderMatch[2]);
+              const max = v === 0 ? 10 : Math.abs(v) * 2;
+              s.updateRow(row.id, { slider: { min: v < 0 ? String(-max) : '0', max: String(max), step: String(niceStep(max)) } });
+            }
+          }}
+        >
+          ⟷
+        </button>
+      )}
+      <RowMenu id={row.id} />
+    </div>
+  );
+
   return (
     <div className={`row-body col ${row.slider ? 'has-slider' : ''}`}>
       <div className="row-top">
-      <div className="row-line">
+        <div className="row-line">
           <MathInput
             latex={row.latex}
             vars={ctx.vars}
@@ -94,41 +126,42 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
             onFocus={() => s.setFocus(row.id)}
             onBlur={onBlur}
           />
-        {resultEl}
+          {literalChip && resultEl}
+        </div>
+        {actions}
       </div>
-      <div className="row-actions">
-        {fracAvail && (
-          <button
-            className="icon-btn"
-            title="Toggle fraction / decimal"
-            onClick={() => s.updateRow(row.id, { displayMode: mode === 'fraction' ? 'decimal' : mode === 'decimal' ? 'fraction' : ctx.fmt.mode === 'auto' && /\//.test(formatQuantity(q!, fmt).value) ? 'decimal' : 'fraction' })}
-          >
-            a/b
-          </button>
-        )}
-        {r?.kind === 'value' && r.literal && sliderMatch && (
-          <button
-            className={`icon-btn ${row.slider ? 'on' : ''}`}
-            title={row.slider ? 'Remove slider' : 'Make slider'}
-            onClick={() => {
-              if (row.slider) s.updateRow(row.id, { slider: undefined });
-              else {
-                const v = Number(sliderMatch[2]);
-                const max = v === 0 ? 10 : Math.abs(v) * 2;
-                s.updateRow(row.id, { slider: { min: v < 0 ? String(-max) : '0', max: String(max), step: String(niceStep(max)) } });
-              }
-            }}
-          >
-            ⟷
-          </button>
-        )}
-        <RowMenu id={row.id} />
-      </div>
-      </div>
+      {!literalChip && resultEl && <div className="row-result">{resultEl}</div>}
       {row.slider && sliderMatch && (
         <Slider row={row} match={sliderMatch} unit={r?.kind === 'value' ? formatUnit(r.autoUnit) : ''} />
       )}
     </div>
+  );
+}
+
+const SUP: Record<string, string> = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '−' };
+
+/** "1.5×10⁻³" → 1.5 × 10<sup>−3</sup>, with a true minus sign. */
+export function typesetNumber(text: string): ReactNode {
+  const frac = /^(-?)(\d+)\/(\d+)$/.exec(text);
+  if (frac)
+    return (
+      <>
+        {frac[1] && '−'}
+        <span className="frac">
+          <span className="fnum">{frac[2]}</span>
+          <span className="fden">{frac[3]}</span>
+        </span>
+      </>
+    );
+  const parts = text.replace(/-/g, '−').split(/(×10[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+)/);
+  return parts.map((p, i) =>
+    p.startsWith('×10') ? (
+      <span key={i} className="sci">
+        <span className="times">×</span>10<sup>{[...p.slice(3)].map((c) => SUP[c] ?? c).join('')}</sup>
+      </span>
+    ) : (
+      p
+    ),
   );
 }
 

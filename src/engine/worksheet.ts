@@ -1,7 +1,8 @@
 // Whole-worksheet evaluation: definitions, dependency resolution, display units, inheritance.
 import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContext } from './parser';
 import type { ChipFix, ParsedRow, Node } from './ast';
-import { collectRefs } from './ast';
+import { isUnitOnly } from './ast';
+import * as N from './num';
 import { evaluate, type Value, type FuncDef, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, type Quantity } from './quantity';
 import { parseUnitExpr, type UnitExpr } from './units/registry';
@@ -217,7 +218,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       try {
         if (defName && duplicate(defName)) throw new CalcError(`“${defName}” is defined more than once`);
         const full = defName ? (env.getVar(defName), evalRowFull(r.id)) : evalRowFull(r.id);
-        results.set(r.id, { kind: 'value', value: full.value, defName, unitError: full.unitError, autoUnit: full.auto, literal: !!defName && collectRefs(p.expr).size === 0 && !hasCall(p.expr) });
+        results.set(r.id, { kind: 'value', value: full.value, defName, unitError: full.unitError, autoUnit: full.auto, literal: !!defName && isLiteral(p.expr) });
       } catch (e) {
         results.set(r.id, { kind: 'error', message: friendly(e as Error), defName });
       }
@@ -288,11 +289,22 @@ function cellToLatex(cell: string): string {
   return cell.replace(/\*/g, '\\cdot ').replace(/−/g, '-');
 }
 
-function hasCall(n: Node): boolean {
-  if (n.k === 'call') return true;
-  return Object.values(n).some((v) =>
-    Array.isArray(v) ? v.some((x) => x && typeof x === 'object' && 'k' in x && hasCall(x)) : v && typeof v === 'object' && 'k' in v && hasCall(v as Node),
-  );
+/** A plain typed value: 6, −2.5, 3·10⁵, 6 N, 2 mm², [1, 2, 3] — nothing actually computed. */
+export function isLiteral(n: Node): boolean {
+  const number = (x: Node): boolean => {
+    if (x.k === 'num') return true;
+    if (x.k === 'neg') return number(x.a);
+    if (x.k === 'bin' && x.op === '*') return number(x.a) && isPow10(x.b);
+    return isPow10(x);
+  };
+  const isPow10 = (x: Node): boolean =>
+    x.k === 'bin' && x.op === '^' && x.a.k === 'num' && N.cmp(x.a.v, N.exact(10n)) === 0 && (x.b.k === 'num' || (x.b.k === 'neg' && x.b.a.k === 'num'));
+  if (n.k === 'list') return n.items.every(isLiteral);
+  if (n.k === 'neg') return isLiteral(n.a);
+  if (n.k === 'qty') return number(n.v) && isUnitOnly(n.u);
+  // 3·(10⁵ MPa): the unit binds to the power of ten
+  if (n.k === 'bin' && n.op === '*' && number(n.a) && n.b.k === 'qty') return isPow10(n.b.v) && isUnitOnly(n.b.u);
+  return number(n);
 }
 
 /** Apply chip fixes (bare unit letters → \unit{…}) to a row's LaTeX. */
