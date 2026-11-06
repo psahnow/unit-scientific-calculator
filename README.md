@@ -1,6 +1,6 @@
 # Dimensional
 
-*Every number knows its units.* Dimensional is a unit-aware engineering calculator in the browser, laid out like an engineering notebook: an expression list with folders, variables, functions, sliders, tables and notes (no graphing). Planned home: `calculator.perrysahnow.com`. The design spec is in [DESIGN.md](DESIGN.md).
+*Every number knows its units.* Dimensional is a unit-aware engineering calculator in the browser, laid out like an engineering notebook: an expression list with folders, variables, functions, sliders, tables and notes (no graphing). Lives at <https://dimensional.perrysahnow.com>. The design spec is in [DESIGN.md](DESIGN.md).
 
 ## Develop
 

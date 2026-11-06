@@ -1,6 +1,6 @@
 # Dimensional — Design Spec (v0.1)
 
-**Dimensional** (*every number knows its units*) is a web-based, unit-aware engineering calculator, styled as an engineering notebook (§3.6). Planned home: `calculator.perrysahnow.com`. The UI takes the expression list from the Desmos graphing calculator (folders, named variables, functions, sliders, tables, notes) and the result-per-line feel of the Desmos scientific calculator. There is no graphing. Every quantity carries units, every value has a unit dropdown, and unit handling happens behind the scenes: **the number shown always matches the unit shown next to it.**
+**Dimensional** (*every number knows its units*) is a web-based, unit-aware engineering calculator, styled as an engineering notebook (§3.6). Lives at <https://dimensional.perrysahnow.com>. The UI takes the expression list from the Desmos graphing calculator (folders, named variables, functions, sliders, tables, notes) and the result-per-line feel of the Desmos scientific calculator. There is no graphing. Every quantity carries units, every value has a unit dropdown, and unit handling happens behind the scenes: **the number shown always matches the unit shown next to it.**
 
 ---
 
