@@ -5,7 +5,7 @@ import { isUnitOnly } from './ast';
 import * as N from './num';
 import { evaluate, type Value, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, type Quantity } from './quantity';
-import { parseUnitExpr, type UnitExpr } from './units/registry';
+import { parseUnitExpr, getUnit, type UnitExpr } from './units/registry';
 import { dimEq, DIMLESS } from './dim';
 import { symbolToLatex } from './latex';
 import { CONST_BY_KEY } from './units/constants.data';
@@ -64,6 +64,8 @@ export interface WorksheetResult {
   varsIn(scope: string | null): string[];
   /** Folder-scoped definition rows that shadow a global of the same name. */
   shadows: Set<string>;
+  /** Per-row warnings, e.g. a bare “F” read as farad because F is only defined in another folder. */
+  notices: Map<string, string>;
 }
 
 export interface EvalSettings {
@@ -156,6 +158,37 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     } catch (e) {
       parsed.set(r.id, e as Error);
     }
+  }
+
+  // 2b. A bare letter run read as a unit/constant that is also a folder-only name elsewhere is
+  //     probably a reference that can't see that folder: warn, and don't auto-chip it, so the
+  //     reading stays open until the user picks the chip on purpose (D24).
+  const notices = new Map<string, string>();
+  const folderTitle = (id: string) => {
+    const f = rowById.get(id);
+    return f?.type === 'folder' ? f.title || 'Untitled folder' : 'another folder';
+  };
+  for (const r of rows) {
+    const fixes = chips.get(r.id);
+    if (r.type !== 'expr' || !fixes) continue;
+    const here = r.parent ?? null;
+    const kept: ChipFix[] = [];
+    for (const c of fixes) {
+      const homes = c.text ? [...locals.entries()].filter(([fid, lv]) => fid !== here && lv.vars.has(c.text!)).map(([fid]) => fid) : [];
+      if (!homes.length) {
+        kept.push(c);
+        continue;
+      }
+      const meaning = c.kind === 'unit' ? `the unit ${getUnit(c.id).name} (${c.id})` : `the constant ${c.text}`;
+      const where = homes.map((h) => `“${folderTitle(h)}”`).join(', ');
+      notices.set(
+        r.id,
+        `“${c.text}” here means ${meaning}. The variable ${c.text} is only defined inside ${where}. ` +
+          `Make it global, move this row into that folder, or pick the ${c.kind} from autocomplete if you meant it.`,
+      );
+    }
+    if (kept.length) chips.set(r.id, kept);
+    else chips.delete(r.id);
   }
 
   // 3. Lazy evaluation with cycle detection, cached per definition.
@@ -319,7 +352,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
-  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows };
+  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices };
 }
 
 class CycleError extends CalcError {}

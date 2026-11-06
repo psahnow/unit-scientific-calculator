@@ -76,4 +76,23 @@ describe('folder scope (D24)', () => {
     const rows = [expr(r`F=3`, { scope: 'folder' }), use];
     expect(show(rows, use.id)).toBe('6');
   });
+
+  it('warns when a bare unit outside the folder matches a folder-only name, and does not auto-chip it', () => {
+    const out = expr(r`\sigma=\frac{F}{A}`);
+    const rows = [folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), expr(r`A=2\unit{mm}^2`), out];
+    const res = evaluateWorksheet(rows, { angle: 'rad' });
+    expect(res.notices.get(out.id)).toMatch(/“F” here means the unit farad \(F\)\. The variable F is only defined inside “A”/);
+    expect(res.chips.get(out.id)).toBeUndefined();
+  });
+
+  it('no warning inside the folder, for explicit chips, or when the name is also global', () => {
+    const inside = expr(r`2F`, { parent: 'A' });
+    const chip = expr(r`2\unit{F}`);
+    const rows = [folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), inside, chip];
+    const res = evaluateWorksheet(rows, { angle: 'rad' });
+    expect(res.notices.size).toBe(0);
+    const top = expr(r`2F`);
+    const withGlobal = [expr(r`F=1\unit{N}`), folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), top];
+    expect(evaluateWorksheet(withGlobal, { angle: 'rad' }).notices.size).toBe(0);
+  });
 });

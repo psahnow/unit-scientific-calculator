@@ -34,6 +34,8 @@ export interface ChipFix {
   e: number;
   kind: 'unit' | 'const';
   id: string;
+  /** The letters as typed (e.g. "F"), for matching against variable names. */
+  text?: string;
 }
 
 export function isUnitOnly(n: Node): boolean {

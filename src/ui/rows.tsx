@@ -17,6 +17,8 @@ export interface RowCtx {
   number: number;
   /** This folder-scoped definition hides a global of the same name inside its folder. */
   shadows?: boolean;
+  /** A warning to show under the row (D24 scope hints). */
+  notice?: string;
 }
 
 type ExprRow = Extract<Row, { type: 'expr' }>;
@@ -147,6 +149,11 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         {actions}
       </div>
       {resultEl && <div className="row-result">{resultEl}</div>}
+      {ctx.notice && (
+        <div className="row-notice" role="note">
+          <span aria-hidden>⚠</span> {ctx.notice}
+        </div>
+      )}
       {row.slider && sliderMatch && (
         <Slider row={row} match={sliderMatch} unit={r?.kind === 'value' ? formatUnit(r.autoUnit) : ''} />
       )}

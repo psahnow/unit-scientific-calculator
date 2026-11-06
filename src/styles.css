@@ -17,6 +17,8 @@
   --shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
   --radius: 8px;
   --result-bg: #f3f6fa;
+  --warn: #8a5a00;
+  --warn-soft: #fff6dc;
   --result-border: #dfe5ed;
   --serif: KaTeX_Main, 'Latin Modern Roman', 'Cambria Math', Cambria, 'Times New Roman', serif;
   --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, Menlo, monospace;
@@ -40,6 +42,10 @@
     --error-soft: #3a2218;
     --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
     --result-bg: #1b2027;
+  --warn: #f2c35b;
+  --warn-soft: #332a14;
+    --warn: #f2c35b;
+    --warn-soft: #332a14;
     --result-border: #2b323c;
     color-scheme: dark;
   }
@@ -900,4 +906,16 @@ td.computed {
   .scope-btn {
     opacity: 1;
   }
+}
+
+.row-notice {
+  align-self: flex-end;
+  max-width: 560px;
+  margin: -2px 0 8px 24px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12.5px;
+  line-height: 1.4;
 }

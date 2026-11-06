@@ -479,8 +479,8 @@ class Parser {
 
     const isVar = (n: string) => this.ctx.vars.has(n) || this.ctx.funcs.has(n);
     const fixable = run.every((r) => r.s >= 0);
-    const chip = (a: number, b: number, kind: 'unit' | 'const', id: string) => {
-      if (fixable) this.chips.push({ s: run[a].s, e: run[b].e, kind, id });
+    const chip = (a: number, b: number, kind: 'unit' | 'const', id: string, text: string) => {
+      if (fixable) this.chips.push({ s: run[a].s, e: run[b].e, kind, id, text });
     };
 
     // Segment greedily: longest unit match not fully made of defined variables.
@@ -502,11 +502,11 @@ class Parser {
           const prevVal = prevIsValue || nodes.length > 0;
           if (u && (!allVars || (prevVal && seg.length > 1))) {
             nodes.push({ k: 'unit', id: u.id });
-            chip(i, j, 'unit', u.id);
+            chip(i, j, 'unit', u.id, segName);
             matched = true;
           } else if (CONST_BY_KEY.has(segName) && !isVar(segName) && (seg.length === 1 || seg[seg.length - 1].sub !== undefined) && seg.length <= 2) {
             nodes.push({ k: 'const', key: segName });
-            chip(i, j, 'const', segName);
+            chip(i, j, 'const', segName, segName);
             matched = true;
           }
         }

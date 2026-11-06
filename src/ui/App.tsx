@@ -120,7 +120,7 @@ export function App() {
                 </span>
               </div>
               {row.type === 'expr' && (
-                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id) }} />
+                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), notice: result.notices.get(row.id) }} />
               )}
               {row.type === 'note' && <NoteRow row={row} />}
               {row.type === 'folder' && <FolderRow row={row} count={childCount} />}

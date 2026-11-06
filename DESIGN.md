@@ -243,6 +243,7 @@ Each rule is a separate, unit-tested pass in `simplify.ts`. Weights and tie-brea
   - Rows inside that folder (expressions and tables) see the folder's own definition first, then globals. So folder A can have `F = 3 N` and folder B `F = 5 N`, and each folder's `2F` uses its own.
   - A folder definition may shadow a global of the same name; only that folder is affected, and the pill's tooltip says it overrides the global.
   - Rows outside the folder can't see it. A bare `F` there falls back to its normal meaning: a global `F`, or the farad (D17).
+  - When that fallback is a unit or constant (`F` → farad), the row shows a warning naming the folder that defines `F`, and the bare letters are **not** auto-chipped, so the reading stays open. Picking the chip from autocomplete means the unit on purpose and clears the warning.
   - Lookups are lexical: a row is always computed in the folder it sits in, even when it defines a global (`G = 2F` inside A uses A's `F` everywhere `G` is used). Functions also look names up where they were defined.
   - Redefining a name at the same level is still an error on both rows: two globals, or two folder definitions in the same folder. A folder-scoped row moved out of its folder becomes global again. Table columns are always global.
 - Redefining a global name already in use is an error on both rows, as in Desmos.
