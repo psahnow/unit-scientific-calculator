@@ -8,6 +8,7 @@ import { type Quantity, CalcError, scalar, describe } from './quantity';
 import { dim, dimEq, dimDiv, dimPow, isDimlessLoose, isAngle, DIMLESS, type Dim } from './dim';
 import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, combine, parseUnitExpr, formatUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
+import { diff, antiderivative, div as divNode, type Need } from './symbolic';
 
 export type Value = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] };
 
@@ -253,7 +254,55 @@ function evalIntegral(n: CalcNode<'integral'>, env: Env): Quantity {
   const sample = s.at(mid);
   const value = numeric(() => integrate(s.num, a, b), 'Integral');
   const unitOf = Q.mul({ ...sample, si: N.ONE, tempKind: undefined }, { si: N.ONE, dim: like.dim, unit: like.unit });
+  // exact answer from an antiderivative when there is one (D44); the numeric value checks it
+  if (Number.isFinite(a) && Number.isFinite(b)) {
+    const sym = attempt(() => {
+      const ctx = { v: n.v, deg: env.angle === 'deg', constValue: (c: Node) => scalarOf(c, env) };
+      const { F, needs } = antiderivative(n.body, ctx);
+      const at = (x: Quantity) => bind(env, n.v, { si: x.si, dim: like.dim, unit: like.unit });
+      if (!needs.every((nd) => holds(nd, [at(lo), at(hi)]))) return null;
+      const Fa = asQ(evaluate(F, at(lo)));
+      const Fb = asQ(evaluate(F, at(hi)));
+      const scaleF = Math.max(Math.abs(N.toNumber(Fa.si)), Math.abs(N.toNumber(Fb.si)));
+      return agree(Q.sub(Fb, Fa), unitOf, value, Math.max(1e-7 * Math.abs(value), 1e-9 * scaleF));
+    });
+    if (sym) return sym;
+  }
   return withSi(unitOf, value);
+}
+
+/** Run a symbolic attempt; any failure means "use the numeric answer". */
+function attempt(fn: () => Quantity | null): Quantity | null {
+  try {
+    return fn();
+  } catch {
+    return null;
+  }
+}
+
+/** The exact value of a plain-number node that doesn't involve the variable, if it has one. */
+function scalarOf(c: Node, env: Env): N.Num | null {
+  const v = evaluate(c, env);
+  return v.t === 'q' && Q.isScalar(v.q) ? v.q.si : null;
+}
+
+/** Whether a linear expression keeps the sign an antiderivative needs, at both ends. */
+function holds(nd: Need, ends: Env[]): boolean {
+  const [x, y] = ends.map((e) => N.toNumber(asQ(evaluate(nd.L, e)).si));
+  if (nd.kind === 'pos') return x > 0 && y > 0;
+  if (nd.kind === 'nonneg') return x >= 0 && y >= 0;
+  return x * y > 0;
+}
+
+/**
+ * A symbolic result is used only when it has the expected dimension and agrees with the numeric
+ * one; it then keeps its exact value (1/3, not 0.3333333333) in the numeric result's units.
+ */
+function agree(sym: Quantity, unitOf: Quantity, numericValue: number, tol: number): Quantity | null {
+  if (!dimEq(sym.dim, unitOf.dim)) return null;
+  const x = N.toNumber(sym.si);
+  if (!Number.isFinite(x) || !(Math.abs(x - numericValue) <= tol)) return null;
+  return { si: sym.si, dim: unitOf.dim, unit: unitOf.unit };
 }
 
 function evalDerivative(n: CalcNode<'deriv'>, env: Env): Quantity {
@@ -267,7 +316,17 @@ function evalDerivative(n: CalcNode<'deriv'>, env: Env): Quantity {
   let unitOf: Quantity = { ...sample, si: N.ONE, tempKind: undefined };
   const per = { si: N.ONE, dim: x0.dim, unit: x0.unit };
   for (let k = 0; k < n.order; k++) unitOf = Q.div(unitOf, per);
-  return withSi(unitOf, value);
+  // exact derivative by the rules of differentiation when they cover the expression (D44)
+  const sym = attempt(() => {
+    const ctx = { v: n.v, deg: env.angle === 'deg' };
+    let d: Node | null = n.body;
+    for (let k = 0; k < n.order && d; k++) d = diff(d, ctx);
+    const q: Quantity = d ? asQ(evaluate(d, bind(env, n.v, x0))) : { si: N.ZERO, dim: unitOf.dim, unit: unitOf.unit };
+    const x = Math.max(Math.abs(N.toNumber(x0.si)), unitScale(x0));
+    const S = Math.max(Math.abs(value), Math.abs(N.toNumber(sample.si)) / Math.pow(x, n.order));
+    return agree(q, unitOf, value, (n.order === 1 ? 1e-6 : 1e-5) * S);
+  });
+  return sym ?? withSi(unitOf, value);
 }
 
 function evalLimit(n: CalcNode<'limit'>, env: Env): Quantity {
@@ -278,7 +337,34 @@ function evalLimit(n: CalcNode<'limit'>, env: Env): Quantity {
   const probe = Number.isFinite(a) ? a + (n.dir === '-' ? -1 : 1) * 0.01 * Math.max(Math.abs(a), scale) : a > 0 ? 1e3 * scale : -1e3 * scale;
   const sample = s.at(probe);
   const value = numeric(() => limit(s.num, a, scale, n.dir), 'Limit');
-  return withSi({ ...sample, tempKind: undefined }, value);
+  const unitOf = { ...sample, tempKind: undefined };
+  // exact value by substitution, or by l'Hôpital's rule for 0/0 (D44); the numeric limit checks it
+  if (Number.isFinite(a) && Number.isFinite(value)) {
+    const sym = attempt(() => {
+      const q = substituteLimit(n.body, bind(env, n.v, to), { v: n.v, deg: env.angle === 'deg' }, 0);
+      return q && agree(q, unitOf, value, 1e-6 * Math.max(Math.abs(value), Math.abs(N.toNumber(sample.si))));
+    });
+    if (sym) return sym;
+  }
+  return withSi(unitOf, value);
+}
+
+/** The body's value at the limit point, applying l'Hôpital's rule (up to 4 times) to 0/0. */
+function substituteLimit(body: Node, at: Env, ctx: { v: string; deg: boolean }, depth: number): Quantity | null {
+  try {
+    const q = asQ(evaluate(body, at));
+    if (Number.isFinite(N.toNumber(q.si))) return q;
+  } catch {
+    /* not defined at the point: try l'Hôpital */
+  }
+  if (depth >= 4 || body.k !== 'bin' || body.op !== '/') return null;
+  const top = asQ(evaluate(body.a, at));
+  const bottom = asQ(evaluate(body.b, at));
+  if (N.toNumber(top.si) !== 0 || N.toNumber(bottom.si) !== 0) return null;
+  const da = diff(body.a, ctx);
+  const db = diff(body.b, ctx);
+  if (!da || !db) return null;
+  return substituteLimit(divNode(da, db), at, ctx, depth + 1);
 }
 
 function evalSeries(n: CalcNode<'series'>, env: Env): Quantity {

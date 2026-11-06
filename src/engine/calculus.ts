@@ -89,28 +89,26 @@ function integrateInfinite(f: Fn, a: number, b: number, fa: boolean, fb: boolean
 // ── Differentiation: Ridders' extrapolation of central differences ──
 export function derivative(f: Fn, x: number, scale: number, order: 1 | 2 = 1): number {
   const { value, ref } = derivativeEstimate(f, x, scale, order);
-  // Ridders' own error estimate is often 0, so it can't be trusted. Over 20 000 random smooth
-  // functions the error stayed below 2×10⁻¹⁰ (first) and 1×10⁻⁹ (second derivative) of the
-  // function's scale; show only digits inside 5–10× that (D43).
+  // Ridders' own error estimate is often 0, so it can't be trusted. Over 30 000 random smooth
+  // functions (polynomials, sin in radians and degrees, exp) the error stayed below 1×10⁻¹¹
+  // (first) and 7×10⁻¹⁰ (second derivative) of the function's scale; show only digits inside
+  // 1×10⁻⁹ and 1×10⁻⁸ of it. Only used when the symbolic derivative doesn't apply (D43, D44).
   const scaleOf = Math.max(Math.abs(value), ref);
   return roundToError(snapTo(value, ref), (order === 1 ? 1e-9 : 1e-8) * scaleOf);
 }
 
 /** The derivative with Ridders' own error estimate (absolute), before any rounding. */
 export function derivativeEstimate(f: Fn, x: number, scale: number, order: 1 | 2 = 1): { value: number; err: number; ref: number } {
-  // Ridders' tableau from several starting steps; keep the estimate with the smallest error. A
-  // single large first step (5% of |x|) can stop early on a wrong value for oscillating functions
-  // far from 0, e.g. d/dx sin(x) at x = 97 (D43).
+  // Ridders' tableau from five starting steps; take the median. One start can stop on a wrong
+  // value while reporting a tiny error (d/dx sin(x) at x = 97; sin of degrees at 30), so neither the
+  // first step nor the smallest reported error can be trusted alone (D43, D44). The second
+  // difference divides by h², so its starts stay larger.
   const base = 0.05 * Math.max(Math.abs(x), scale);
-  let best = { ans: NaN, err: Infinity, a00: NaN };
-  // smaller first steps help the first derivative of oscillating functions; the second difference
-  // divides by h², so its rounding error grows too fast to start small
-  for (const h0 of order === 1 ? [base, base / 32, base / 1024, base / 32768] : [base, base / 3, base / 9]) {
-    const r = ridders(f, x, h0, order);
-    if (r.err < best.err || Number.isNaN(best.ans)) best = r;
-  }
+  const starts = order === 1 ? [base, base / 8, base / 64, base / 512, base / 4096] : [base * 2, base * 1.4, base, base / 1.4, base / 2];
+  const runs = starts.map((h0) => ridders(f, x, h0, order)).sort((p, q) => p.ans - q.ans);
+  const best = runs[2];
   const ref = Math.max(Math.abs(best.a00), Math.abs(f(x)) / Math.pow(Math.max(Math.abs(x), scale), order));
-  return { value: best.ans, err: best.err, ref };
+  return { value: best.ans, err: Math.abs(runs[3].ans - runs[1].ans), ref };
 }
 
 function ridders(f: Fn, x: number, h: number, order: 1 | 2): { ans: number; err: number; a00: number } {

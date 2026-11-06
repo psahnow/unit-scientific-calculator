@@ -3,9 +3,10 @@
 Status as of 6 November 2026. ✅ = done and verified · ⬜ = your action · ❓ = decision for you (at the end).
 
 ## Correctness
-- ✅ 476 engine tests pass (`npm test`), including the independent-oracle correctness suite (D43): every unit, prefix and constant against NIST SP 811 / CODATA 2022, plus thousands of random conversions, unit arithmetic, functions, calculus and formatting cases. Deeper runs at 3,000 cases × 4 seeds pass.
+- ✅ 480 engine tests pass (`npm test`), including the independent-oracle correctness suite (D43): every unit, prefix and constant against NIST SP 811 / CODATA 2022, plus thousands of random conversions, unit arithmetic, functions, calculus and formatting cases. Deeper runs at 3,000 cases × 4 seeds pass.
 - ✅ The suite catches planted bugs: a wrong unit factor, an extra displayed digit, a wrong trig identity, a perturbed Γ coefficient, an over-eager snap.
 - ✅ Bugs it found are fixed: d/dx far from 0, second derivatives, and limits picking their noisiest estimate. Numeric results show only digits they can vouch for.
+- ✅ Calculus is symbolic first (D44): exact derivatives, antiderivatives and l'Hôpital limits, each cross-checked against the numeric method, with numeric as the fallback.
 - ✅ Impossible displays are refused with a message, never shown wrongly (e.g. 300 K in °C; see decision 1).
 
 ## App

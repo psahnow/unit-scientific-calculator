@@ -86,6 +86,21 @@ function expectClose(actual: number, expected: number, what: string, rel = 1e-12
     throw new Error(`${what}: got ${actual}, expected ${expected} (rel. error ${Math.abs(actual - expected) / Math.abs(expected)})`);
 }
 
+/**
+ * The display contract for numeric results: the number shown is right to within one unit of its
+ * last digit (never finer than 10 significant figures), and shows at least 6 significant digits.
+ */
+function expectShownRight(lines: Line[], want: number, what: string, angle: 'rad' | 'deg' = 'rad', scale = 0) {
+  const out = evalLast(lines, angle);
+  if ('error' in out) throw new Error(`${what}: ${out.error}`);
+  const s = formatQuantity(out.q).value.replace(/−/g, '-');
+  if (/×10/.test(s)) throw new Error(`${what}: unexpected scientific notation ${s}`);
+  const decimals = /\.(\d+)/.exec(s)?.[1].length ?? 0;
+  const lastDigit = Math.max(Math.pow(10, -decimals), Math.pow(10, Math.floor(Math.log10(Math.abs(want) || 1)) - 9));
+  const unit = Math.min(lastDigit, Math.max(1e-6 * Math.max(Math.abs(want), scale), 1e-12));
+  expectClose(Number(s), want, `${what} shown as ${s}`, 0, Math.max(unit, 1e-12));
+}
+
 // ── reference data, written independently of the catalogue ──────────────────────────────────────
 /** Dimension shorthand: "M L T-2" → {M:1, L:1, T:-2}. */
 function D(spec: string): Dim {
@@ -532,14 +547,7 @@ describe('calculus and solve against closed forms', () => {
       [r`\int_{0}^{1}\sqrt{1-x^{2}}\,dx`, Math.PI / 4],
       [r`\int_{0}^{\pi}\sin\left(x\right)^{2}\,dx`, Math.PI / 2],
     ];
-    for (const [latex, want] of cases) {
-      const out = evalLast([latex]);
-      if ('error' in out) throw new Error(`${latex}: ${out.error}`);
-      const s = formatQuantity(out.q).value.replace(/−/g, '-');
-      const decimals = /\.(\d+)/.exec(s)?.[1].length ?? 0;
-      const unit = Math.min(Math.pow(10, -decimals), 1e-6 * Math.abs(want));
-      expectClose(Number(s), want, `${latex} shown as ${s}`, 0, unit);
-    }
+    for (const [latex, want] of cases) expectShownRight([latex], want, latex);
   });
   it(`${N_CASES / 4} random derivatives match the analytic derivative`, () => {
     const R = rng(SEED + 16);
@@ -567,22 +575,31 @@ describe('calculus and solve against closed forms', () => {
       const a = R.dec(-2, 1);
       const v = Number(a);
       const k = R.int(1, 9);
-      const show = (latex: string, want: number, what: string) => {
-        // what is shown must be right to within one unit of its last digit, and show at least
-        // 6 significant digits
-        const out = evalLast([latex]);
-        if ('error' in out) throw new Error(`${what}: ${out.error}`);
-        const s = formatQuantity(out.q).value.replace(/−/g, '-');
-        const decimals = /\.(\d+)/.exec(s)?.[1].length ?? 0;
-        const unit = Math.min(Math.pow(10, -decimals), 1e-6 * Math.abs(want));
-        expectClose(Number(s), want, `${what} shown as ${s}`, 0, Math.max(unit, 1e-12));
-      };
+      const show = (latex: string, want: number, what: string) => expectShownRight([latex], want, what);
       show(r`\lim_{x\to${lit(a)}}\frac{x^{2}-${lit(a)}^{2}}{x-${lit(a)}}`, 2 * v, `lim (x²−a²)/(x−a) at ${a}`);
       show(r`\lim_{x\to0}\frac{\sin\left(${k}x\right)}{x}`, k, `lim sin(${k}x)/x`);
       show(r`\lim_{x\to0}\frac{e^{${k}x}-1}{x}`, k, `lim (e^${k}x − 1)/x`);
       show(r`\lim_{x\to0}\frac{1-\cos\left(x\right)}{x^{2}}`, 0.5, 'lim (1 − cos x)/x²');
       show(r`\lim_{x\to\infty}\left(1+\frac{${k}}{x}\right)^{x}`, Math.exp(k), `lim (1 + ${k}/x)^x`);
       show(r`\lim_{x\to\infty}\left(\sqrt{x^{2}+${k}x}-x\right)`, k / 2, `lim √(x² + ${k}x) − x`);
+    }
+  });
+  it(`${N_CASES / 4} random cases the symbolic rules don't cover still come out right (numeric fallback)`, () => {
+    const R = rng(SEED + 20);
+    const honest = expectShownRight;
+    for (let i = 0; i < N_CASES / 4; i++) {
+      const b = R.dec(-1, 0, false);
+      const v = Number(b);
+      // ∫ x sin x = sin x − x cos x (a product: no rule here)
+      honest([r`\int_{0}^{${b}}x\sin\left(x\right)dx`], Math.sin(v) - v * Math.cos(v), `∫₀^${b} x sin x`);
+      // degree mode trig derivative: cos(x°)·π/180
+      const d = R.dec(-1, 2);
+      const k = Math.PI / 180;
+      honest([`x=${lit(d)}`, r`\frac{d}{dx}\sin\left(x\right)`], Math.cos(Number(d) * k) * k, `d/dx sin(${d}°)`, 'deg', k);
+      // x^x has a variable exponent and base: the rule applies, but check it against the closed form
+      honest([`x=${b}`, r`\frac{d}{dx}x^{x}`], Math.pow(v, v) * (Math.log(v) + 1), `d/dx x^x at ${b}`);
+      // x ln x → 0 as x → 0⁺ (not a quotient: numeric)
+      honest([r`\lim_{x\to0^{+}}x\ln\left(x\right)`], 0, 'lim x ln x');
     }
   });
   it(`${N_CASES / 4} random quadratics: solve finds a root that satisfies the equation`, () => {

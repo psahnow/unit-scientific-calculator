@@ -15,7 +15,7 @@ function calc(...lines: string[]): string {
 
 describe('integrals', () => {
   it('definite integrals', () => {
-    expect(calc(r`\int_{0}^{1}x^2\,dx`)).toBe('0.3333333333');
+    expect(calc(r`\int_{0}^{1}x^2\,dx`)).toBe('1/3'); // exact, from the antiderivative (D44)
     expect(calc(r`\int_{0}^{\pi}\sin\left(x\right)\,\mathrm{d}x`)).toBe('2');
     expect(calc(r`\int_{1}^{2}\frac{1}{t}dt`)).toBe('0.6931471806');
   });
@@ -53,6 +53,35 @@ describe('derivatives', () => {
   });
   it('ordinary fractions still work', () => {
     expect(calc(r`d=4`, r`\frac{d}{2}`)).toBe('2');
+  });
+});
+
+describe('symbolic first, numeric fallback (D44)', () => {
+  it('exact answers where the rules cover the expression', () => {
+    expect(calc('x=3', r`\frac{d}{dx}\left(x^3-2x\right)`)).toBe('25');
+    expect(calc('x=2', r`\frac{d^2}{dx^2}\frac{1}{x}`)).toBe('0.25');
+    expect(calc('x=1', r`\frac{d}{dx}\ln\left(x^2+1\right)`)).toBe('1');
+    expect(calc(r`\int_{1}^{2}x^{-2}\,dx`)).toBe('0.5');
+    expect(calc(r`\int_{0}^{2}\left(3x^2+1\right)dx`)).toBe('10');
+    expect(calc(r`\int_{0}^{1}\frac{1}{3}x\,dx`)).toBe('1/6');
+    expect(calc(r`\lim_{x\to0}\frac{1-\cos\left(x\right)}{x^2}`)).toBe('0.5');
+    expect(calc(r`\lim_{x\to2}\frac{x^3-8}{x-2}`)).toBe('12');
+  });
+  it('keeps units', () => {
+    expect(calc(r`t=2\unit{s}`, r`\frac{d}{dt}\left(5\unit{m}/\unit{s}^2\cdot t^2\right)`)).toBe('20 m/s');
+    expect(calc(r`\int_{0}^{3\unit{m}}x\,dx`)).toBe('4.5 m²');
+  });
+  it('falls back to numeric where the rules stop', () => {
+    // a product of two functions of x has no rule here: numeric, still right
+    expect(calc(r`\int_{0}^{\pi}x\sin\left(x\right)dx`)).toBe('3.141592654');
+    // 1/x across 0 has no antiderivative over the range: numeric reports it
+    expect(calc(r`\int_{-1}^{1}\frac{1}{x}dx`)).toMatch(/^error/);
+    // degree mode trig: numeric
+    const rows = [{ id: 'a', type: 'expr' as const, latex: 'x=30' }, { id: 'b', type: 'expr' as const, latex: r`\frac{d}{dx}\sin\left(x\right)` }];
+    const res = evaluateWorksheet(rows, { angle: 'deg' }).rows.get('b')!;
+    expect(res.kind === 'value' && res.value.t === 'q' && formatQuantity(res.value.q).value).toBe('0.0151149947'); // cos 30° · π/180, numeric rounded to its trusted digits
+    // |x|/x has no limit at 0 either way
+    expect(calc(r`\lim_{x\to0}\frac{\left|x\right|}{x}`)).toMatch(/doesn't exist/);
   });
 });
 
