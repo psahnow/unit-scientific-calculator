@@ -85,3 +85,14 @@ export function setCurrentPackages(enabled: readonly string[]) {
   current = availability(enabled);
 }
 export const isUnitOn: Availability = (u) => current(u);
+
+/** Why a unit expression can't be used with these packages, or null if it can (D59). */
+export function offPackageMessage(unit: { id: string }[], getUnitDef: (id: string) => UnitDef, on: Availability): string | null {
+  for (const t of unit) {
+    const u = getUnitDef(t.id);
+    if (on(u)) continue;
+    const names = packagesOf(u).map((id) => PACKAGE_BY_ID.get(id)?.name ?? id);
+    return `${u.id} is a unit from ${names.join(' / ')}, which is off for this worksheet. Turn it on in ⚙ Settings, or pick another unit.`;
+  }
+  return null;
+}

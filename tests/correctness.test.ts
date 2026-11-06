@@ -527,7 +527,8 @@ describe('functions against independent references', () => {
       const x = R.dec(-2, 3);
       expect(value(op('floor', x)) + 0, `floor(${x})`).toBe(Math.floor(Number(x)) + 0);
       expect(value(op('ceil', x)) + 0, `ceil(${x})`).toBe(Math.ceil(Number(x)) + 0);
-      expect(value(op('round', x)) + 0, `round(${x})`).toBe(Math.floor(Number(x) + 0.5) + 0);
+      // half away from zero, symmetric
+      expect(value(op('round', x)) + 0, `round(${x})`).toBe(Math.sign(Number(x)) * Math.floor(Math.abs(Number(x)) + 0.5) + 0);
     }
   });
 });

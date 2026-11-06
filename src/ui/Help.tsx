@@ -30,7 +30,7 @@ export function Welcome() {
       </button>
       <h2>Welcome to Dimensional</h2>
       <p className="welcome-eg">
-        <span className="eg">F = 6 kN</span>, then <span className="eg">F / 2 mm²</span> → <span className="eg">3 MPa</span>
+        <span className="eg">F = 6 N</span>, then <span className="eg">F / 2 mm²</span> → <span className="eg">3 MPa</span>
       </p>
       <ul>
         <li>Type units after numbers; suggestions appear as you type.</li>

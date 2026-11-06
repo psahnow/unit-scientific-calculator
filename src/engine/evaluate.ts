@@ -9,6 +9,7 @@ import { type Quantity, CalcError, scalar, describe } from './quantity';
 import { dim, dimEq, dimDiv, dimPow, isDimlessLoose, isAngle, DIMLESS, type Dim } from './dim';
 import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, combine, parseUnitExpr, formatUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
+import { formatQuantity } from './format';
 import { diff, antiderivative, div as divNode, type Need } from './symbolic';
 
 export type Value = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] };
@@ -299,6 +300,24 @@ function evalIntegral(n: CalcNode<'integral'>, env: Env): Quantity {
   return withSi(unitOf, value);
 }
 
+/**
+ * Notes a calculation leaves for its row (D59), e.g. "there is another solution". The worksheet
+ * collects them per row with collectNotes; nested rows keep their own.
+ */
+let notes: string[] | null = null;
+export function note(msg: string) {
+  if (notes && !notes.includes(msg)) notes.push(msg);
+}
+export function collectNotes<T>(fn: () => T): { value: T; notes: string[] } {
+  const outer = notes;
+  notes = [];
+  try {
+    return { value: fn(), notes };
+  } finally {
+    notes = outer;
+  }
+}
+
 /** Run a symbolic attempt; any failure means "use the numeric answer". */
 function attempt(fn: () => Quantity | null): Quantity | null {
   try {
@@ -495,6 +514,15 @@ function evalSolve(n: CalcNode<'solve'>, env: Env): Value {
     if (candidates.length) {
       // the root nearest the guess (or the lowest in a range)
       const best = candidates.reduce((a, b) => (lo === undefined && Math.abs(N.toNumber(b) - guess) < Math.abs(N.toNumber(a) - guess) ? b : a));
+      // say when there are other solutions, so one answer isn't mistaken for the only one (D59)
+      const others = candidates.filter((c) => c !== best);
+      if (others.length) {
+        const show = (r: N.Num) => {
+          const f = formatQuantity(asRoot(r));
+          return f.unit ? `${f.value} ${f.unit}` : f.value;
+        };
+        note(`solve( ) gives the solution nearest the guess; ${others.length === 1 ? 'there is another' : 'there are others'}: ${others.map(show).join(', ')}. roots( ) lists them all.`);
+      }
       return qv(asRoot(best));
     }
   }
@@ -799,7 +827,9 @@ function callBuiltin(name: string, args: Value[], env: Env, base: Quantity | und
   throw new CalcError(`Unknown function ${name}`);
 }
 
+/** Round half away from zero, the same both sides: 2.5 → 3, −2.5 → −3 (D59). */
 function roundNum(v: N.Num): N.Num {
+  if (N.cmp(v, N.ZERO) < 0) return N.neg(N.floor(N.add(N.neg(v), N.exact(1n, 2n))));
   return N.floor(N.add(v, N.exact(1n, 2n)));
 }
 

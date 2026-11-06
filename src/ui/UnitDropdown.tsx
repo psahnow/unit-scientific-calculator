@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import type { Quantity } from '../engine/quantity';
 import { checkConvertible, convertTo, displayValue } from '../engine/quantity';
 import { unitCandidates } from '../engine/units/candidates';
-import { parseUnitExpr, formatUnit, type UnitExpr } from '../engine/units/registry';
+import { parseUnitExpr, formatUnit, getUnit, type UnitExpr } from '../engine/units/registry';
+import { isUnitOn, offPackageMessage } from '../engine/units/packages';
 import { formatFloat } from '../engine/format';
 import { toNumber } from '../engine/num';
 
@@ -108,7 +109,7 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
   if (qtrim) {
     try {
       const e = parseUnitExpr(qtrim);
-      const err = p.q && !p.anyUnit ? checkConvertible(p.q, e) : null;
+      const err = offPackageMessage(e, getUnit, isUnitOn) ?? (p.q && !p.anyUnit ? checkConvertible(p.q, e) : null);
       custom = {
         text: formatUnit(e),
         ok: !err,

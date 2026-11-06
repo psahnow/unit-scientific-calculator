@@ -45,8 +45,11 @@ describe('folder scope (D24)', () => {
     const top = expr(r`G=2x`);
     const rows = [folder('A'), expr(r`x=3\unit{N}`, { parent: 'A', scope: 'folder' }), top];
     expect(show(rows, top.id)).toMatch(/^error/);
-    // …and outside the folder F goes back to meaning the farad
-    const farad = expr(r`2F`);
+    // …and outside the folder a bare F is an error, not quietly the farad (the number would be wrong)
+    const bare = expr(r`2F`);
+    expect(show([folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), bare], bare.id)).toMatch(/^error: F is only defined inside “A”/);
+    // the farad picked as a chip is still the farad
+    const farad = expr(r`2\unit{F}`);
     expect(show([folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), farad], farad.id)).toBe('2 F');
   });
 
@@ -79,11 +82,12 @@ describe('folder scope (D24)', () => {
     expect(show(rows, use.id)).toBe('6');
   });
 
-  it('warns when a bare unit outside the folder matches a folder-only name, and does not auto-chip it', () => {
+  it('a bare unit outside the folder that matches a folder-only name is an error, and is not auto-chipped', () => {
     const out = expr(r`\sigma=\frac{F}{A}`);
     const rows = [folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), expr(r`A=2\unit{mm}^2`), out];
     const res = evaluateWorksheet(rows, { angle: 'rad' });
-    expect(res.notices.get(out.id)).toMatch(/“F” here means the unit farad \(F\)\. The variable F is only defined inside “A”/);
+    const r0 = res.rows.get(out.id)!;
+    expect(r0.kind === 'error' && r0.message).toMatch(/^F is only defined inside “A”\. .*the unit farad \(F\)/);
     expect(res.chips.get(out.id)).toBeUndefined();
   });
 

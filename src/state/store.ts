@@ -264,6 +264,22 @@ export const useStore = create<State>((set, get) => {
     });
   };
 
+  /** The smallest k for which neither x_k nor y_k is a table column or a definition yet. */
+  const freeTableIndex = (rows: Row[]) => {
+    const used = new Set<string>();
+    const note = (latex: string) => {
+      const m = /^s*([xy])_{?s*([0-9]+)s*}?/.exec(latex);
+      if (m) used.add(m[2]);
+    };
+    for (const r of rows) {
+      if (r.type === 'table') r.columns.forEach((c) => note(c.header));
+      else if (r.type === 'expr' && /=/.test(r.latex)) note(r.latex);
+    }
+    let k = 1;
+    while (used.has(String(k))) k++;
+    return k;
+  };
+
   const descendants = (rows: Row[], id: string) => rows.filter((r) => r.parent === id).map((r) => r.id);
 
   return {
@@ -294,15 +310,18 @@ export const useStore = create<State>((set, get) => {
       if (type === 'expr') row = { id, type, latex: opts.latex ?? '' };
       else if (type === 'note') row = { id, type, text: '' };
       else if (type === 'folder') row = { id, type, title: 'Folder' };
-      else
+      else {
+        // the next free pair of names, so a second table doesn't redefine x₁ / y₁
+        const n = freeTableIndex(rows);
         row = {
           id,
           type: 'table',
           columns: [
-            { id: uid(), header: 'x_{1}', values: ['', '', ''] },
-            { id: uid(), header: 'y_{1}', values: ['', '', ''] },
+            { id: uid(), header: `x_{${n}}`, values: ['', '', ''] },
+            { id: uid(), header: `y_{${n}}`, values: ['', '', ''] },
           ] as TableColumn[],
         };
+      }
       let idx = afterId ? rows.findIndex((r) => r.id === afterId) + 1 : rows.length;
       if (afterId) {
         const after = rows[idx - 1];

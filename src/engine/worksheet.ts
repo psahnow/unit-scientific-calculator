@@ -3,12 +3,12 @@ import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContex
 import type { ChipFix, ParsedRow, Node } from './ast';
 import { isUnitOnly } from './ast';
 import * as N from './num';
-import { evaluate, inferUnit, unitQuantity, declaredUnit, type Value, type Env, unifyList } from './evaluate';
+import { evaluate, collectNotes, inferUnit, unitQuantity, declaredUnit, type Value, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, kelvinAsAbsolute, kelvinNote, type Quantity } from './quantity';
 import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, formatUnit, type UnitExpr, type CustomUnitInput } from './units/registry';
-import { availability, packagesOf } from './units/packages';
+import { availability, packagesOf, offPackageMessage } from './units/packages';
 import { dimEq, DIMLESS } from './dim';
-import { symbolToLatex, latexToSymbol } from './latex';
+import { symbolToLatex, latexToSymbol, tokenize } from './latex';
 import { CONST_BY_KEY } from './units/constants.data';
 
 const constLatex = (k: string) => CONST_BY_KEY.get(k)?.latex ?? k;
@@ -203,6 +203,21 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     return same.length > 1 ? `${title} (row ${rows.indexOf(f) + 1})` : title;
   };
   const folderList = (ids: string[]) => [...new Set(ids.map((h) => `“${folderTitle(h)}”`))].join(', ');
+  // "3m" with a variable m: a number right before a name reads like a quantity, so say the name wins
+  // (D59). Other uses of a name that is also a unit (σ = F/A) are left alone: there it reads as a name.
+  for (const r of rows) {
+    if (r.type !== 'expr' || !r.latex) continue;
+    const toks = tokenize(r.latex);
+    const vars = ctxFor(r.parent ?? null).vars;
+    for (let k = 0; k + 1 < toks.length; k++) {
+      const [t, nx, after] = [toks[k], toks[k + 1], toks[k + 2]];
+      if (t.t !== 'num' || nx.t !== 'letter' || after?.t === 'letter' || (after?.t === 'op' && after.v === '_')) continue;
+      const u = lookupUnit(nx.v);
+      if (!u || !vars.has(nx.v) || (settings.packages && !availability(settings.packages)(u))) continue;
+      infos.set(r.id, `In ${t.v}${nx.v}, ${nx.v} is your variable ${nx.v}, not the unit ${u.name} (${u.id}). To mean ${u.name}, pick it from the suggestions as you type.`);
+      break;
+    }
+  }
   for (const r of rows) {
     const fixes = chips.get(r.id);
     if (r.type !== 'expr' || !fixes) continue;
@@ -217,12 +232,15 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         kept.push(c);
         continue;
       }
+      // an error, not a quiet fallback to a unit (L → litre): the number would be silently wrong
       const meaning = c.kind === 'unit' ? `the unit ${getUnit(c.id).name} (${c.id})` : `the constant ${c.text}`;
       const where = folderList(homes);
-      notices.set(
+      parsed.set(
         r.id,
-        `“${c.text}” here means ${meaning}. The variable ${c.text} is only defined inside ${where}. ` +
-          `Make it global, move this row into that folder, or pick the ${c.kind} from autocomplete if you meant it.`,
+        new ParseError(
+          `${c.text} is only defined inside ${where}. Make it global, or move this row into that folder. ` +
+            `If you meant ${meaning}, pick it from the suggestions as you type.`,
+        ),
       );
     }
     if (kept.length) chips.set(r.id, kept);
@@ -380,6 +398,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
 
   /** Evaluate an expr row's value with its display unit applied (what dependents inherit). */
   const rowValueCache = new Map<string, { value: Value; auto: UnitExpr; unitError?: string; unitNote?: string }>();
+  const rowNotes = new Map<string, string>();
   function evalRowFull(rowId: string) {
     const hit = rowValueCache.get(rowId);
     if (hit) return hit;
@@ -387,13 +406,18 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     const p = parsed.get(rowId)!;
     if (p instanceof Error) throw p;
     if (p.kind === 'empty' || p.kind === 'fdef') throw new CalcError('No value');
-    let value = evaluate(p.expr, rowEnv(rowId));
+    const run = collectNotes(() => evaluate(p.expr, rowEnv(rowId)));
+    let value = run.value;
+    if (run.notes.length) rowNotes.set(rowId, run.notes.join(' '));
     const auto = value.t === 'q' ? value.q.unit : (value.items[0]?.unit ?? []);
     let unitError: string | undefined;
     let unitNote: string | undefined;
     if (r.displayUnit) {
       try {
         const u = parseUnitExpr(r.displayUnit);
+        // a display unit from a package that is off is refused, like typing it would be (D59)
+        const off = offPackageMessage(u, getUnit, availability(settings.packages));
+        if (off) throw new CalcError(off);
         const first = value.t === 'q' ? value.q : value.items[0];
         if (first && kelvinAsAbsolute(first, u)) unitNote = kelvinNote(u);
         value = applyUnit(value, u);
@@ -519,6 +543,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     }
 
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
+  for (const [id, n] of rowNotes) infos.set(id, infos.has(id) ? `${infos.get(id)} ${n}` : n);
   return {
     rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, infos, packageHints, customUnitErrors,
     refs: refsByRow,
