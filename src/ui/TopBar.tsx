@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, exportWorksheet, type Settings } from '../state/store';
 import { PACKAGES } from '../engine/units/packages';
+import { BrandMark, About } from './Brand';
 
 function usePopover() {
   const [open, setOpen] = useState(false);
@@ -26,6 +27,7 @@ export function TopBar() {
   const settings = usePopover();
   const fileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [about, setAbout] = useState(false);
 
   const doExport = () => {
     const blob = new Blob([exportWorksheet(s.ws)], { type: 'application/json' });
@@ -49,6 +51,9 @@ export function TopBar() {
             <button className="menu-item strong" onClick={() => (s.newWorksheet(), menu.setOpen(false))}>
               + New worksheet
             </button>
+            <button className="menu-item" onClick={() => (setAbout(true), menu.setOpen(false))}>
+              About Dimensional
+            </button>
             <div className="menu-sep" />
             {s.index.length === 0 && <div className="menu-empty">No saved worksheets yet</div>}
             {s.index.map((w) => (
@@ -71,6 +76,11 @@ export function TopBar() {
           </div>
         )}
       </div>
+      <span className="brand" title="Dimensional: a unit-aware engineering calculator">
+        <BrandMark className="brand-mark" />
+        <span className="brand-name">Dimensional</span>
+        <span className="brand-sep" aria-hidden>/</span>
+      </span>
       <input className="title-input" value={s.ws.title} onChange={(e) => s.setTitle(e.target.value)} aria-label="Worksheet title" />
       <div className="spacer" />
       <button className="icon-btn" title="Undo (Ctrl+Z)" disabled={!s.past.length} onClick={s.undo}>
@@ -88,6 +98,14 @@ export function TopBar() {
         </button>
       </div>
       <div className="pop-wrap" ref={settings.ref}>
+        <button
+          className="icon-btn"
+          title={st.theme === 'dark' ? 'Light paper' : 'Dark (graphite) paper'}
+          aria-label="Switch light or dark"
+          onClick={() => set({ theme: st.theme === 'dark' ? 'light' : 'dark' })}
+        >
+          {st.theme === 'dark' ? '☀' : '☾'}
+        </button>
         <button className="icon-btn" title="Settings" onClick={() => settings.setOpen(!settings.open)}>
           ⚙
         </button>
@@ -179,6 +197,7 @@ export function TopBar() {
           Import failed: {importError}
         </div>
       )}
+      {about && <About onClose={() => setAbout(false)} />}
     </header>
   );
 }

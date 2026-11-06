@@ -1,6 +1,6 @@
-# Unit Scientific Calculator
+# Dimensional
 
-A unit-aware scientific calculator in the browser, styled like Desmos (folders, variables, functions, sliders, tables, notes; no graphing). The design spec is in [DESIGN.md](DESIGN.md).
+*Every number knows its units.* Dimensional is a unit-aware engineering calculator in the browser, laid out like an engineering notebook: an expression list with folders, variables, functions, sliders, tables and notes (no graphing). Planned home: `calculator.perrysahnow.com`. The design spec is in [DESIGN.md](DESIGN.md).
 
 ## Develop
 
@@ -26,7 +26,7 @@ It's a static site with no backend. Worksheets are saved in the browser's localS
 
 ```bash
 npm run build
-npx wrangler pages deploy dist --project-name unit-scientific-calculator
+npx wrangler pages deploy dist --project-name dimensional
 ```
 
 `wrangler.toml` already sets `pages_build_output_dir = "dist"`. `public/_headers` sets long-term caching for the hashed assets.

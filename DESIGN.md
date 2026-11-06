@@ -1,6 +1,6 @@
-# Unit Scientific Calculator — Design Spec (v0.1)
+# Dimensional — Design Spec (v0.1)
 
-A web-based, unit-aware scientific calculator. The UI takes the expression list from the Desmos graphing calculator (folders, named variables, functions, sliders, tables, notes) and the result-per-line feel of the Desmos scientific calculator. There is no graphing. Every quantity carries units, every value has a unit dropdown, and unit handling happens behind the scenes: **the number shown always matches the unit shown next to it.**
+**Dimensional** (*every number knows its units*) is a web-based, unit-aware engineering calculator, styled as an engineering notebook (§3.6). Planned home: `calculator.perrysahnow.com`. The UI takes the expression list from the Desmos graphing calculator (folders, named variables, functions, sliders, tables, notes) and the result-per-line feel of the Desmos scientific calculator. There is no graphing. Every quantity carries units, every value has a unit dropdown, and unit handling happens behind the scenes: **the number shown always matches the unit shown next to it.**
 
 ---
 
@@ -56,6 +56,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D27 | Solvers | **Numeric, unit-aware** definite integrals (±∞ limits), derivatives (1st/2nd, at the current value), limits (one/two-sided, ∞), exact Σ/Π, and Desmos-style piecewise `{cond: value, …, otherwise}` |
 | D28 | Error wording | **Plain language about the screen**, never LaTeX tokens; empty leftover power/subscript boxes are ignored |
 | D29 | Fixes from manual testing | Spelled-out unit names work as bare letters (`5 newton`, `3 metres`, `2 kilonewtons`, `4 feet`). A unit typed from a package that is off says so (with a turn-on link) instead of "T isn't defined"; a name only defined in another folder says which folder. Exponents keep digits (`10^23`). A table input column of plain numbers accepts any unit (it says what the numbers mean). |
+| D30 | Name and look | **Dimensional**, styled as an engineering notebook: paper, ink, red margin rule, boxed answers; light first with a graphite dark option |
 
 ---
 
@@ -129,6 +130,14 @@ The **ƒ(x) Functions** button in the toolbar opens a keypad drawer docked to th
 - **Greek:** all lower-case letters (with ε/ϵ, θ/ϑ, ϕ/φ variants) and the capitals that differ from Latin (Γ Δ Θ Λ Ξ Π Σ Υ Φ Ψ Ω), each with a tooltip on its usual engineering meaning.
 
 A key inserts at the caret of the expression being edited (the last one focused) and puts the caret in the first argument; clicking a key doesn't take focus away. With no expression edited yet, it starts a new row at the end. Each key's tooltip says what it does. Γ(n) and nCr/nPr/gcd/lcm are exact for whole numbers; `Γ(…)` typed directly is the gamma function unless `Γ` is a user variable.
+
+### 3.6 Brand and look (D30)
+- **Name:** Dimensional. Tagline: *Every number knows its units.* The header shows the mark, the wordmark (hidden on phones) and the worksheet title; ☰ → About Dimensional explains the tool and credits Perry Sahnow.
+- **Mark:** square brackets around an italic *d*, after dimensional-analysis notation (`[F] = M·L·T⁻²`). Ink square, paper brackets, red-pen *d*. Same drawing as the favicon.
+- **Engineering notebook, light first:** warm paper (`#FBF9F4`), ink navy text (`#1F2A44`), faint blue ruled lines between rows, a double red margin rule beside the row numbers, and answers **boxed in ink** the way you box a final answer by hand. One accent, a red pen (`#C4502A`), for focus, the active tab and the slider. Units stay teal, constants violet.
+- **Dark (graphite) paper** is an option: the ☾/☀ button in the top bar, or ⚙ Theme (Light, Dark, System). New worksheets start in light.
+- **Type:** the KaTeX serif for maths and results; IBM Plex Sans for the interface and Plex Mono for row numbers and labels (Google Fonts).
+- Colours are CSS variables, including unit and constant chips inside the maths editor, so both themes stay consistent.
 
 ## 4. Input: typeset math and unit chips
 

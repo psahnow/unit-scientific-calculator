@@ -7,8 +7,8 @@ import { suggestionsFor, type Suggestion } from '../engine/suggest';
 import { latexToSymbol } from '../engine/latex';
 
 export const MACROS = {
-  unit: { args: 1, def: '\\textcolor{#0f8f86}{\\mathrm{#1}}', captureSelection: true, expand: false },
-  const: { args: 1, def: '\\textcolor{#8b5cf6}{#1}', captureSelection: true, expand: false },
+  unit: { args: 1, def: '\\textcolor{var(--unit)}{\\mathrm{#1}}', captureSelection: true, expand: false },
+  const: { args: 1, def: '\\textcolor{var(--const)}{#1}', captureSelection: true, expand: false },
 };
 
 const GREEK_SHORTCUTS = [

@@ -30,8 +30,8 @@ export function App() {
   // theme
   useEffect(() => {
     const el = document.documentElement;
-    if (settings.theme === 'system') el.removeAttribute('data-theme');
-    else el.setAttribute('data-theme', settings.theme);
+    el.setAttribute('data-theme', settings.theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(el).getPropertyValue('--bg').trim());
   }, [settings.theme]);
 
   // global undo/redo
@@ -159,7 +159,10 @@ export function App() {
         </button>
       </main>
       <footer className="footer">
-        Type units after numbers (6N, 2 mm^2) · Tab inserts a suggestion · Backspace on a unit chip turns it back into letters
+        <span>Type units after numbers (6N, 2 mm^2) · Tab inserts a suggestion · Backspace on a unit chip turns it back into letters</span>
+        <span>
+          Dimensional · by <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">Perry Sahnow</a>
+        </span>
       </footer>
       {toolbox && <Toolbox onClose={() => toggleToolbox(false)} />}
     </div>

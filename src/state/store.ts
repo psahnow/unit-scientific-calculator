@@ -14,7 +14,7 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark';
 }
 
-export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, packages: [], exactDefault: true, theme: 'system' };
+export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, packages: [], exactDefault: true, theme: 'light' };
 
 export interface Worksheet {
   schema: 1;

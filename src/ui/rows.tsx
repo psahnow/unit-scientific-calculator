@@ -317,7 +317,9 @@ export function FolderRow({ row, count }: { row: Extract<Row, { type: 'folder' }
         >
           {row.collapsed ? '▸' : '▾'}
         </button>
-        <span className="folder-icon">📁</span>
+        <svg className="folder-icon" viewBox="0 0 20 16" aria-hidden focusable="false">
+          <path d="M1.5 3.5a1 1 0 0 1 1-1h4.6l1.8 2h8.6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        </svg>
         <input
           className="folder-title"
           value={row.title}
