@@ -26,7 +26,9 @@ export type Node =
   | { k: 'deriv'; v: string; order: 1 | 2; body: Node }
   | { k: 'limit'; v: string; to: Node; dir?: '+' | '-'; body: Node }
   | { k: 'series'; op: 'sum' | 'prod'; v: string; lo: Node; hi: Node; body: Node }
-  | { k: 'piecewise'; branches: { cond?: Cond; value: Node }[] };
+  | { k: 'piecewise'; branches: { cond?: Cond; value: Node }[] }
+  // solve(lhs = rhs, v[, guess | lo, hi]) (D33)
+  | { k: 'solve'; v: string; lhs: Node; rhs: Node; hints: Node[] };
 
 /** Chained comparison a < b ≤ c … */
 export interface Cond {
@@ -114,6 +116,15 @@ export function collectRefs(n: Node, out: Set<string> = new Set()): Set<string> 
       }
       if (n.k === 'limit') collectRefs(n.to, out);
       if (n.k === 'deriv') out.add(n.v); // evaluated at the current value of v
+      break;
+    }
+    case 'solve': {
+      const inner = new Set<string>();
+      collectRefs(n.lhs, inner);
+      collectRefs(n.rhs, inner);
+      inner.delete(n.v);
+      inner.forEach((r) => out.add(r));
+      n.hints.forEach((h) => collectRefs(h, out));
       break;
     }
     case 'piecewise':

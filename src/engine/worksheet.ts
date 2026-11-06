@@ -282,6 +282,31 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     return env;
   }
 
+  /** The row's scope, plus `ans` = the answer of the nearest row above that has one (D33). */
+  function rowEnv(rowId: string): Env {
+    const scope = scopeOf(rowId);
+    const base = envFor(scope);
+    if (levelOf(scope, 'ans').vars.has('ans')) return base; // a user-defined ans wins
+    return {
+      ...base,
+      getVar(name) {
+        if (name !== 'ans') return base.getVar(name);
+        for (let k = rows.findIndex((x) => x.id === rowId) - 1; k >= 0; k--) {
+          const prev = rows[k];
+          if (prev.type !== 'expr') continue;
+          const pp = parsed.get(prev.id);
+          if (!pp || (!(pp instanceof Error) && (pp.kind === 'empty' || pp.kind === 'fdef'))) continue;
+          try {
+            return evalRowValue(prev.id);
+          } catch {
+            throw new CalcError('“ans” is the answer of the row above, and that row has an error');
+          }
+        }
+        throw new CalcError('“ans” is the answer of the row above, but no row above has one yet');
+      },
+    };
+  }
+
   /** Evaluate an expr row's value with its display unit applied (what dependents inherit). */
   const rowValueCache = new Map<string, { value: Value; auto: UnitExpr; unitError?: string }>();
   function evalRowFull(rowId: string) {
@@ -291,7 +316,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     const p = parsed.get(rowId)!;
     if (p instanceof Error) throw p;
     if (p.kind === 'empty' || p.kind === 'fdef') throw new CalcError('No value');
-    let value = evaluate(p.expr, envFor(scopeOf(rowId)));
+    let value = evaluate(p.expr, rowEnv(rowId));
     const auto = value.t === 'q' ? value.q.unit : (value.items[0]?.unit ?? []);
     let unitError: string | undefined;
     if (r.displayUnit) {

@@ -1,11 +1,11 @@
 // AST evaluation with units, lists and builtins (DESIGN.md §5.3).
 import * as N from './num';
 import type { Node, Cond } from './ast';
-import { integrate, derivative, limit, NumericError } from './calculus';
+import { integrate, derivative, limit, findRoot, NumericError } from './calculus';
 import { isUnitOnly } from './ast';
 import * as Q from './quantity';
 import { type Quantity, CalcError, scalar, describe } from './quantity';
-import { dim, dimEq, isDimlessLoose, isAngle, DIMLESS } from './dim';
+import { dim, dimEq, dimDiv, dimPow, isDimlessLoose, isAngle, DIMLESS, type Dim } from './dim';
 import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, combine, parseUnitExpr, formatUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
 
@@ -174,6 +174,8 @@ export function evaluate(n: Node, env: Env): Value {
       return qv(evalLimit(n, env));
     case 'series':
       return qv(evalSeries(n, env));
+    case 'solve':
+      return qv(evalSolve(n, env));
     case 'piecewise': {
       for (const b of n.branches) if (!b.cond || condHolds(b.cond, env)) return evaluate(b.value, env);
       throw new CalcError('No piecewise case applies here, and there is no “otherwise” value');
@@ -298,6 +300,68 @@ function evalSeries(n: CalcNode<'series'>, env: Env): Quantity {
     acc = acc ? (n.op === 'sum' ? Q.add(acc, term) : Q.mul(acc, term)) : term;
   }
   return acc ?? scalar(n.op === 'sum' ? N.ZERO : N.ONE);
+}
+
+function evalSolve(n: CalcNode<'solve'>, env: Env): Quantity {
+  const hints = n.hints.map((h) => asQ(evaluate(h, env), 'guess'));
+  // the variable's units: from the guess/range, else its current value, else worked out from the equation
+  const current = env.locals?.get(n.v) ?? (() => {
+    try {
+      return env.getVar(n.v);
+    } catch {
+      return undefined;
+    }
+  })();
+  let like: Quantity | undefined = hints.find((h) => !isZeroOrInf(h)) ?? (current?.t === 'q' ? current.q : undefined);
+  const side = (node: Node, x: Quantity) => asQ(evaluate(node, bind(env, n.v, x)), 'value');
+  if (!like) like = inferUnknown(n, side);
+  const unitOf = { dim: like.dim, unit: like.unit };
+  const at = (x: number) => ({ si: N.float(x), ...unitOf });
+  // f(x) = lhs − rhs, which must have matching dimensions
+  const probe = (x: number) => {
+    const a = side(n.lhs, at(x));
+    const b = side(n.rhs, at(x));
+    if (!dimEq(a.dim, b.dim) && !isZeroOrInf(a) && !isZeroOrInf(b))
+      throw new CalcError(`The two sides of the equation don't match: ${describe(a)} and ${describe(b)}`);
+    return N.toNumber(a.si) - N.toNumber(b.si);
+  };
+  const scale = unitScale(like);
+  const guess = hints.length === 1 ? N.toNumber(hints[0].si) : current?.t === 'q' ? N.toNumber(current.q.si) : scale;
+  probe(guess); // surface dimension errors with a clear message
+  const lo = hints.length === 2 ? N.toNumber(hints[0].si) : undefined;
+  const hi = hints.length === 2 ? N.toNumber(hints[1].si) : undefined;
+  const root = numeric(() => findRoot(probe, guess, scale, lo, hi), 'Equation');
+  return { si: N.float(snapRoot(root, scale)), dim: like.dim, unit: like.unit };
+}
+
+/** 1.9999999999997 → 2 when that's within rounding of the solver. */
+function snapRoot(x: number, scale: number): number {
+  const r = Math.round(x / scale * 1e9) / 1e9 * scale;
+  return Math.abs(r - x) <= 1e-12 * Math.max(Math.abs(x), scale) ? r : x;
+}
+
+/** Work out the unknown's dimension from how the equation's dimensions change with it. */
+function inferUnknown(n: CalcNode<'solve'>, side: (node: Node, x: Quantity) => Quantity): Quantity {
+  const plain = scalar(N.ONE);
+  try {
+    const rhs = side(n.rhs, plain);
+    const d0 = side(n.lhs, plain).dim;
+    const d1 = side(n.lhs, { si: N.ONE, dim: dim({ L: 1 }), unit: [{ id: 'm', power: 1 }] }).dim;
+    const p = d1.L - d0.L; // how many times the unknown multiplies into the left side
+    if (p === 0) return plain;
+    const need = dimDiv(rhs.dim, d0);
+    const xd = dimPow(need, 1 / p);
+    return { si: N.ONE, dim: xd, unit: siUnitFor(xd) };
+  } catch {
+    return plain;
+  }
+}
+
+/** A plain SI unit expression for a dimension (m², N, …). */
+function siUnitFor(d: Dim): UnitExpr {
+  const base: [keyof Dim, string][] = [['L', 'm'], ['M', 'kg'], ['T', 's'], ['I', 'A'], ['K', 'K'], ['N', 'mol'], ['J', 'cd'], ['A', 'rad']];
+  const raw = base.filter(([k]) => d[k] !== 0).map(([k, id]) => ({ id, power: d[k] }));
+  return Q.mul({ si: N.ONE, dim: d, unit: raw }, scalar(N.ONE)).unit;
 }
 
 function condHolds(c: Cond, env: Env): boolean {

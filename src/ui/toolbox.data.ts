@@ -124,6 +124,8 @@ export const GROUPS: { id: string; label: string; keys: Key[] }[] = [
     id: 'calculus',
     label: 'Calculus',
     keys: [
+      { label: 'solve', insert: '\\operatorname{solve}\\left(#0=#?,x\\right)', title: 'Solve an equation for x: solve(x² = 2, x). Add a guess solve(…, x, 1) or a range solve(…, x, 0, 10). Units are worked out, e.g. solve(F/A = 250 MPa, A) gives an area', wide: true },
+      { label: 'ans', insert: 'ans', title: 'The answer of the row above' },
       { label: '∫ₐᵇ dx', insert: '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', title: 'Definite integral. Units carry through: ∫ F dx over metres gives N·m. Limits may be ±∞', wide: true },
       { label: '∫₀^∞ dx', insert: '\\int_{0}^{\\infty}#0\\,\\mathrm{d}x', title: 'Integral from 0 to infinity', wide: true },
       { label: 'd/dx', insert: '\\frac{\\mathrm{d}}{\\mathrm{d}x}#0', title: 'Derivative, taken at the current value of x (define x, or use it inside a function g(x) = …)' },

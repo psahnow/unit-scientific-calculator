@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { Row, RowResult } from '../engine/worksheet';
 import { applyChips } from '../engine/worksheet';
 import type { ChipFix } from '../engine/ast';
@@ -55,6 +55,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
   const sliderMatch = /^(.*=\s*)(-?\d+(?:\.\d+)?)(.*)$/s.exec(row.latex);
 
   let resultEl: ReactNode = null;
+  let copyText = '';
   if (r?.kind === 'error') resultEl = <div className="result error" title={r.message}>⚠ {r.message}</div>;
   else if (r?.kind === 'value' && q) {
     const unitBtn = (
@@ -71,6 +72,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         r.value.t === 'q'
           ? formatQuantity(r.value.q, fmt).value
           : '[' + r.value.items.map((x) => formatQuantity(x, fmt).value).join(', ') + ']';
+      copyText = unitText ? `${val} ${unitText}` : val;
       resultEl = (
         <div className="result">
           <span className="eq">=</span>
@@ -109,6 +111,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
           ⟷
         </button>
       )}
+      {copyText && <CopyButton text={copyText} />}
       <RowMenu id={row.id} />
     </div>
   );
@@ -214,6 +217,29 @@ export function typesetNumber(text: string): ReactNode {
     ) : (
       p
     ),
+  );
+}
+
+/** Copy a result as plain text, e.g. "3.280839895 yd" (D33). */
+function CopyButton({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      className="icon-btn"
+      title={done ? 'Copied' : `Copy result: ${text}`}
+      aria-label="Copy result"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text.replace(/−/g, '-'));
+          setDone(true);
+          setTimeout(() => setDone(false), 1200);
+        } catch {
+          /* clipboard blocked: nothing to do */
+        }
+      }}
+    >
+      {done ? '✓' : '⎘'}
+    </button>
   );
 }
 

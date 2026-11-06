@@ -494,6 +494,7 @@ class Parser {
     this.i++;
     const name = t.v;
     if (name === 'int') return this.parseIntegral();
+    if (name === 'solve' && this.isOpen('(')) return this.parseSolve();
     if (name === 'lim') return this.parseLimit();
     if ((name === 'sum' || name === 'prod') && (this.isOp('_') || this.isOp('^'))) return this.parseSeries(name);
     if (name === 'frac' || name === 'dfrac' || name === 'tfrac') {
@@ -602,6 +603,42 @@ class Parser {
       return [t.v + '_' + s, j - at];
     }
     return [t.v, 1];
+  }
+
+  /** solve(lhs = rhs, x) / solve(…, x, guess) / solve(…, x, lo, hi) — at the "(" */
+  parseSolve(): Node {
+    const open = this.i;
+    // split the arguments at top-level commas
+    const args: Tok[][] = [[]];
+    let depth = 0;
+    let j = open;
+    for (; j < this.toks.length; j++) {
+      const t = this.toks[j];
+      if (t.t === 'open' && t.v !== '|') {
+        depth++;
+        if (depth === 1) continue;
+      } else if (t.t === 'close' && t.v !== '|') {
+        depth--;
+        if (depth === 0) break;
+      } else if (depth === 1 && t.t === 'op' && t.v === ',') {
+        args.push([]);
+        continue;
+      }
+      args[args.length - 1].push(t);
+    }
+    if (j >= this.toks.length) throw new ParseError('A “)” is missing: close the bracket');
+    this.i = j + 1;
+    const usage = 'Write it like solve(x² = 2, x), or add a guess or range: solve(…, x, 1) or solve(…, x, 0, 10)';
+    if (args.length < 2 || args.length > 4) throw new ParseError(usage);
+    const vn = Parser.varName(args[1]);
+    if (!vn || vn[1] !== args[1].length) throw new ParseError(`The second part of solve( ) is the name to solve for, like x. ${usage}`);
+    const v = vn[0];
+    const eq = args[0].findIndex((t) => t.t === 'op' && t.v === '=');
+    if (eq < 0) throw new ParseError(`solve( ) needs an equation with “=”. ${usage}`);
+    const lhs = this.sub(args[0].slice(0, eq), v);
+    const rhs = this.sub(args[0].slice(eq + 1), v);
+    const hints = args.slice(2).map((a) => this.sub(a));
+    return { k: 'solve', v, lhs, rhs, hints };
   }
 
   /** ∫_a^b f(x) dx */
@@ -802,10 +839,13 @@ class Parser {
 
     if (nextParen) {
       if (this.ctx.funcs.has(full)) return { k: 'ucall', name: full, args: this.parseArgs() };
+      if (letters === 'solve' && run[run.length - 1].sub === undefined) return this.parseSolve();
       if (LETTER_FUNCS.has(letters) && run[run.length - 1].sub === undefined) return this.parseFuncTail(normalizeFn(letters));
       // Γ(x) is the gamma function unless Γ is a user name
       if (letters === 'Γ' && run[0].sub === undefined && !this.ctx.vars.has('Γ')) return this.parseFuncTail('gamma');
     }
+    // ans: the previous row's answer (D33)
+    if (letters === 'ans' && run[run.length - 1].sub === undefined) return { k: 'var', name: 'ans' };
 
     const isVar = (n: string) => this.ctx.vars.has(n) || this.ctx.funcs.has(n);
     const fixable = run.every((r) => r.s >= 0);

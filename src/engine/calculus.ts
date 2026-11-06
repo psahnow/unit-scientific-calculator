@@ -191,3 +191,113 @@ function snapTo(v: number, ref = 0): number {
   }
   return v;
 }
+
+
+// ── Root finding (D33): Brent's method inside a bracket; without one, search outward from a guess ──
+function brent(f: Fn, a: number, b: number, fa: number, fb: number): number {
+  let c = a, fc = fa, d = b - a, e = d;
+  for (let iter = 0; iter < 200; iter++) {
+    if (Math.sign(fb) === Math.sign(fc)) {
+      c = a; fc = fa; d = b - a; e = d;
+    }
+    if (Math.abs(fc) < Math.abs(fb)) {
+      a = b; b = c; c = a; fa = fb; fb = fc; fc = fa;
+    }
+    const tol = 2 * Number.EPSILON * Math.abs(b) + 1e-300;
+    const m = (c - b) / 2;
+    if (Math.abs(m) <= tol || fb === 0) return b;
+    if (Math.abs(e) >= tol && Math.abs(fa) > Math.abs(fb)) {
+      const s = fb / fa;
+      let p: number, q: number;
+      if (a === c) {
+        p = 2 * m * s; q = 1 - s;
+      } else {
+        const qq = fa / fc, r = fb / fc;
+        p = s * (2 * m * qq * (qq - r) - (b - a) * (r - 1));
+        q = (qq - 1) * (r - 1) * (s - 1);
+      }
+      if (p > 0) q = -q; else p = -p;
+      if (2 * p < Math.min(3 * m * q - Math.abs(tol * q), Math.abs(e * q))) {
+        e = d; d = p / q;
+      } else {
+        d = m; e = m;
+      }
+    } else {
+      d = m; e = m;
+    }
+    a = b; fa = fb;
+    b += Math.abs(d) > tol ? d : m > 0 ? tol : -tol;
+    fb = f(b);
+    if (!Number.isFinite(fb)) throw new NumericError(`can't be worked out: the equation is undefined at ${fmt(b)}`);
+  }
+  return b;
+}
+
+const safe = (f: Fn) => (x: number) => {
+  try {
+    const v = f(x);
+    return Number.isFinite(v) ? v : NaN;
+  } catch {
+    return NaN;
+  }
+};
+
+/** A root of f (f(x) = 0). With lo/hi: inside that range. Otherwise the root nearest the guess. */
+export function findRoot(f: Fn, guess: number, scale: number, lo?: number, hi?: number): number {
+  const g = safe(f);
+  if (lo !== undefined && hi !== undefined) {
+    const a = Math.min(lo, hi), b = Math.max(lo, hi);
+    const fa = g(a), fb = g(b);
+    if (fa === 0) return a;
+    if (fb === 0) return b;
+    if (Number.isFinite(fa) && Number.isFinite(fb) && Math.sign(fa) !== Math.sign(fb)) return brent(g, a, b, fa, fb);
+    // scan the range for a sign change
+    const n = 400;
+    let px = a, pv = fa;
+    for (let k = 1; k <= n; k++) {
+      const x = a + ((b - a) * k) / n, v = g(x);
+      if (Number.isFinite(v) && Number.isFinite(pv) && Math.sign(v) !== Math.sign(pv)) return brent(g, px, x, pv, v);
+      px = x; pv = v;
+    }
+    throw new NumericError(`has no solution between ${fmt(a)} and ${fmt(b)}: the two sides never cross there`);
+  }
+  const x0 = guess;
+  const f0 = g(x0);
+  if (f0 === 0) return x0;
+  const s = Math.max(Math.abs(x0), scale) || 1;
+  // walk outward on both sides, with growing steps, until the sign changes
+  const brackets: { b: [number, number, number, number]; dist: number }[] = [];
+  // four walks: steps growing away from the guess in both directions, and (for a non-zero guess)
+  // multiplying toward 0 and toward ∞, which finds roots like A = 4·10⁻⁵ m² from a guess of 1 m²
+  const walks: ((k: number) => number)[] = [(k) => x0 + s * 1e-3 * Math.pow(1.25, k), (k) => x0 - s * 1e-3 * Math.pow(1.25, k)];
+  if (x0 !== 0) walks.push((k) => x0 * Math.pow(10, -k / 8), (k) => x0 * Math.pow(10, k / 8));
+  for (const walk of walks) {
+    let px = x0, pv = f0, found = 0;
+    for (let k = 1; k <= 160 && found < 3; k++) {
+      const x = walk(k);
+      const v = g(x);
+      if (Number.isFinite(v) && Number.isFinite(pv) && Math.sign(v) !== Math.sign(pv)) {
+        // keep walking: this sign change may be a pole (P/A jumps across A = 0), not a solution
+        brackets.push({ b: [px, x, pv, v], dist: Math.abs((px + x) / 2 - x0) });
+        found++;
+      }
+      if (Number.isFinite(v)) { px = x; pv = v; }
+    }
+  }
+  // nearest bracket first; accept only where the equation really balances (not at a pole)
+  brackets.sort((a, b) => a.dist - b.dist);
+  for (const { b } of brackets) {
+    const root = brent(g, b[0], b[1], b[2], b[3]);
+    const fr = g(root);
+    if (Number.isFinite(fr) && Math.abs(fr) <= 1e-9 * Math.max(Math.abs(b[2]), Math.abs(b[3]))) return root;
+  }
+  // no sign change (e.g. a double root like x² = 0): try the secant method from the guess
+  let a = x0, b = x0 + s * 0.01, fa = f0, fb = g(b);
+  for (let k = 0; k < 100 && Number.isFinite(fa) && Number.isFinite(fb); k++) {
+    if (fb === fa) break;
+    const c = b - (fb * (b - a)) / (fb - fa);
+    a = b; fa = fb; b = c; fb = g(b);
+    if (Math.abs(fb) < 1e-13 * (Math.abs(f0) || 1)) return b;
+  }
+  throw new NumericError("found no solution: the two sides don't meet near the guess. Give a guess or a range, like solve(…, x, 0, 10)");
+}
