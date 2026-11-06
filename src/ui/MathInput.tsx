@@ -17,7 +17,7 @@ export function loadMathLive() {
   return mathlive;
 }
 import { suggestionsFor, type Suggestion } from '../engine/suggest';
-import { setUpKeyboard, setReturnHandler, setDivideHandler } from './keyboard';
+import { setUpKeyboard, setReturnHandler, setDivideHandler, setBeforeKeyHandler } from './keyboard';
 import { latexToSymbol } from '../engine/latex';
 
 export const MACROS = {
@@ -68,6 +68,47 @@ export function insertIntoMath(latex: string, opts: { pending?: boolean } = {}):
  * powers) as the numerator and put the caret in the denominator: 5 m/s (D41). Returns false when
  * the caret isn't after a chip, so the usual "/" applies.
  */
+/** A single letter as MathLive returns it: T, x, \alpha, \Omega … */
+const LETTER = /^(?:[A-Za-z]|\\(?:alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|vartheta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega))$/;
+const DIGIT = /^[0-9]$/;
+const at = (mf: MathfieldElement, k: number) => (k < 0 ? '' : mf.getValue(k, k + 1, 'latex'));
+
+/**
+ * A digit typed right after a letter is its subscript: T1 → T₁, and further digits go on in the
+ * subscript (T₁₂) until something else is typed (D47). Not for 1e5-style numbers. Call after the
+ * digit is in; returns whether it moved it.
+ */
+export function autoSubscript(mf: MathfieldElement): boolean {
+  const p = mf.position;
+  if (p < 2) return false;
+  const d = at(mf, p - 1);
+  const letter = at(mf, p - 2);
+  if (!DIGIT.test(d) || !LETTER.test(letter)) return false;
+  if (letter === 'e' && DIGIT.test(at(mf, p - 3))) return false; // 2e5
+  mf.selection = { ranges: [[p - 2, p]], direction: 'forward' };
+  mf.executeCommand(['insert', `${letter}_{${d}}`, { format: 'latex', insertionMode: 'replaceSelection', selectionMode: 'after' }]);
+  mf.executeCommand('moveToPreviousChar'); // back inside the subscript, after the digit
+  return true;
+}
+
+/** Whether the caret is at the end of a subscript of digits on a letter (T₁₂|). */
+function atEndOfDigitSubscript(mf: MathfieldElement): boolean {
+  const p = mf.position;
+  if (at(mf, p) !== '') return false; // the next step leaves a group
+  let k = p;
+  while (k > 0 && DIGIT.test(at(mf, k - 1))) k--;
+  if (k === p || at(mf, k - 1) !== '' || !LETTER.test(at(mf, k - 2))) return false;
+  const seg = mf.getValue(k - 2, p + 1, 'latex');
+  return /_/.test(seg) && !/\^/.test(seg);
+}
+
+/** Before a non-digit is typed at the end of such a subscript, step out of it: T₁ then = gives T₁ =. */
+export function leaveDigitSubscript(mf: MathfieldElement): boolean {
+  if (!atEndOfDigitSubscript(mf)) return false;
+  mf.executeCommand('moveAfterParent');
+  return true;
+}
+
 export function divideAfterChips(mf: MathfieldElement): boolean {
   const pos = mf.position;
   if (pos <= 0) return false;
@@ -183,7 +224,9 @@ export function MathInput(p: Props) {
       props.current.onChange(mf.getValue('latex'));
     };
 
-    const onInput = () => {
+    const onInput = (e: Event) => {
+      const ie = e as InputEvent;
+      if (ie.inputType === 'insertText' && ie.data && DIGIT.test(ie.data)) autoSubscript(mf);
       props.current.onChange(mf.getValue('latex'));
       refreshPopover();
     };
@@ -216,6 +259,8 @@ export function MathInput(p: Props) {
         e.stopPropagation();
         return;
       }
+      // typing on after T₁₂: leave the subscript first (D47)
+      if (e.key.length === 1 && !DIGIT.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) leaveDigitSubscript(mf);
       if (e.key === '/' && !e.ctrlKey && !e.metaKey && divideAfterChips(mf)) {
         e.preventDefault();
         e.stopPropagation();
@@ -284,6 +329,7 @@ export function MathInput(p: Props) {
     const onFocus = () => {
       lastField = mf;
       setReturnHandler(() => props.current.onEnter());
+      setBeforeKeyHandler(() => leaveDigitSubscript(mf));
       setDivideHandler(() => {
         const done = divideAfterChips(mf);
         if (done) props.current.onChange(mf.getValue('latex'));

@@ -78,6 +78,23 @@ test('a kelvin value can be shown in °C, with a note on why that can mislead', 
   await expect(tip).toContainText('absolute temperature');
 });
 
+test('a number right after a letter is a subscript: T1 = 5, then 2·T12', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, 'T1=5');
+  await expect(field(page, 1)).toHaveJSProperty('value', 'T_1=5');
+  await nextRow(page, 2);
+  await page.keyboard.type('T12=3', { delay: 25 });
+  await expect(field(page, 2)).toHaveJSProperty('value', 'T_{12}=3');
+  await nextRow(page, 3);
+  await page.keyboard.type('T1+T12', { delay: 25 });
+  await expect(field(page, 3)).toHaveJSProperty('value', 'T_1+T_{12}');
+  await expect(result(page, 3)).toContainText('8');
+  // numbers stay numbers: 2e3 and 3x are not subscripts
+  await nextRow(page, 4);
+  await page.keyboard.type('2x+2e3', { delay: 25 });
+  await expect(field(page, 4)).toHaveJSProperty('value', '2x+2e3');
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();
@@ -249,6 +266,27 @@ test.describe('phone keyboards', () => {
     await field.tap();
     await expect(field).toBeFocused();
     await expect(page.locator('.ML__keyboard.is-visible')).toBeVisible();
+  });
+  test('on-screen: x then 1 is x₁, and the next key leaves the subscript', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await page.getByRole('button', { name: 'Worksheets' }).tap();
+    await page.getByRole('button', { name: '+ New worksheet' }).tap();
+    const f = page.locator('.row math-field').first();
+    await f.tap();
+    const key = (label: string) => page.locator(`.MLK__layer.is-visible div[tabindex="-1"][aria-label="${label}"]`).last();
+    const tab = async (label: RegExp, shows: string) =>
+      expect(async () => {
+        await page.locator('.ML__keyboard [data-layer]').filter({ hasText: label }).locator('visible=true').first().tap();
+        await expect(key(shows)).toBeVisible({ timeout: 1000 });
+      }).toPass({ timeout: 10_000 });
+    await tab(/^abc$/, 'x');
+    await key('x').tap();
+    await key('1').tap(); // the letters page has a row of digits
+    await key('2').tap();
+    await tab(/^123$/, '+');
+    await key('+').tap();
+    await expect(f).toHaveJSProperty('value', 'x_{12}+');
   });
   test('the row being edited stays visible above the on-screen keyboard', async ({ page }) => {
     await page.goto('/');

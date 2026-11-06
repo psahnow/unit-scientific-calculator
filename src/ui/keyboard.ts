@@ -44,11 +44,19 @@ let onDivide: (() => boolean) | null = null;
 export function setDivideHandler(fn: (() => boolean) | null) {
   onDivide = fn;
 }
+/** Runs before an on-screen key that types something other than a digit (leaves T₁₂'s subscript). */
+let onBeforeKey: (() => void) | null = null;
+export function setBeforeKeyHandler(fn: (() => void) | null) {
+  onBeforeKey = fn;
+}
 if (typeof document !== 'undefined') {
   document.addEventListener(
     'pointerdown',
     (e) => {
       const t = e.target as Element | null;
+      // an on-screen key that types something (not a digit, an arrow, ⌫, ⇧ or a page key)
+      const cap = t?.closest?.('.MLK__layer div[tabindex="-1"]');
+      if (cap && !cap.matches('.action, .shift, .dim-page, .dim-return, .dim-hide-kb') && !/^[0-9]$/.test((cap.getAttribute('aria-label') ?? cap.textContent ?? '').trim())) onBeforeKey?.();
       if (t?.closest?.('.dim-return') && onReturn) {
         e.preventDefault();
         e.stopPropagation();
