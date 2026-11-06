@@ -193,6 +193,29 @@ test('#n is the answer of row n, and follows the row when rows move', async ({ p
   await expect(result(page, 1)).toContainText('12');
 });
 
+test('a unit that no longer fits: picking one that does clears the error, (none) included', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, '5m');
+  await page.locator('.title-input').click();
+  await result(page, 1).locator('.unit-chip').click();
+  await page.getByPlaceholder(/type a unit/).fill('mm');
+  await page.getByPlaceholder(/type a unit/).press('Enter');
+  // the row becomes a plain number: "mm" no longer fits
+  await field(page, 1).click();
+  await expect(field(page, 1)).toBeFocused();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('5', { delay: 25 });
+  await page.locator('.title-input').click();
+  const warn = result(page, 1).locator('.warn');
+  await expect(warn).toHaveCount(1);
+  for (const choice of ['(none)', '%']) {
+    await result(page, 1).locator('.unit-chip').click();
+    await page.locator('.unit-menu button').filter({ hasText: choice }).first().click();
+    await expect(warn).toHaveCount(0);
+  }
+  await expect(result(page, 1)).toContainText('500');
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

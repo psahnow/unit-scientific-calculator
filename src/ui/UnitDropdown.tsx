@@ -138,6 +138,14 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
     p.onPick(t);
     p.close();
   };
+  // a listed unit as it is stored: the automatic unit means "automatic", and "(none)" (a plain
+  // number) is stored as 1, which parses as no unit — its label would not
+  const items = filtered.flatMap((g) => g.items);
+  const choose = (text: string) => {
+    const c = items.find((x) => x.text === text);
+    const t = c ? formatUnit(c.expr) : text;
+    pick(t === formatUnit(p.autoUnit) ? undefined : t || '1');
+  };
 
   return (
     <div className="unit-menu" role="listbox" ref={p.menuRef} style={style}>
@@ -161,7 +169,7 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
             if (custom?.ok && !flat.includes(custom.text)) pick(custom.text);
             // a real unit that doesn't fit: don't silently pick something else
             else if (custom?.parsed && !custom.ok) return;
-            else if (flat[hi]) pick(flat[hi]);
+            else if (flat[hi]) choose(flat[hi]);
           }
         }}
       />
@@ -184,8 +192,8 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
             {g.items.map((c) => (
               <button
                 key={c.text}
-                className={`unit-item ${c.text === p.current ? 'current' : ''} ${flat[hi] === c.text ? 'hi' : ''}`}
-                onClick={() => pick(c.text === formatUnit(p.autoUnit) ? undefined : c.text)}
+                className={`unit-item ${formatUnit(c.expr) === p.current ? 'current' : ''} ${flat[hi] === c.text ? 'hi' : ''}`}
+                onClick={() => choose(c.text)}
               >
                 <span>{c.text}</span>
                 <span className="preview">{c.preview}</span>
