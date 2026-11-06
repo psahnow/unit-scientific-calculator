@@ -126,6 +126,25 @@ test('Tab straight after fast typing takes the whole unit (mm, not m)', async ({
   await expect(field(page, 1)).toHaveJSProperty('value', String.raw`\unit{mm}+\unit{mm}+\unit{mm}+\unit{mm}+\unit{mm}+`);
 });
 
+test('arrow keys go into a note and out again', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  // sample sheet: row 4 is L = 1.5 m, row 5 a note, row 6 σ = F/A
+  const above = page.locator('.row').nth(3).locator('math-field');
+  const note = page.locator('.row').nth(4).locator('textarea');
+  const below = page.locator('.row').nth(5).locator('math-field');
+  await above.click();
+  await expect(above).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(note).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(below).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(note).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(above).toBeFocused();
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

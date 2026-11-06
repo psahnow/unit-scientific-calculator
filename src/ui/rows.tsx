@@ -406,6 +406,25 @@ export function NoteRow({ row }: { row: Extract<Row, { type: 'note' }> }) {
               e.preventDefault();
               s.deleteRow(row.id);
             }
+            // ↑ on the first line / ↓ on the last line go to the row above / below, as in expression
+            // rows. A long note that wraps: let the browser move the caret, and leave only if it
+            // couldn't move any further
+            if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+              const el = e.currentTarget;
+              const up = e.key === 'ArrowUp';
+              const at = el.selectionStart;
+              if (at !== el.selectionEnd) return;
+              const lineH = parseFloat(getComputedStyle(el).lineHeight) || 20;
+              const oneLine = el.scrollHeight <= lineH * 1.6 + 8;
+              const edge = up ? !el.value.slice(0, at).includes('\n') : !el.value.slice(at).includes('\n');
+              if (edge && (oneLine || at === (up ? 0 : el.value.length))) {
+                e.preventDefault();
+                s.focusRelative(row.id, up ? -1 : 1);
+              } else if (edge)
+                setTimeout(() => {
+                  if (el.selectionStart === at && document.activeElement === el) s.focusRelative(row.id, up ? -1 : 1);
+                }, 0);
+            }
           }}
         />
       </div>

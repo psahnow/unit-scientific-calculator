@@ -2022,3 +2022,9 @@ math-field {
     margin: 0 !important;
   }
 }
+
+/* the sheet takes up the spare height, so the footer sits at the bottom of the window even when
+   the worksheet is short */
+.sheet-wrap {
+  flex: 1 0 auto;
+}
