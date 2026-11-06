@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { setCurrentPackages } from '../src/engine/units/packages';
 import { evaluateWorksheet, type Row } from '../src/engine/worksheet';
 import { formatQuantity } from '../src/engine/format';
 import { suggestionsFor } from '../src/engine/suggest';
@@ -99,6 +100,8 @@ describe('folder scope (D24)', () => {
 });
 
 describe('autocomplete ranking', () => {
+  beforeAll(() => setCurrentPackages(['electrical'])); // the farad lives in Electrical (D26)
+  afterAll(() => setCurrentPackages([]));
   it('a defined variable comes before a unit with the same symbol', () => {
     const s = suggestionsFor('F', ['F', 'A'], false);
     expect(s[0]).toMatchObject({ kind: 'var', label: 'F' });

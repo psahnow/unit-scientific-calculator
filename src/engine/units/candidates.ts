@@ -1,4 +1,5 @@
 // Unit dropdown candidates (DESIGN.md §6).
+import { isUnitOn } from './packages';
 import { dimEq, isDimless } from '../dim';
 import { type Quantity, checkConvertible, displayValue } from '../quantity';
 import { type UnitExpr, expandedUnits, parseUnitExpr, formatUnit, unitExprEq, getUnit } from './registry';
@@ -76,8 +77,10 @@ export function unitCandidates(
   push(suggested, q.unit);
   push(suggested, autoUnit);
 
-  const singles = expandedUnits().filter((u) => dimEq(u.dim, q.dim) && (u.category !== 'Ratio' || isDimless(q.dim)));
-  const pool: UnitExpr[] = [...singles.map((u) => [{ id: u.id, power: 1 }]), ...compounds().filter((c) => !checkConvertible(q, c))];
+  // only units from the worksheet's enabled packages (D26); the current and automatic units always show
+  const on = (e: UnitExpr) => e.every((t) => isUnitOn(getUnit(t.id)));
+  const singles = expandedUnits().filter((u) => isUnitOn(u) && dimEq(u.dim, q.dim) && (u.category !== 'Ratio' || isDimless(q.dim)));
+  const pool: UnitExpr[] = [...singles.map((u) => [{ id: u.id, power: 1 }]), ...compounds().filter((c) => on(c) && !checkConvertible(q, c))];
 
   // nicest SI choices: value in [1, 1000)
   const niceSI = pool

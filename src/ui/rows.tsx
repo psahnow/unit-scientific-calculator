@@ -8,6 +8,7 @@ import { formatUnit } from '../engine/units/registry';
 import { MathInput } from './MathInput';
 import { UnitButton } from './UnitDropdown';
 import { useStore } from '../state/store';
+import { PACKAGE_BY_ID } from '../engine/units/packages';
 
 export interface RowCtx {
   result?: RowResult;
@@ -19,6 +20,8 @@ export interface RowCtx {
   shadows?: boolean;
   /** A warning to show under the row (D24 scope hints). */
   notice?: string;
+  /** A unit chip on this row comes from packages that are off (D26). */
+  packageHint?: { unit: string; packages: string[] };
 }
 
 type ExprRow = Extract<Row, { type: 'expr' }>;
@@ -149,6 +152,25 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         {actions}
       </div>
       {resultEl && <div className="row-result">{resultEl}</div>}
+      {ctx.packageHint && (
+        <div className="row-notice" role="note">
+          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is from{' '}
+          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')}, which is off for this worksheet. It
+          still calculates, but isn’t offered when typing.{' '}
+          {ctx.packageHint.packages.map((id) => (
+            <button
+              key={id}
+              className="link-btn"
+              onClick={() => {
+                const st = useStore.getState();
+                st.setSettings({ packages: [...st.ws.settings.packages, id] });
+              }}
+            >
+              Turn on {PACKAGE_BY_ID.get(id)?.name ?? id}
+            </button>
+          ))}
+        </div>
+      )}
       {ctx.notice && (
         <div className="row-notice" role="note">
           <span aria-hidden>⚠</span> {ctx.notice}

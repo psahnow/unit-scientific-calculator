@@ -1,5 +1,13 @@
 // Autocomplete suggestions for the math input (DESIGN.md §4.2).
-import { expandedUnits, normalizeSymbol, lookupUnit } from './units/registry';
+import { expandedUnits as allExpanded, normalizeSymbol, lookupUnit as lookupAny } from './units/registry';
+import { isUnitOn } from './units/packages';
+
+// only units from the worksheet's enabled packages (D26)
+const lookupUnit = (s: string) => {
+  const u = lookupAny(s);
+  return u && isUnitOn(u) ? u : undefined;
+};
+const expandedUnits = () => allExpanded().filter(isUnitOn);
 import { CONSTANTS } from './units/constants.data';
 import { LETTER_FUNCS } from './parser';
 import { symbolToLatex } from './latex';

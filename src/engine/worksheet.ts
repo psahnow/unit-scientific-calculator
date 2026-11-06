@@ -5,9 +5,10 @@ import { isUnitOnly } from './ast';
 import * as N from './num';
 import { evaluate, type Value, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, type Quantity } from './quantity';
-import { parseUnitExpr, getUnit, type UnitExpr } from './units/registry';
+import { parseUnitExpr, getUnit, lookupUnit, type UnitExpr } from './units/registry';
+import { availability, packagesOf } from './units/packages';
 import { dimEq, DIMLESS } from './dim';
-import { symbolToLatex } from './latex';
+import { symbolToLatex, latexToSymbol } from './latex';
 import { CONST_BY_KEY } from './units/constants.data';
 
 const constLatex = (k: string) => CONST_BY_KEY.get(k)?.latex ?? k;
@@ -66,10 +67,14 @@ export interface WorksheetResult {
   shadows: Set<string>;
   /** Per-row warnings, e.g. a bare “F” read as farad because F is only defined in another folder. */
   notices: Map<string, string>;
+  /** Rows using a unit chip from a package that is off: the packages that would provide it. */
+  packageHints: Map<string, { unit: string; packages: string[] }>;
 }
 
 export interface EvalSettings {
   angle: 'rad' | 'deg';
+  /** Enabled unit packages (D26). Omitted: every unit is available. */
+  packages?: readonly string[];
 }
 
 type DefSource =
@@ -133,6 +138,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     return lv && (lv.vars.has(name) || lv.funcs.has(name)) ? lv : global;
   };
 
+  const unitsOn = availability(settings.packages);
   const ctxCache = new Map<Scope, ParseContext>();
   const ctxFor = (scope: Scope): ParseContext => {
     let c = ctxCache.get(scope);
@@ -141,6 +147,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       c = {
         vars: new Set([...global.vars.keys(), ...(lv?.vars.keys() ?? [])]),
         funcs: new Set([...global.funcs.keys(), ...(lv?.funcs.keys() ?? [])]),
+        units: unitsOn,
       };
       ctxCache.set(scope, c);
     }
@@ -190,6 +197,20 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     if (kept.length) chips.set(r.id, kept);
     else chips.delete(r.id);
   }
+
+  // 2c. Unit chips from a package that is off still work, but say which package they need.
+  const packageHints = new Map<string, { unit: string; packages: string[] }>();
+  if (settings.packages)
+    for (const r of rows) {
+      if (r.type !== 'expr') continue;
+      for (const m of r.latex.matchAll(/\\unit\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g)) {
+        const u = lookupUnit(latexToSymbol(m[1]));
+        if (u && !unitsOn(u)) {
+          packageHints.set(r.id, { unit: u.id, packages: packagesOf(u) });
+          break;
+        }
+      }
+    }
 
   // 3. Lazy evaluation with cycle detection, cached per definition.
   const varCache = new Map<string, Value | Error>();
@@ -352,7 +373,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
-  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices };
+  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, packageHints };
 }
 
 class CycleError extends CalcError {}

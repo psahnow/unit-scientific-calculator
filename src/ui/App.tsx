@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { evaluateWorksheet } from '../engine/worksheet';
+import { setCurrentPackages } from '../engine/units/packages';
 import type { FormatOptions } from '../engine/format';
 import { useStore, visibleRows, type RowType } from '../state/store';
 import { TopBar } from './TopBar';
@@ -10,7 +11,12 @@ import { Toolbox, ToolboxButton } from './Toolbox';
 export function App() {
   const s = useStore();
   const { rows, settings } = s.ws;
-  const result = useMemo(() => evaluateWorksheet(rows, { angle: settings.angle }), [rows, settings.angle]);
+  // autocomplete and unit dropdowns follow this worksheet's packages (D26)
+  setCurrentPackages(settings.packages);
+  const result = useMemo(
+    () => evaluateWorksheet(rows, { angle: settings.angle, packages: settings.packages }),
+    [rows, settings.angle, settings.packages],
+  );
   const fmt: FormatOptions = { sigFigs: settings.sigFigs, notation: settings.notation, sciAbove: settings.sciAbove, mode: settings.exactDefault ? 'auto' : 'decimal' };
   // names visible from each folder (folder-scoped definitions only count inside their folder)
   const varsFor = useMemo(() => {
@@ -137,7 +143,7 @@ export function App() {
                 </span>
               </div>
               {row.type === 'expr' && (
-                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), notice: result.notices.get(row.id) }} />
+                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), notice: result.notices.get(row.id), packageHint: result.packageHints.get(row.id) }} />
               )}
               {row.type === 'note' && <NoteRow row={row} />}
               {row.type === 'folder' && <FolderRow row={row} count={childCount} />}

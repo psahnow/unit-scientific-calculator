@@ -1,4 +1,5 @@
 // LaTeX (MathLive) → AST. Resolves letter runs into variables, units, constants (DESIGN.md §4).
+import type { Availability } from './units/packages';
 import { tokenize, type Tok } from './latex';
 import type { Node, ParsedRow, ChipFix } from './ast';
 import { isUnitOnly } from './ast';
@@ -11,6 +12,8 @@ export class ParseError extends Error {}
 export interface ParseContext {
   vars: Set<string>;
   funcs: Set<string>;
+  /** Units recognised from bare letters (unit packages, D26). Chips always work. Default: all. */
+  units?: Availability;
 }
 
 /** Functions callable by a plain letter run followed by "(". */
@@ -116,7 +119,7 @@ export function parseRow(latex: string, ctx: ParseContext): ParseResult {
     const rhsToks = toks.slice(eq + 1);
     if (!rhsToks.length) throw new ParseError('Missing value after “=”');
     const local: ParseContext =
-      lhs.kind === 'func' ? { vars: new Set([...ctx.vars, ...lhs.params]), funcs: ctx.funcs } : ctx;
+      lhs.kind === 'func' ? { ...ctx, vars: new Set([...ctx.vars, ...lhs.params]) } : ctx;
     const p = new Parser(rhsToks, local, chips);
     const expr = p.parseAll();
     return {
@@ -501,7 +504,8 @@ class Parser {
           matched = true;
         } else {
           const allVars = seg.every((r, idx) => isVar(r.v + (idx === seg.length - 1 ? subOf(r) : '')));
-          const u = lookupUnit(segName);
+          const found = lookupUnit(segName);
+          const u = found && (!this.ctx.units || this.ctx.units(found)) ? found : undefined;
           const prevVal = prevIsValue || nodes.length > 0;
           if (u && (!allVars || (prevVal && seg.length > 1))) {
             nodes.push({ k: 'unit', id: u.id });

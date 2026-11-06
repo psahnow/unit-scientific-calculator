@@ -8,11 +8,13 @@ export interface Settings {
   notation: Notation;
   /** Exponent at which Auto notation switches large values to ×10ⁿ. */
   sciAbove: number;
+  /** Enabled unit packages for this worksheet (D26). Base units are always on. */
+  packages: string[];
   exactDefault: boolean; // show non-terminating exact results as fractions
   theme: 'system' | 'light' | 'dark';
 }
 
-export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, exactDefault: true, theme: 'system' };
+export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, packages: [], exactDefault: true, theme: 'system' };
 
 export interface Worksheet {
   schema: 1;

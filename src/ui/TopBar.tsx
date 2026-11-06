@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, exportWorksheet, type Settings } from '../state/store';
+import { PACKAGES } from '../engine/units/packages';
 
 function usePopover() {
   const [open, setOpen] = useState(false);
@@ -115,6 +116,25 @@ export function TopBar() {
               <input type="checkbox" checked={st.exactDefault} onChange={(e) => set({ exactDefault: e.target.checked })} />
               Show exact fractions (1/3)
             </label>
+            <fieldset className="packages">
+              <legend>Unit packages</legend>
+              <p className="pk-help">Everyday SI and US units are always on. Turn on extra units for this worksheet:</p>
+              {PACKAGES.map((p) => (
+                <label key={p.id} className="check pk" title={p.description}>
+                  <input
+                    type="checkbox"
+                    checked={st.packages.includes(p.id)}
+                    onChange={(e) =>
+                      set({ packages: e.target.checked ? [...st.packages, p.id] : st.packages.filter((x) => x !== p.id) })
+                    }
+                  />
+                  <span>
+                    {p.name}
+                    <small>{p.description}</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             <label>
               Theme
               <select value={st.theme} onChange={(e) => set({ theme: e.target.value as Settings['theme'] })}>

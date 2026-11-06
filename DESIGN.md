@@ -52,6 +52,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D23 | `MPa·mm²` and similar products of named units | **Collapse to the named unit** (`N`), prefixed to keep the value. Stresses (`N/mm²`), torque (`N·m`) and `kW·h` stay as written |
 | D24 | Variable scope | Global by default; a **per-row global/folder switch** limits a definition to its folder. Folder definitions win inside their folder and may shadow globals; lookups are lexical |
 | D25 | Function toolbox | A **bottom keypad drawer** with tabbed groups (trig, hyperbolic, powers & logs, rounding, special, statistics) that inserts at the caret. Adds Γ, erf/erfc, inverse hyperbolics, nCr, nPr, gcd, lcm |
+| D26 | Unit packages | **Base set always on; per-worksheet packages** (Mechanical, Electrical, Physics, Chemistry, Cooking, UK imperial) in ⚙ Settings. Packages overlap; chips from an off package still work and offer to turn it on |
 
 ---
 
@@ -347,6 +348,20 @@ The catalogue is a data file (`units.data.ts`). Each entry: `id`, symbols/aliase
 **Registered compounds** (for dropdown suggestions): N/mm², N·m, N·mm, kN·m, lbf·ft, lbf·in, kip·ft, kip/in², J/(kg·K), W/(m·K), W/(m²·K), BTU/(lbm·°F), BTU/(h·ft²·°F), and so on. This list gives the dropdown sensible compound options beyond the single-unit catalogue.
 
 ---
+
+### 7.1 Unit packages (D26)
+Everyday units are always on (the **base set**). Specialist units live in **packages** that each worksheet turns on in ⚙ Settings → Unit packages (saved with the worksheet). Packages overlap. Defined in `units/packages.ts`; any unit not listed there is base.
+
+| Package | Adds |
+|---|---|
+| Mechanical engineering | kip, ksi, psf, tonf, ozf, pdl, slug, kgf, short ton, mil, µin, inHg, inH₂O, rpm, gpm, cfm, TR, BTU, therm, metric hp, °R, µε, poise, stokes, barrel, gradian |
+| Electrical engineering | F, H, S, Wb, T, gauss, VA, VAr, Ah, circular mil, mil, lm, lx |
+| Physics | eV, Å, au, ly, pc, Da, dyn, erg, Gal, P, St, Gy, Sv, Bq, Ci, barn, torr, mmHg, F, H, S, Wb, T, gauss, lm, lx |
+| Chemistry | molar (M = mol/L), katal, Da, Å, eV, torr, mmHg, grain, Bq, Ci |
+| Cooking | cup, tbsp, tsp |
+| UK imperial | imperial gallon, pint, fluid ounce, long ton |
+
+A unit that is off is not recognised from bare letters (so `F` stays free for a force variable unless Electrical or Physics is on), not offered in autocomplete, and not listed in unit dropdowns; a longer run falls back to base units (`VA` → V·A). A unit **chip** from a package that is off still calculates, and its row says which package provides it, with a button to turn that package on. Free-form entry in a unit dropdown accepts any unit. Prefixed units follow their base unit (`mM` is Chemistry). Constants are not packaged.
 
 ## 8. Architecture
 

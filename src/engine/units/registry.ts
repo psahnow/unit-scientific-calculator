@@ -69,6 +69,7 @@ function makePrefixed(p: string, pf: Num, base: UnitDef): UnitDef {
     system: base.system,
     category: base.category,
     base: isKg || undefined,
+    prefixOf: base.id,
   };
   UNIT_BY_ID.set(id, def);
   return def;

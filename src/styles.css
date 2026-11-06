@@ -262,6 +262,7 @@ textarea {
   gap: 10px;
   padding: 12px;
   min-width: 290px;
+  width: min(360px, calc(100vw - 24px));
 }
 .settings label {
   display: flex;
@@ -1008,4 +1009,55 @@ td.computed {
     font-size: 15px;
     padding: 7px 4px;
   }
+}
+
+/* unit packages (D26) */
+.settings fieldset.packages {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2px 0 0;
+  padding: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings fieldset.packages legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+  padding: 0 4px 0 0;
+}
+.pk-help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.settings label.pk {
+  align-items: flex-start;
+}
+.settings label.pk input {
+  margin-top: 3px;
+}
+.pk span {
+  display: flex;
+  flex-direction: column;
+}
+.pk small {
+  color: var(--fg-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.settings {
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+}
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0 4px 0 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
 }

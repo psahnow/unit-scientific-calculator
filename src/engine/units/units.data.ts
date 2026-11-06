@@ -23,6 +23,8 @@ export interface UnitDef {
   commonPrefixes?: string[];
   /** Ambiguous symbol: always prompt in autocomplete (e.g. lb). */
   ambiguous?: string[];
+  /** For a prefixed unit (kPa), the catalogue unit it is built on (Pa). */
+  prefixOf?: string;
 }
 
 const L = dim({ L: 1 }),
@@ -206,6 +208,18 @@ u({ id: '%', name: 'percent', dim: dim({}), factor: D('0.01'), system: 'other', 
 u({ id: '‰', name: 'per mille', dim: dim({}), factor: D('0.001'), system: 'other', category: 'Ratio', aliases: ['permille'] });
 u({ id: 'ppm', name: 'parts per million', dim: dim({}), factor: D('1e-6'), system: 'other', category: 'Ratio' });
 u({ id: 'µε', name: 'microstrain', dim: dim({}), factor: D('1e-6'), system: 'other', category: 'Ratio', aliases: ['ue', 'microstrain'] });
+
+// ── Package-only units (DESIGN.md §7.1): off unless their package is enabled ──
+u({ id: 'Gy', name: 'gray', dim: dim({ L: 2, T: -2 }), factor: D('1'), system: 'SI', prefixable: true, category: 'Radiation', commonPrefixes: ['m', 'µ'] });
+u({ id: 'Sv', name: 'sievert', dim: dim({ L: 2, T: -2 }), factor: D('1'), system: 'SI', prefixable: true, category: 'Radiation', commonPrefixes: ['m', 'µ'] });
+u({ id: 'Bq', name: 'becquerel', dim: dim({ T: -1 }), factor: D('1'), system: 'SI', prefixable: true, category: 'Radiation', commonPrefixes: ['k', 'M', 'G'] });
+u({ id: 'Ci', name: 'curie', dim: dim({ T: -1 }), factor: D('3.7e10'), system: 'other', prefixable: true, category: 'Radiation', commonPrefixes: ['m', 'µ'] });
+u({ id: 'b', name: 'barn', dim: AREA, factor: D('1e-28'), system: 'other', prefixable: true, category: 'Area', commonPrefixes: ['m'], aliases: ['barn'] });
+u({ id: 'Gs', name: 'gauss', dim: dim({ M: 1, T: -2, I: -1 }), factor: D('1e-4'), system: 'CGS', prefixable: true, category: 'Electrical', commonPrefixes: ['m'], aliases: ['gauss'] });
+u({ id: 'VA', name: 'volt-ampere', dim: POWER, factor: D('1'), system: 'SI', prefixable: true, category: 'Electrical', commonPrefixes: ['k', 'M'] });
+u({ id: 'VAr', name: 'volt-ampere reactive', dim: POWER, factor: D('1'), system: 'SI', prefixable: true, category: 'Electrical', commonPrefixes: ['k', 'M'], aliases: ['var_r'] });
+u({ id: 'M', name: 'molar (mol/L)', dim: dim({ N: 1, L: -3 }), factor: D('1000'), system: 'SI-accepted', prefixable: true, category: 'Concentration', commonPrefixes: ['m', 'µ', 'n'], aliases: ['molar'] });
+u({ id: 'kat', name: 'katal', dim: dim({ N: 1, T: -1 }), factor: D('1'), system: 'SI', prefixable: true, category: 'Catalytic activity', commonPrefixes: ['m', 'µ', 'n'] });
 
 export const SI_PREFIXES: [string, Num][] = [
   ['Q', D('1e30')], ['R', D('1e27')], ['Y', D('1e24')], ['Z', D('1e21')], ['E', D('1e18')], ['P', D('1e15')],
