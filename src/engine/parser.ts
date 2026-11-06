@@ -28,6 +28,48 @@ const CMD_FUNCS = new Set([...LETTER_FUNCS, 'arcsec', 'arccsc', 'arccot', 'lg', 
 
 const CMP_OPS = new Set(['<', '>', '≤', '≥', '=', '≠']);
 
+const CLOSERS: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
+const NAMES: Record<string, string> = { '*': '×', '/': '÷', '^': 'power', '_': 'subscript' };
+
+/** A plain-language message for a token that can't go where it is (D28). */
+function unexpected(t: Tok): string {
+  if (t.t === 'close') {
+    return t.v === '}'
+      ? 'Something is empty or extra here: fill in or delete the empty box (a power, fraction part or bracket)'
+      : `There's an extra “${t.v}”, or a “${CLOSERS[t.v] ?? '('}” is missing before it`;
+  }
+  if (t.t === 'op') {
+    switch (t.v) {
+      case '=':
+        return 'Only one “=” per row: it gives a name to a value, like x = 5';
+      case ':':
+        return '“:” only goes inside a piecewise, like {x < 0: −x, x}';
+      case ',':
+        return 'Commas separate list items [1, 2] or function inputs f(1, 2)';
+      case '→':
+        return '“→” only goes under a limit, like lim x→0';
+      case '<':
+      case '>':
+      case '≤':
+      case '≥':
+      case '≠':
+        return `Comparisons like “${t.v}” only go inside a piecewise, like {x ${t.v} 3: …}`;
+      case '^':
+        return 'A power needs something to raise: put a value before it';
+      case '!':
+        return 'Factorial “!” needs a value before it, like 5!';
+      default:
+        return `“${NAMES[t.v] ?? t.v}” needs a value on both sides`;
+    }
+  }
+  if (t.t === 'num' && t.v === '.') return 'A lone “.” needs digits, like 0.5';
+  if (t.t === 'open' && t.v === '|') return 'An absolute value |…| is missing its closing bar';
+  return `“${'v' in t ? t.v : '?'}” can't go here`;
+}
+
+const INCOMPLETE = "Something's missing: finish the expression or delete the empty box";
+
+
 export interface ParseResult {
   row: ParsedRow;
   chips: ChipFix[];
@@ -117,9 +159,9 @@ export function parseRow(latex: string, ctx: ParseContext): ParseResult {
   const eq = topLevelEq(toks);
   if (eq >= 0) {
     const lhs = parseLhs(toks.slice(0, eq));
-    if (!lhs) throw new ParseError('Left side of “=” must be a name like x, F_1 or f(x)');
+    if (!lhs) throw new ParseError('To define something, put a single name before “=”, like x = 5, F_1 = 2 N or f(x) = x²');
     const rhsToks = toks.slice(eq + 1);
-    if (!rhsToks.length) throw new ParseError('Missing value after “=”');
+    if (!rhsToks.length) throw new ParseError('Nothing after “=” yet');
     const local: ParseContext =
       lhs.kind === 'func' ? { ...ctx, vars: new Set([...ctx.vars, ...lhs.params]) } : ctx;
     const p = new Parser(rhsToks, local, chips);
@@ -164,7 +206,11 @@ class Parser {
     return (t?.t === 'close' && (v === undefined || t.v === v)) || (v === '|' && t?.t === 'open' && t.v === '|');
   }
   expectClose(v: string) {
-    if (!this.isClose(v)) throw new ParseError(`Expected “${v}”`);
+    if (!this.isClose(v)) {
+      const t = this.peek();
+      if (!t) throw new ParseError(v === '}' ? INCOMPLETE : `A “${v}” is missing: close the bracket`);
+      throw new ParseError(t.t === 'close' ? unexpected(t) : `A “${v}” is missing before “${'v' in t ? t.v : '?'}”`);
+    }
     this.i++;
   }
 
@@ -172,7 +218,7 @@ class Parser {
     const n = this.parseExpr();
     if (this.i < this.toks.length) {
       const t = this.toks[this.i];
-      throw new ParseError(`Unexpected “${'v' in t ? t.v : '?'}”`);
+      throw new ParseError(unexpected(t));
     }
     return n;
   }
@@ -252,6 +298,7 @@ class Parser {
   parsePostfix(prevIsValue: boolean): Node {
     let a = this.parsePrimary(prevIsValue);
     for (;;) {
+      if (this.emptyScript()) continue;
       if (this.isOp('^')) {
         this.i++;
         const ex = this.parseGroupOrToken();
@@ -272,10 +319,19 @@ class Parser {
     return a;
   }
 
+  /** Skip an empty ^{} or _{} left behind after deleting a power or subscript. */
+  emptyScript(): boolean {
+    if ((this.isOp('^') || this.isOp('_')) && this.isOpen('{', 1) && this.peek(2)?.t === 'close' && (this.peek(2) as { v: string }).v === '}') {
+      this.i += 3;
+      return true;
+    }
+    return false;
+  }
+
   /** ^{…} or ^x ; returns 'degree' for ^{\circ}. */
   parseGroupOrToken(): Node | 'degree' {
     const t = this.peek();
-    if (!t) throw new ParseError('Missing exponent');
+    if (!t) throw new ParseError('The power is empty: type one, or delete the power');
     if (t.t === 'open' && t.v === '{') {
       const n = this.toks[this.i + 1];
       const c = this.toks[this.i + 2];
@@ -306,7 +362,8 @@ class Parser {
   group(): Node {
     if (!this.isOpen('{')) return this.parsePostfix(false);
     this.i++;
-    const e = this.isClose('}') ? ({ k: 'num', v: parseDecimal('0') } as Node) : this.parseExpr();
+    if (this.isClose('}')) throw new ParseError('There’s an empty box (part of a fraction or root): fill it in or delete it');
+    const e = this.parseExpr();
     this.expectClose('}');
     return e;
   }
@@ -332,22 +389,22 @@ class Parser {
 
   parsePrimary(prevIsValue: boolean): Node {
     const t = this.peek();
-    if (!t) throw new ParseError('Incomplete expression');
+    if (!t) throw new ParseError(INCOMPLETE);
     switch (t.t) {
       case 'num': {
         this.i++;
-        if (t.v === '.') throw new ParseError('Unexpected “.”');
+        if (t.v === '.') throw new ParseError(unexpected(t));
         return { k: 'num', v: parseDecimal(t.v) };
       }
       case 'unit': {
         this.i++;
         const u = lookupUnit(t.v);
-        if (!u) throw new ParseError(`Unknown unit “${t.v}”`);
+        if (!u) throw new ParseError(`“${t.v}” isn't a unit this calculator knows`);
         return { k: 'unit', id: u.id };
       }
       case 'const': {
         this.i++;
-        if (!CONST_BY_KEY.has(t.v)) throw new ParseError(`Unknown constant “${t.v}”`);
+        if (!CONST_BY_KEY.has(t.v)) throw new ParseError(`“${t.v}” isn't a constant this calculator knows`);
         return { k: 'const', key: t.v };
       }
       case 'open': {
@@ -400,7 +457,7 @@ class Parser {
       default:
         break;
     }
-    throw new ParseError(`Unexpected “${'v' in t ? t.v : '?'}”`);
+    throw new ParseError(unexpected(t));
   }
 
   parseCommand(): Node {
@@ -429,22 +486,23 @@ class Parser {
     if (name === 'pi') return { k: 'pi' };
     if (name === 'infty') return { k: 'num', v: float(Infinity) };
     if (CMD_FUNCS.has(name) || LETTER_FUNCS.has(name)) return this.parseFuncTail(normalizeFn(name));
-    throw new ParseError(`Unsupported “\\${name}”`);
+    throw new ParseError(`“\\${name}” isn't supported`);
   }
 
   parseFuncTail(name: string): Node {
     let power: Node | undefined;
     let base: Node | undefined;
     for (;;) {
+      if (this.emptyScript()) continue;
       if (this.isOp('^')) {
         this.i++;
         const p = this.parseGroupOrToken();
-        if (p === 'degree') throw new ParseError('Unexpected °');
+        if (p === 'degree') throw new ParseError('A degree sign can’t be a power of a function');
         power = p;
       } else if (this.isOp('_')) {
         this.i++;
         const b = this.parseGroupOrToken();
-        if (b === 'degree') throw new ParseError('Unexpected °');
+        if (b === 'degree') throw new ParseError('A degree sign can’t go here');
         base = b;
       } else break;
     }
@@ -468,7 +526,7 @@ class Parser {
   takeGroup(): Tok[] {
     if (!this.isOpen('{')) {
       const t = this.peek();
-      if (!t) throw new ParseError('Incomplete expression');
+      if (!t) throw new ParseError(INCOMPLETE);
       this.i++;
       return [t];
     }
@@ -485,12 +543,12 @@ class Parser {
         }
       }
     }
-    throw new ParseError('Expected “}”');
+    throw new ParseError(INCOMPLETE);
   }
 
   /** Parse a token slice as a whole expression, with the same names (plus `bound`). */
   sub(toks: Tok[], bound?: string): Node {
-    if (!toks.length) throw new ParseError('Incomplete expression');
+    if (!toks.length) throw new ParseError(INCOMPLETE);
     const ctx = bound ? { ...this.ctx, vars: new Set([...this.ctx.vars, bound]) } : this.ctx;
     return new Parser(toks, ctx, this.chips).parseAll();
   }
@@ -530,7 +588,8 @@ class Parser {
         hi = this.takeGroup();
       }
     }
-    if (!lo || !hi) throw new ParseError('Give the integral its limits, like ∫₀¹ f(x) dx');
+    if (!lo || !lo.length || !hi || !hi.length)
+      throw new ParseError('This integral needs both limits: type the start below the ∫ and the end above it (only definite integrals are supported)');
     // find the differential "dx" that ends the integrand
     let depth = 0;
     for (let j = this.i; j < this.toks.length; j++) {
@@ -551,7 +610,7 @@ class Parser {
         return { k: 'integral', v, lo: this.sub(lo), hi: this.sub(hi), body };
       }
     }
-    throw new ParseError('End the integral with its variable, like dx');
+    throw new ParseError('End the integral with “d” and its variable, like dx, after the expression');
   }
 
   /** d/dx or d²/dx² written as \frac{d}{dx}; returns null if this \frac isn't a derivative. */
@@ -579,17 +638,20 @@ class Parser {
       return null;
     }
     const v = vn[0];
+    if (!this.startsPrimary()) throw new ParseError(`d/d${v} needs an expression after it`);
     const body = this.withVar(v, () => this.parseTerm());
     return { k: 'deriv', v, order: order as 1 | 2, body };
   }
 
   /** \lim_{x \to a} f(x), with optional a^+ / a^- */
   parseLimit(): Node {
-    if (!this.isOp('_')) throw new ParseError('Write the limit like lim_{x→0}');
+    if (!this.isOp('_')) throw new ParseError('Under “lim”, write the variable and where it goes, like x → 0');
     this.i++;
     const g = this.takeGroup();
     const vn = Parser.varName(g);
-    if (!vn || g[vn[1]]?.t !== 'op' || (g[vn[1]] as { v: string }).v !== '→') throw new ParseError('Write the limit like lim_{x→0}');
+    if (!vn || g[vn[1]]?.t !== 'op' || (g[vn[1]] as { v: string }).v !== '→')
+      throw new ParseError('Under “lim”, write the variable and where it goes, like x → 0');
+    if (g.length === vn[1] + 1) throw new ParseError('Under “lim”, say where the variable goes, like x → 0');
     let target = g.slice(vn[1] + 1);
     let dir: '+' | '-' | undefined;
     const plain = target.filter((t) => !(t.t === 'open' && t.v === '{') && !(t.t === 'close' && t.v === '}'));
@@ -601,6 +663,7 @@ class Parser {
     }
     const to = this.sub(target);
     const v = vn[0];
+    if (!this.startsPrimary()) throw new ParseError('“lim” needs an expression after it');
     const body = this.withVar(v, () => this.parseTerm());
     return { k: 'limit', v, to, dir, body };
   }
@@ -619,9 +682,14 @@ class Parser {
       }
     }
     const sym = op === 'sum' ? 'Σ' : 'Π';
-    if (!lo || !hi) throw new ParseError(`Write it like ${sym}_{n=1}^{10}`);
+    const what = op === 'sum' ? 'add up' : 'multiply';
+    if (!lo || !lo.length) throw new ParseError(`${sym} needs a start below it, like n = 1`);
+    if (!hi || !hi.length) throw new ParseError(`${sym} needs an end value: type it above the ${sym}`);
     const vn = Parser.varName(lo);
-    if (!vn || lo[vn[1]]?.t !== 'op' || (lo[vn[1]] as { v: string }).v !== '=') throw new ParseError(`Write it like ${sym}_{n=1}^{10}`);
+    if (!vn || lo[vn[1]]?.t !== 'op' || (lo[vn[1]] as { v: string }).v !== '=')
+      throw new ParseError(`Below the ${sym}, write the counter and where it starts, like n = 1`);
+    if (lo.length === vn[1] + 1) throw new ParseError(`Below the ${sym}, say where ${vn[0]} starts, like ${vn[0]} = 1`);
+    if (!this.startsPrimary()) throw new ParseError(`${sym} needs something to ${what}: type it after the ${sym}`);
     const v = vn[0];
     const from = this.sub(lo.slice(vn[1] + 1));
     const to = this.sub(hi);

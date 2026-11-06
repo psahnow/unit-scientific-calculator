@@ -6,7 +6,7 @@ export class NumericError extends Error {}
 type Fn = (x: number) => number;
 
 function check(v: number, x: number): number {
-  if (!Number.isFinite(v)) throw new NumericError(`the expression is undefined at ${fmt(x)}`);
+  if (!Number.isFinite(v)) throw new NumericError(`can't be worked out: the expression is undefined at ${fmt(x)}`);
   return v;
 }
 const fmt = (x: number) => (Math.abs(x) < 1e-4 || Math.abs(x) >= 1e6 ? x.toExponential(4) : String(Number(x.toPrecision(6))));
@@ -59,7 +59,7 @@ function integrateFinite(f: Fn, a: number, b: number): number {
   }
   const total = segs.reduce((s, x) => s + x.value, 0);
   const err = segs.reduce((s, x) => s + x.error, 0);
-  if (err > 1e-6 * Math.max(1, Math.abs(total))) throw new NumericError("the integral doesn't converge");
+  if (err > 1e-6 * Math.max(1, Math.abs(total))) throw new NumericError("doesn't converge");
   return total;
 }
 
@@ -73,7 +73,7 @@ export function integrate(f: Fn, a: number, b: number): number {
   try {
     return integrateInfinite(f, a, b, fa, fb);
   } catch (e) {
-    if (e instanceof NumericError) throw new NumericError("the integral doesn't converge (it may be infinite)");
+    if (e instanceof NumericError) throw new NumericError("doesn't converge (it may be infinite)");
     throw e;
   }
 }
@@ -148,7 +148,7 @@ function oneSide(g: Fn, h0: number): number {
     }
     best = est;
   }
-  if (!vs.length) throw new NumericError("the expression can't be evaluated near that point");
+  if (!vs.length) throw new NumericError("can't be worked out: the expression is undefined near that point");
   // divergence: values growing without bound
   // divergence: the last few values grow steadily in size with one sign (1/x, 1/√x, ln x …)
   if (vs.length >= 6) {
@@ -175,7 +175,7 @@ export function limit(f: Fn, a: number, scale: number, dir?: '+' | '-'): number 
   const agree =
     (right === left) || Math.abs(right - left) <= 1e-6 * Math.max(1, Math.abs(right), Math.abs(left));
   if (!agree)
-    throw new NumericError(`the limit doesn't exist: from the left it is ≈ ${fmt(left)}, from the right ≈ ${fmt(right)}`);
+    throw new NumericError(`doesn't exist: from the left it is ≈ ${fmt(left)}, from the right ≈ ${fmt(right)}`);
   return snap(Number.isFinite(right) ? (right + left) / 2 : right);
 }
 

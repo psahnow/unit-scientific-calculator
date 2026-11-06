@@ -33,7 +33,7 @@ describe('integrals', () => {
   });
   it('needs dx and limits', () => {
     expect(calc(r`\int_{0}^{1}x^2`)).toMatch(/^error: End the integral/);
-    expect(calc(r`\int x\,dx`)).toMatch(/^error: Give the integral/);
+    expect(calc(r`\int x\,dx`)).toMatch(/^error: This integral needs both limits/);
   });
 });
 

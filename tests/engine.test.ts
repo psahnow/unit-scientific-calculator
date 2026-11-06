@@ -128,7 +128,7 @@ describe('variables, functions, inheritance', () => {
   });
   it('cycles and undefined', () => {
     expect(calc(['a=b', 'b=a'])).toMatch(/Circular/);
-    expect(calc('q+1')).toMatch(/not defined/);
+    expect(calc('q+1')).toMatch(/isn't defined yet: add a row like q = 5/);
     expect(calc(['a=1', 'a=2', 'a'])).toMatch(/more than once/);
   });
   it('subscripted names', () => {

@@ -54,6 +54,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D25 | Function toolbox | A **bottom keypad drawer** with tabbed groups (trig, hyperbolic, powers & logs, rounding, special, statistics) that inserts at the caret. Adds Γ, erf/erfc, inverse hyperbolics, nCr, nPr, gcd, lcm |
 | D26 | Unit packages | **Base set always on; per-worksheet packages** (Mechanical, Electrical, Physics, Chemistry, Cooking, UK imperial) in ⚙ Settings. Packages overlap; chips from an off package still work and offer to turn it on |
 | D27 | Solvers | **Numeric, unit-aware** definite integrals (±∞ limits), derivatives (1st/2nd, at the current value), limits (one/two-sided, ∞), exact Σ/Π, and Desmos-style piecewise `{cond: value, …, otherwise}` |
+| D28 | Error wording | **Plain language about the screen**, never LaTeX tokens; empty leftover power/subscript boxes are ignored |
 
 ---
 
@@ -285,6 +286,8 @@ Errors appear inline in place of the result and give the dimensions in plain wor
 - `Unit 'lbs' not found — did you mean lbm or lbf?`
 
 ---
+
+**Wording (D28).** Messages describe what to do on screen, not the LaTeX: "Σ needs an end value: type it above the Σ", "There's an extra “)”", "Comparisons like “<” only go inside a piecewise", "“q” isn't defined yet: add a row like q = 5". An empty power or subscript box left behind after deleting its contents (`x^{}`) is ignored; an empty fraction part or root says so.
 
 ### 5.10 Calculus, Σ/Π and piecewise (D27)
 All numeric and unit-aware, inside the engine (no external library understands our units). Results carry units: the integrand's unit × the variable's unit, the expression's unit ÷ the variable's unit, and so on.

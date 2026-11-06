@@ -105,7 +105,7 @@ export function evaluate(n: Node, env: Env): Value {
       const local = env.locals?.get(n.name);
       if (local) return local;
       const v = env.getVar(n.name);
-      if (!v) throw new CalcError(`“${n.name}” is not defined`);
+      if (!v) throw new CalcError(`“${n.name}” isn't defined yet: add a row like ${n.name} = 5`);
       return v;
     }
     case 'unit':
@@ -151,7 +151,7 @@ export function evaluate(n: Node, env: Env): Value {
     }
     case 'ucall': {
       const fd = env.getFunc(n.name);
-      if (!fd) throw new CalcError(`“${n.name}” is not a function`);
+      if (!fd) throw new CalcError(`“${n.name}” isn't a function: define it like ${n.name}(x) = …`);
       if (fd.params.length !== n.args.length)
         throw new CalcError(`${n.name} expects ${fd.params.length} argument${fd.params.length === 1 ? '' : 's'}`);
       if ((env.depth ?? 0) > 200) throw new CalcError('Too much recursion');
@@ -225,7 +225,7 @@ function numeric<T>(fn: () => T, what: string): T {
   try {
     return fn();
   } catch (e) {
-    if (e instanceof NumericError) throw new CalcError(`${what}: ${e.message}`);
+    if (e instanceof NumericError) throw new CalcError(`This ${what.toLowerCase()} ${e.message}`);
     throw e;
   }
 }
