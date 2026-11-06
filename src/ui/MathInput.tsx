@@ -96,16 +96,23 @@ export function MathInput(p: Props) {
   useEffect(() => {
     const mf = new MathfieldElement();
     host.current!.appendChild(mf);
-    mf.macros = { ...mf.macros, ...MACROS };
-    mf.inlineShortcuts = INLINE_SHORTCUTS;
-    mf.mathVirtualKeyboardPolicy = 'manual';
-    mf.smartFence = true;
-    mf.smartSuperscript = false; // 10^23: keep typing digits in the exponent
-    mf.popoverPolicy = 'off';
-    mf.menuItems = [];
+    // MathLive resets its options when the element is moved in the page (dragging rows reorders
+    // them), which made chips show as raw LaTeX. Apply them on every (re)connection.
+    const applyOptions = () => {
+      mf.macros = { ...mf.macros, ...MACROS };
+      mf.inlineShortcuts = INLINE_SHORTCUTS;
+      mf.mathVirtualKeyboardPolicy = 'manual';
+      mf.smartFence = true;
+      mf.smartSuperscript = false; // 10^23: keep typing digits in the exponent
+      mf.popoverPolicy = 'off';
+      mf.menuItems = [];
+      mf.setValue(props.current.latex, { silenceNotifications: true });
+    };
+    applyOptions();
     if (p.ariaLabel) mf.setAttribute('aria-label', p.ariaLabel);
-    mf.value = p.latex;
     mfRef.current = mf;
+    const onMount = () => applyOptions();
+    mf.addEventListener('mount', onMount);
 
     const refreshPopover = () => {
       const pos = mf.position;
@@ -238,6 +245,7 @@ export function MathInput(p: Props) {
       mf.removeEventListener('move-out', onMoveOut);
       mf.removeEventListener('focus', onFocus);
       mf.removeEventListener('blur', onBlur);
+      mf.removeEventListener('mount', onMount);
       if (lastField === mf) lastField = null;
       mf.remove();
     };
