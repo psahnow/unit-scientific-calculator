@@ -20,6 +20,7 @@ function example(insert: string): string {
   if (['<', '>', r`\le`, r`\ge`].includes(insert)) return r`\left\{1` + insert + r`2:1,0\right\}`;
   if (insert === r`\infty`) return r`\int_{0}^{\infty}e^{-x}\,\mathrm{d}x`;
   if (insert.includes('solve')) return insert.replace('#0', 'x^2').replace('#?', '2');
+  if (insert.includes('roots')) return insert.replace('#0', 'x^2-1');
   let first = '0.5';
   if (insert.includes('infty')) first = 'e^{-x}';
   if (/\\(sum|prod)_/.test(insert)) first = '1';

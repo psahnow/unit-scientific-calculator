@@ -28,7 +28,8 @@ export type Node =
   | { k: 'series'; op: 'sum' | 'prod'; v: string; lo: Node; hi: Node; body: Node }
   | { k: 'piecewise'; branches: { cond?: Cond; value: Node }[] }
   // solve(lhs = rhs, v[, guess | lo, hi]) (D33)
-  | { k: 'solve'; v: string; lhs: Node; rhs: Node; hints: Node[] };
+  // roots(…) (D51): `all` — every real root, as a list
+  | { k: 'solve'; v: string; lhs: Node; rhs: Node; hints: Node[]; all?: boolean };
 
 /** Chained comparison a < b ≤ c … */
 export interface Cond {

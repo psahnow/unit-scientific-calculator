@@ -4,7 +4,7 @@ import { packagesOf, PACKAGE_BY_ID } from './units/packages';
 import { tokenize, type Tok } from './latex';
 import type { Node, ParsedRow, ChipFix, Cond, CmpOp } from './ast';
 import { isUnitOnly } from './ast';
-import { parseDecimal, float } from './num';
+import { parseDecimal, float, ZERO } from './num';
 import { lookupUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
 
@@ -515,6 +515,7 @@ class Parser {
     const name = t.v;
     if (name === 'int') return this.parseIntegral();
     if (name === 'solve' && this.isOpen('(')) return this.parseSolve();
+    if (name === 'roots' && this.isOpen('(')) return this.parseSolve(true);
     if (name === 'lim') return this.parseLimit();
     if ((name === 'sum' || name === 'prod') && (this.isOp('_') || this.isOp('^'))) return this.parseSeries(name);
     if (name === 'frac' || name === 'dfrac' || name === 'tfrac') {
@@ -625,8 +626,11 @@ class Parser {
     return [t.v, 1];
   }
 
-  /** solve(lhs = rhs, x) / solve(…, x, guess) / solve(…, x, lo, hi) — at the "(" */
-  parseSolve(): Node {
+  /**
+   * solve(lhs = rhs, x) / solve(…, x, guess) / solve(…, x, lo, hi) — at the "(". With `all`:
+   * roots(…) (D51), where the equation may be just an expression (= 0) and the hints are a range.
+   */
+  parseSolve(all = false): Node {
     const open = this.i;
     // split the arguments at top-level commas
     const args: Tok[][] = [[]];
@@ -648,17 +652,20 @@ class Parser {
     }
     if (j >= this.toks.length) throw new ParseError('A “)” is missing: close the bracket');
     this.i = j + 1;
-    const usage = 'Write it like solve(x² = 2, x), or add a guess or range: solve(…, x, 1) or solve(…, x, 0, 10)';
-    if (args.length < 2 || args.length > 4) throw new ParseError(usage);
+    const fn = all ? 'roots' : 'solve';
+    const usage = all
+      ? 'Write it like roots(x² − 2, x) or roots(x³ = x, x), or give a range to search: roots(…, x, 0, 10)'
+      : 'Write it like solve(x² = 2, x), or add a guess or range: solve(…, x, 1) or solve(…, x, 0, 10)';
+    if (args.length < 2 || args.length > 4 || (all && args.length === 3)) throw new ParseError(usage);
     const vn = Parser.varName(args[1]);
-    if (!vn || vn[1] !== args[1].length) throw new ParseError(`The second part of solve( ) is the name to solve for, like x. ${usage}`);
+    if (!vn || vn[1] !== args[1].length) throw new ParseError(`The second part of ${fn}( ) is the name to solve for, like x. ${usage}`);
     const v = vn[0];
     const eq = args[0].findIndex((t) => t.t === 'op' && t.v === '=');
-    if (eq < 0) throw new ParseError(`solve( ) needs an equation with “=”. ${usage}`);
-    const lhs = this.sub(args[0].slice(0, eq), v);
-    const rhs = this.sub(args[0].slice(eq + 1), v);
+    if (eq < 0 && !all) throw new ParseError(`solve( ) needs an equation with “=”. ${usage}`);
+    const lhs = this.sub(eq < 0 ? args[0] : args[0].slice(0, eq), v);
+    const rhs: Node = eq < 0 ? { k: 'num', v: ZERO } : this.sub(args[0].slice(eq + 1), v);
     const hints = args.slice(2).map((a) => this.sub(a));
-    return { k: 'solve', v, lhs, rhs, hints };
+    return all ? { k: 'solve', v, lhs, rhs, hints, all: true } : { k: 'solve', v, lhs, rhs, hints };
   }
 
   /** ∫_a^b f(x) dx */
@@ -863,6 +870,7 @@ class Parser {
         return { k: 'ucall', name: full, args: this.parseArgs() };
       }
       if (letters === 'solve' && run[run.length - 1].sub === undefined) return this.parseSolve();
+      if (letters === 'roots' && run[run.length - 1].sub === undefined) return this.parseSolve(true);
       if (LETTER_FUNCS.has(letters) && run[run.length - 1].sub === undefined) return this.parseFuncTail(normalizeFn(letters));
       // Γ(x) is the gamma function unless Γ is a user name
       if (letters === 'Γ' && run[0].sub === undefined && !this.ctx.vars.has('Γ')) return this.parseFuncTail('gamma');

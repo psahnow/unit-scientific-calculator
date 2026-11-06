@@ -356,3 +356,34 @@ export function findRoot(f: Fn, guess: number, scale: number, lo?: number, hi?: 
   }
   throw new NumericError("found no solution: the two sides don't meet near the guess. Give a guess or a range, like solve(…, x, 0, 10)");
 }
+
+/**
+ * Every root of f in [a, b] (D51): sample the range finely, refine each sign change with Brent's
+ * method, and keep it only if f really is near zero there (a sign change across a pole, as in
+ * tan x, is not a root). Roots where f touches zero without crossing are found only if a sample
+ * lands on them.
+ */
+export function findAllRoots(f: Fn, a: number, b: number, samples = 2000): number[] {
+  const g = safe(f);
+  if (a > b) [a, b] = [b, a];
+  const xs: number[] = [];
+  const vs: number[] = [];
+  for (let k = 0; k <= samples; k++) {
+    const x = a + ((b - a) * k) / samples;
+    xs.push(x);
+    vs.push(g(x));
+  }
+  const out: number[] = [];
+  for (let k = 0; k <= samples; k++) {
+    if (vs[k] === 0) out.push(xs[k]);
+    if (k === samples) break;
+    const [p, q] = [vs[k], vs[k + 1]];
+    if (!Number.isFinite(p) || !Number.isFinite(q) || p === 0 || q === 0 || Math.sign(p) === Math.sign(q)) continue;
+    const r = brent(g, xs[k], xs[k + 1], p, q);
+    const fr = g(r);
+    if (Number.isFinite(fr) && Math.abs(fr) <= 1e-8 * Math.max(Math.abs(p), Math.abs(q))) out.push(r);
+  }
+  // one root per place
+  const tol = 1e-9 * Math.max(Math.abs(a), Math.abs(b), 1e-300);
+  return out.sort((x, y) => x - y).filter((x, i, arr) => i === 0 || x - arr[i - 1] > tol);
+}

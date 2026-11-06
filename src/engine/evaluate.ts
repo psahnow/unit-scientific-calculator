@@ -1,7 +1,8 @@
 // AST evaluation with units, lists and builtins (DESIGN.md §5.3).
 import * as N from './num';
 import type { Node, Cond } from './ast';
-import { integrate, derivative, limit, findRoot, NumericError } from './calculus';
+import { integrate, derivative, limit, findRoot, findAllRoots, NumericError } from './calculus';
+import { polyOf, coefficients, realRoots, termSize } from './algebra';
 import { isUnitOnly } from './ast';
 import * as Q from './quantity';
 import { type Quantity, CalcError, scalar, describe } from './quantity';
@@ -176,7 +177,7 @@ export function evaluate(n: Node, env: Env): Value {
     case 'series':
       return qv(evalSeries(n, env));
     case 'solve':
-      return qv(evalSolve(n, env));
+      return evalSolve(n, env);
     case 'piecewise': {
       for (const b of n.branches) if (!b.cond || condHolds(b.cond, env)) return evaluate(b.value, env);
       throw new CalcError('No piecewise case applies here, and there is no “otherwise” value');
@@ -388,7 +389,7 @@ function evalSeries(n: CalcNode<'series'>, env: Env): Quantity {
   return acc ?? scalar(n.op === 'sum' ? N.ZERO : N.ONE);
 }
 
-function evalSolve(n: CalcNode<'solve'>, env: Env): Quantity {
+function evalSolve(n: CalcNode<'solve'>, env: Env): Value {
   const hints = n.hints.map((h) => asQ(evaluate(h, env), 'guess'));
   // the variable's units: from the guess/range, else its current value, else worked out from the equation
   const current = env.locals?.get(n.v) ?? (() => {
@@ -416,8 +417,62 @@ function evalSolve(n: CalcNode<'solve'>, env: Env): Quantity {
   probe(guess); // surface dimension errors with a clear message
   const lo = hints.length === 2 ? N.toNumber(hints[0].si) : undefined;
   const hi = hints.length === 2 ? N.toNumber(hints[1].si) : undefined;
+  const inRange = (r: N.Num) => lo === undefined || hi === undefined || (N.toNumber(r) >= Math.min(lo, hi) && N.toNumber(r) <= Math.max(lo, hi));
+  const asRoot = (r: N.Num): Quantity => ({ si: r, dim: like.dim, unit: like.unit });
+
+  // algebra first (D51): a polynomial in the unknown has all its real roots worked out, exactly when
+  // possible; each is checked back in the equation, and anything doubtful goes to the numeric solver
+  let noUnknown = false;
+  const algebraic = ((): N.Num[] | null => {
+    try {
+      const ctx = { v: n.v, x: { si: N.ONE, dim: like.dim, unit: like.unit }, constant: (c: Node) => asQ(evaluate(c, env)) };
+      const p = polyOf(n.lhs, ctx);
+      const q = polyOf(n.rhs, ctx);
+      const diff = p.map((x) => x ?? null);
+      for (let k = 0; k < q.length; k++) {
+        const b = q[k];
+        if (!b) continue;
+        diff[k] = diff[k] ? Q.sub(diff[k]!, b) : Q.neg(b);
+      }
+      const cs = coefficients(diff);
+      if (cs.length < 2) {
+        noUnknown = true; // no unknown left: let the numeric solver explain
+        return null;
+      }
+      const rs = realRoots(cs);
+      // every root must satisfy the equation as written
+      for (const r of rs) {
+        const x = N.toNumber(r);
+        if (Math.abs(probe(x)) > 1e-9 * termSize(cs, x) + 1e-300) return null;
+      }
+      return rs;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (n.all) {
+    let rs: N.Num[];
+    if (algebraic) rs = algebraic.filter(inRange);
+    else {
+      if (noUnknown) throw new CalcError(`There’s no ${n.v} left in this equation to find roots for`);
+      if (lo === undefined || hi === undefined)
+        throw new CalcError(`This equation isn’t a polynomial in ${n.v}, so roots( ) needs a range to search: roots(…, ${n.v}, 0, 10)`);
+      rs = numeric(() => findAllRoots(probe, lo, hi), 'Equation').map((x) => N.float(snapRoot(x, scale)));
+    }
+    if (!rs.length) throw new CalcError(lo !== undefined ? 'This equation has no real roots in that range' : 'This equation has no real roots');
+    return { t: 'list', items: rs.map(asRoot) };
+  }
+  if (algebraic) {
+    const candidates = algebraic.filter(inRange);
+    if (candidates.length) {
+      // the root nearest the guess (or the lowest in a range)
+      const best = candidates.reduce((a, b) => (lo === undefined && Math.abs(N.toNumber(b) - guess) < Math.abs(N.toNumber(a) - guess) ? b : a));
+      return qv(asRoot(best));
+    }
+  }
   const root = numeric(() => findRoot(probe, guess, scale, lo, hi), 'Equation');
-  return { si: N.float(snapRoot(root, scale)), dim: like.dim, unit: like.unit };
+  return qv(asRoot(N.float(snapRoot(root, scale))));
 }
 
 /** 1.9999999999997 → 2 when that's within rounding of the solver. */
