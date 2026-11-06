@@ -1380,7 +1380,6 @@ body {
   .storage-banner,
   .footer span:first-child,
   .slider,
-  .row.is-empty,
   .unit-chip .caret,
   .unit-chip.chosen::after,
   .row-notice.info {
@@ -1395,7 +1394,7 @@ body {
     gap: 14px;
     border-bottom: 1.5px solid #1f2a44;
     padding: 0 0 6px;
-    margin-bottom: 4px;
+    margin-bottom: 0; /* the margin rule meets the heading rule */
   }
   .print-brand {
     font-weight: 600;
@@ -1413,6 +1412,33 @@ body {
   .row {
     break-inside: avoid;
     page-break-inside: avoid;
+    /* a line on both edges, overlapping by a pixel: one line between rows, and every row is still
+       closed at the bottom of a page and ruled at the top of the next */
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin-top: -1px;
+  }
+  .list > .row:first-child {
+    border-top: none; /* the heading rule is already there */
+    margin-top: 0;
+  }
+  /* empty rows stay (so row numbers don't skip) but take little room */
+  .row.is-empty {
+    min-height: 22px;
+  }
+  .row.is-empty .row-body,
+  .row.is-empty .math-input {
+    display: none;
+  }
+  .row.is-empty .gutter {
+    padding-top: 4px;
+  }
+  /* table editing controls */
+  .calc-table .icon-btn,
+  .calc-table .add-col,
+  .calc-table td:last-child,
+  .calc-table tr:last-child:has(input.cell[value='']) {
+    display: none;
   }
   .row.focused {
     box-shadow: none;
