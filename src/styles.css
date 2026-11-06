@@ -1627,7 +1627,7 @@ body {
   --keycap-text-active: var(--bg);
   --keycap-text-hover: var(--fg);
   --keycap-text-pressed: var(--bg);
-  --keycap-secondary-background: var(--bg-soft);
+  --keycap-secondary-background: color-mix(in srgb, var(--bg-soft) 72%, var(--border-strong)); /* action keys read as keys */
   --keycap-secondary-background-hover: var(--accent-soft);
   --keycap-secondary-text: var(--fg);
   --keycap-secondary-border: var(--border);
@@ -1674,4 +1674,13 @@ html.osk-open .app.with-toolbox {
   .scope-btn.local {
     display: inline-flex;
   }
+}
+
+/* keep the keyboard's text glyphs (⌫ ↵) centred in their keys */
+.ML__keyboard .dim-backspace,
+.ML__keyboard .dim-return {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
