@@ -2045,3 +2045,54 @@ math-field {
   font-size: 13px;
   font-style: italic;
 }
+
+/* error and warning marks: the message shows on hover, tap or focus (D55) */
+.hover-tip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  border-radius: 4px;
+}
+.hover-tip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.hover-tip-text {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid;
+  border-left-width: 3px;
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+}
+.tip-right .hover-tip-text {
+  right: -8px;
+}
+.tip-left .hover-tip-text {
+  left: -6px;
+}
+.tip-error .hover-tip-text {
+  border-color: var(--error);
+  background: var(--error-soft);
+}
+.tip-warn .hover-tip-text {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+}
+.hover-tip:hover .hover-tip-text,
+.hover-tip:focus .hover-tip-text {
+  display: block;
+}

@@ -160,6 +160,20 @@ test('typed function input: F(l:m) converts inches to metres', async ({ page }) 
   await expect(field(page, 1)).toHaveJSProperty('value', String.raw`F\left(l:\unit{m}\right)=2l`);
 });
 
+test('hovering the ⚠ in the margin shows the error', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, '2m+3s');
+  await page.locator('.title-input').click();
+  await expect(page.locator('.ac-pop')).toHaveCount(0);
+  const mark = page.locator('.row').first().locator('.gutter .hover-tip');
+  const tip = mark.locator('.hover-tip-text');
+  await expect(mark).toBeVisible();
+  await expect(tip).toBeHidden();
+  await mark.hover();
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText(/length.*time|add/i);
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

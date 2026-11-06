@@ -5,7 +5,7 @@ import { setCurrentPackages } from '../engine/units/packages';
 import type { FormatOptions } from '../engine/format';
 import { useStore, visibleRows, type RowType } from '../state/store';
 import { TopBar } from './TopBar';
-import { ExpressionRow, NoteRow, FolderRow } from './rows';
+import { ExpressionRow, NoteRow, FolderRow, HoverTip } from './rows';
 import { TableRow } from './TableRow';
 import { Toolbox, ToolboxButton } from './Toolbox';
 import { RowBoundary } from './ErrorBoundary';
@@ -181,7 +181,13 @@ export function App() {
               }}
             >
               <div className={`gutter ${isErr ? 'err' : ''}`}>
-                <span className="num">{isErr ? '⚠' : i + 1}</span>
+                {isErr ? (
+                  <HoverTip text={res.message} kind="error" align="left">
+                    <span className="num">⚠</span>
+                  </HoverTip>
+                ) : (
+                  <span className="num">{i + 1}</span>
+                )}
                 <span
                   className="handle"
                   title="Drag to reorder"

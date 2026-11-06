@@ -112,7 +112,11 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
           <span className="eq">=</span>
           <span className="val">{typesetNumber(val)}</span>
           {unitText || r.value.t === 'list' || row.displayUnit ? unitBtn : <UnitButton {...{ q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
-          {r.unitError && <span className="warn" title={r.unitError}>⚠</span>}
+          {r.unitError && (
+            <HoverTip text={r.unitError} kind="warn">
+              <span className="warn">⚠</span>
+            </HoverTip>
+          )}
           {r.unitNote && (
             // a warning that is there but out of the way: hover (or tap / focus) to read it (D45)
             <span className="unit-note" tabIndex={0} role="button" aria-label={`Warning: ${r.unitNote}`}>
@@ -242,6 +246,21 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
 const SUP: Record<string, string> = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '−' };
 
 /** "1.5×10⁻³" → 1.5 × 10<sup>−3</sup>, with a true minus sign. */
+/**
+ * An error or warning mark whose message shows on hover, tap or keyboard focus (D55), the same way
+ * for the row's ⚠ in the margin, a result's unit warning and the kelvin note.
+ */
+export function HoverTip({ text, kind, align = 'right', children }: { text: string; kind: 'error' | 'warn'; align?: 'left' | 'right'; children: ReactNode }) {
+  return (
+    <span className={`hover-tip tip-${kind} tip-${align}`} tabIndex={0} role="button" aria-label={`${kind === 'error' ? 'Error' : 'Warning'}: ${text}`}>
+      {children}
+      <span className="hover-tip-text" role="tooltip">
+        {text}
+      </span>
+    </span>
+  );
+}
+
 export function typesetNumber(text: string): ReactNode {
   const frac = /^(-?)(\d+)\/(\d+)$/.exec(text);
   if (frac)
