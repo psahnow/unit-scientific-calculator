@@ -54,8 +54,27 @@ export function displayValue(q: Quantity): Num {
   return N.div(q.si, unitFactor(q.unit));
 }
 
+/**
+ * The one exception to "absolute temperatures need absolute units" (D45): a plain value in kelvin
+ * (300 K, not a computed difference or a Δ unit) may be shown in °C or °F, read as an absolute
+ * temperature. It comes with kelvinNote, since K also measures temperature changes.
+ */
+export function kelvinAsAbsolute(q: Quantity, unit: UnitExpr): boolean {
+  if (q.tempKind || q.unit.length !== 1 || q.unit[0].power !== 1) return false;
+  const from = getUnit(q.unit[0].id);
+  const to = unit.length === 1 && unit[0].power === 1 ? getUnit(unit[0].id) : undefined;
+  return (from.id === 'K' || from.prefixOf === 'K') && to?.tempKind === 'absolute';
+}
+
+/** Why reading a kelvin value as a temperature can mislead (shown under the result). */
+export function kelvinNote(unit: UnitExpr): string {
+  const u = formatUnit(unit);
+  return `Read as an absolute temperature. Kelvin also measures temperature changes: if this value is a change (ΔT), show it in K or Δ${u}, since a change of 10 K is 10 Δ°C, not −263.15 °C.`;
+}
+
 /** Check a target unit is a valid display unit for q. Returns an error message or null. */
 export function checkConvertible(q: Quantity, unit: UnitExpr): string | null {
+  if (kelvinAsAbsolute(q, unit)) return null;
   const ud = unitDim(unit);
   if (!dimEq(ud, q.dim)) return `Can't show ${dimName(q.dim)} in ${formatUnit(unit)} (${dimName(ud)})`;
   const single = unit.length === 1 && unit[0].power === 1 ? getUnit(unit[0].id) : undefined;
@@ -69,6 +88,7 @@ export function checkConvertible(q: Quantity, unit: UnitExpr): string | null {
 export function convertTo(q: Quantity, unit: UnitExpr): Quantity {
   const err = checkConvertible(q, unit);
   if (err) throw new CalcError(err);
+  if (kelvinAsAbsolute(q, unit)) return { ...q, unit, tempKind: 'absolute' };
   return { ...q, unit };
 }
 

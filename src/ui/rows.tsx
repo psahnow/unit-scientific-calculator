@@ -105,6 +105,15 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
           <span className="val">{typesetNumber(val)}</span>
           {unitText || r.value.t === 'list' || row.displayUnit ? unitBtn : <UnitButton {...{ q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
           {r.unitError && <span className="warn" title={r.unitError}>⚠</span>}
+          {r.unitNote && (
+            // a warning that is there but out of the way: hover (or tap / focus) to read it (D45)
+            <span className="unit-note" tabIndex={0} role="button" aria-label={`Warning: ${r.unitNote}`}>
+              !
+              <span className="unit-note-tip" role="tooltip">
+                {r.unitNote}
+              </span>
+            </span>
+          )}
         </div>
       );
     }

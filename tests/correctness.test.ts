@@ -255,8 +255,25 @@ describe('conversions through the whole pipeline (typed LaTeX → result → dis
     expectClose(t('-40', '°C', '°F'), -40, '−40 °C in °F');
     expectClose(t('0', '°F', '°R'), 459.67, '0 °F in °R');
     expectClose(t('0', '°R', 'K'), 0, '0 °R in K');
-    // a bare K value counts as a difference, so it is refused in °F rather than shown wrongly
-    expect(isError({ latex: '0' + u('K'), unit: '°F' })).toBe(true);
+    // a plain kelvin value may be read as an absolute temperature (D45), with a note saying so
+    expectClose(t('0', 'K', '°F'), -459.67, '0 K in °F');
+    expectClose(t('300', 'K', '°C'), 26.85, '300 K in °C', 1e-12);
+    expectClose(t('300', 'mK', '°C'), -272.85, '300 mK in °C', 1e-12);
+    const note = (lines: Line[]) => {
+      const rows: Row[] = lines.map((l, i) =>
+        typeof l === 'string' ? { id: 'r' + i, type: 'expr', latex: l } : { id: 'r' + i, type: 'expr', latex: l.latex, displayUnit: l.unit },
+      );
+      const res = evaluateWorksheet(rows, { angle: 'rad' }).rows.get('r' + (lines.length - 1));
+      return res?.kind === 'value' ? res.unitNote : undefined;
+    };
+    expect(note([{ latex: '300' + u('K'), unit: '°C' }])).toMatch(/absolute temperature.*change/);
+    expect(note([{ latex: '300' + u('K'), unit: 'K' }])).toBeUndefined();
+    // …but a temperature difference stays a difference: no exception for computed or Δ values
+    expect(isError({ latex: `30${u('°C')}-10${u('°C')}`, unit: '°F' })).toBe(true);
+    expect(isError({ latex: '10' + u('Δ°C'), unit: '°C' })).toBe(true);
+    expect(isError({ latex: '10' + u('°R'), unit: '°F' })).toBe(true);
+    // a dependent of a kelvin value shown in °C is that temperature, shown in °C
+    expectClose(value([{ latex: 'T=300' + u('K'), unit: '°C' }, 'T']), 26.85, 'T inherits °C', 1e-12);
     expectClose(t('10', 'Δ°C', 'Δ°F'), 18, '10 Δ°C in Δ°F');
     const R = rng(SEED + 2);
     for (let i = 0; i < N_CASES; i++) {

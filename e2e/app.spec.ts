@@ -58,6 +58,25 @@ test('the unit dropdown changes only the display', async ({ page }) => {
   await expect(result(page, 2)).toContainText('psi');
 });
 
+test('a kelvin value can be shown in °C, with a note on why that can mislead', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, 'T=300K');
+  await page.keyboard.press('Escape');
+  await expect(result(page, 1)).toContainText('300');
+  await result(page, 1).locator('.unit-chip').click();
+  const search = page.getByPlaceholder(/type a unit/);
+  await search.fill('degC');
+  await search.press('Enter');
+  await expect(result(page, 1)).toContainText('26.85');
+  // a warning badge; its text shows on hover
+  const tip = page.locator('.unit-note-tip');
+  await expect(page.locator('.unit-note')).toBeVisible();
+  await expect(tip).toBeHidden();
+  await page.locator('.unit-note').hover();
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText('absolute temperature');
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

@@ -1,7 +1,7 @@
 // Unit dropdown candidates (DESIGN.md §6).
 import { isUnitOn } from './packages';
 import { dimEq, isDimless } from '../dim';
-import { type Quantity, checkConvertible, displayValue } from '../quantity';
+import { type Quantity, checkConvertible, convertTo, displayValue } from '../quantity';
 import { type UnitExpr, expandedUnits, parseUnitExpr, formatUnit, unitExprEq, getUnit } from './registry';
 import { toNumber } from '../num';
 
@@ -66,7 +66,7 @@ export function unitCandidates(
     if (seen.some((s) => unitExprEq(s, e))) return null;
     if (checkConvertible(q, e)) return null;
     seen.push(e);
-    const v = toNumber(displayValue({ ...q, unit: e }));
+    const v = toNumber(displayValue(convertTo(q, e)));
     return { text: formatUnit(e) || '(none)', expr: e, preview: fmt(v) };
   };
   const suggested: Candidate[] = [];
@@ -88,8 +88,8 @@ export function unitCandidates(
 
   // nicest SI choices: value in [1, 1000)
   const niceSI = pool
-    .filter((e) => system(e) === 'SI')
-    .map((e) => ({ e, v: Math.abs(toNumber(displayValue({ ...q, unit: e }))) }))
+    .filter((e) => system(e) === 'SI' && !checkConvertible(q, e))
+    .map((e) => ({ e, v: Math.abs(toNumber(displayValue(convertTo(q, e)))) }))
     .filter((x) => x.v >= 1 && x.v < 1000)
     .slice(0, 2);
   for (const x of niceSI) push(suggested, x.e);

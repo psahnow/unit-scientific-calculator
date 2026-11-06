@@ -4,7 +4,7 @@ import type { ChipFix, ParsedRow, Node } from './ast';
 import { isUnitOnly } from './ast';
 import * as N from './num';
 import { evaluate, type Value, type Env, unifyList } from './evaluate';
-import { CalcError, convertTo, fromUnit, checkConvertible, type Quantity } from './quantity';
+import { CalcError, convertTo, fromUnit, checkConvertible, kelvinAsAbsolute, kelvinNote, type Quantity } from './quantity';
 import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, type UnitExpr, type CustomUnitInput } from './units/registry';
 import { availability, packagesOf } from './units/packages';
 import { dimEq, DIMLESS } from './dim';
@@ -46,7 +46,7 @@ export type Row =
 export type RowResult =
   | { kind: 'none' }
   | { kind: 'func'; name: string }
-  | { kind: 'value'; value: Value; defName?: string; unitError?: string; autoUnit: UnitExpr; literal: boolean }
+  | { kind: 'value'; value: Value; defName?: string; unitError?: string; unitNote?: string; autoUnit: UnitExpr; literal: boolean }
   | { kind: 'error'; message: string; defName?: string };
 
 export interface ColumnResult {
@@ -323,7 +323,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   /** Evaluate an expr row's value with its display unit applied (what dependents inherit). */
-  const rowValueCache = new Map<string, { value: Value; auto: UnitExpr; unitError?: string }>();
+  const rowValueCache = new Map<string, { value: Value; auto: UnitExpr; unitError?: string; unitNote?: string }>();
   function evalRowFull(rowId: string) {
     const hit = rowValueCache.get(rowId);
     if (hit) return hit;
@@ -334,15 +334,18 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     let value = evaluate(p.expr, rowEnv(rowId));
     const auto = value.t === 'q' ? value.q.unit : (value.items[0]?.unit ?? []);
     let unitError: string | undefined;
+    let unitNote: string | undefined;
     if (r.displayUnit) {
       try {
         const u = parseUnitExpr(r.displayUnit);
+        const first = value.t === 'q' ? value.q : value.items[0];
+        if (first && kelvinAsAbsolute(first, u)) unitNote = kelvinNote(u);
         value = applyUnit(value, u);
       } catch (e) {
         unitError = (e as Error).message;
       }
     }
-    const out = { value, auto, unitError };
+    const out = { value, auto, unitError, unitNote };
     rowValueCache.set(rowId, out);
     return out;
   }
@@ -408,7 +411,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         if (defName && duplicateIn(own, defName)) throw new CalcError(dupMessage(own, defName));
         if (defName) valueOf(defName, { kind: 'row', rowId: r.id });
         const full = evalRowFull(r.id);
-        results.set(r.id, { kind: 'value', value: full.value, defName, unitError: full.unitError, autoUnit: full.auto, literal: !!defName && isLiteral(p.expr) });
+        results.set(r.id, { kind: 'value', value: full.value, defName, unitError: full.unitError, unitNote: full.unitNote, autoUnit: full.auto, literal: !!defName && isLiteral(p.expr) });
       } catch (e) {
         results.set(r.id, { kind: 'error', message: friendly(e as Error), defName });
       }

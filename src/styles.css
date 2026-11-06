@@ -1772,3 +1772,51 @@ math-field {
     display: none !important;
   }
 }
+
+/* why a kelvin value shown in °C/°F could mislead (D45): a small warning badge on the result,
+   whose text shows on hover, focus or tap */
+.unit-note {
+  position: relative;
+  align-self: center;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--warn-soft);
+  border: 1.5px solid var(--warn);
+  color: var(--warn);
+  font-family: var(--sans, inherit);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  white-space: normal;
+}
+.unit-note:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.unit-note-tip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -8px;
+  z-index: 20;
+  width: min(340px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--warn);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--warn-soft);
+  box-shadow: var(--shadow);
+  color: var(--fg);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+}
+.unit-note:hover .unit-note-tip,
+.unit-note:focus .unit-note-tip {
+  display: block;
+}

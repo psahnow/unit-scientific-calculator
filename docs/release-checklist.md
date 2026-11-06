@@ -7,10 +7,10 @@ Status as of 6 November 2026. ✅ = done and verified · ⬜ = your action · �
 - ✅ The suite catches planted bugs: a wrong unit factor, an extra displayed digit, a wrong trig identity, a perturbed Γ coefficient, an over-eager snap.
 - ✅ Bugs it found are fixed: d/dx far from 0, second derivatives, and limits picking their noisiest estimate. Numeric results show only digits they can vouch for.
 - ✅ Calculus is symbolic first (D44): exact derivatives, antiderivatives and l'Hôpital limits, each cross-checked against the numeric method, with numeric as the fallback.
-- ✅ Impossible displays are refused with a message, never shown wrongly (e.g. 300 K in °C; see decision 1).
+- ✅ Impossible displays are refused with a message, never shown wrongly (e.g. a temperature *difference* in °C). A plain K value in °C/°F is the one exception, with a warning badge on the result (D45).
 
 ## App
-- ✅ 12 browser tests pass against the production build (`npm run test:e2e`). They cover typing, dropdowns, toolbox, drag, undo, export/import, phone keyboard ↵ and ÷, no sideways scroll, no layout shift, and no console errors on load.
+- ✅ 13 browser tests pass against the production build (`npm run test:e2e`). They cover typing, dropdowns, toolbox, drag, undo, export/import, phone keyboard ↵ and ÷, no sideways scroll, no layout shift, and no console errors on load.
 - ✅ The design study fixes are in (D42), for desktop and phone in light and dark.
 - ✅ Error boundaries per row and for the app; a storage failure warns the user to Export.
 - ✅ The welcome card says worksheets live in this browser only and to Export a copy.
@@ -37,7 +37,7 @@ Status as of 6 November 2026. ✅ = done and verified · ⬜ = your action · �
   - Paste the URL into a chat app to see the OG card.
 
 ## Decisions for you
-1. **Kelvin to °C/°F.** A typed `300 K` counts as a temperature *difference*, so its dropdown refuses °C/°F with a message. Typing `27 °C` converts to K and °F fine. Should a bare K value be treated as absolute when shown in °C/°F? This is common in thermo work, but it changes the rule that kept differences safe.
+1. ~~**Kelvin to °C/°F.**~~ Decided: a plain K value can be shown in °C/°F as an absolute temperature, with a warning badge that explains the risk on hover (D45).
 2. **Licence.** There is no LICENSE file. Choose one of:
    - All rights reserved (the default with no file).
    - MIT/Apache to open-source it.

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { Quantity } from '../engine/quantity';
-import { checkConvertible, displayValue } from '../engine/quantity';
+import { checkConvertible, convertTo, displayValue } from '../engine/quantity';
 import { unitCandidates } from '../engine/units/candidates';
 import { parseUnitExpr, formatUnit, type UnitExpr } from '../engine/units/registry';
 import { formatFloat } from '../engine/format';
@@ -114,7 +114,7 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
         ok: !err,
         parsed: true,
         msg: err ?? undefined,
-        preview: p.q && !err && !p.anyUnit ? fmt(toNumber(displayValue({ ...p.q, unit: e }))) : undefined,
+        preview: p.q && !err && !p.anyUnit ? fmt(toNumber(displayValue(convertTo(p.q, e)))) : undefined,
       };
     } catch (e) {
       custom = { text: qtrim, ok: false, parsed: false, msg: (e as Error).message };
