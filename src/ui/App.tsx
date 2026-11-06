@@ -9,6 +9,7 @@ import { ExpressionRow, NoteRow, FolderRow } from './rows';
 import { TableRow } from './TableRow';
 import { Toolbox, ToolboxButton } from './Toolbox';
 import { RowBoundary } from './ErrorBoundary';
+import { BrandMark } from './Brand';
 
 export function App() {
   const s = useStore();
@@ -208,10 +209,23 @@ export function App() {
         </button>
       </main>
       <footer className="footer">
-        <span>Type units after numbers (6N, 2 mm^2) · Tab inserts a suggestion · Backspace on a unit chip turns it back into letters</span>
-        <span>
-          Dimensional · nothing leaves your browser · by <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">Perry Sahnow</a>
-        </span>
+        <div className="footer-inner">
+          <div className="footer-main">
+            <span className="footer-brand">
+              <BrandMark className="footer-mark" />
+              Dimensional<span className="footer-tag">every number knows its units</span>
+            </span>
+            <span className="footer-meta">
+              Nothing leaves your browser · MIT licence · by{' '}
+              <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">
+                Perry Sahnow
+              </a>
+            </span>
+          </div>
+          <div className="footer-tips kbd-only">
+            Type units after numbers (6N, 2 mm^2) · Tab inserts a suggestion · Backspace on a unit chip turns it back into letters · Ctrl / for shortcuts
+          </div>
+        </div>
       </footer>
       {toolbox && <Toolbox onClose={() => toggleToolbox(false)} />}
       {shortcuts && <Shortcuts onClose={() => setShortcuts(false)} />}
