@@ -96,6 +96,12 @@ export function App() {
           ⚠ {s.storageError}
         </div>
       )}
+      {/* only on paper: a calc-sheet heading (D36) */}
+      <div className="print-head" aria-hidden>
+        <span className="print-brand">Dimensional</span>
+        <span className="print-title">{s.ws.title}</span>
+        <span className="print-date">{new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+      </div>
       <main className="list" aria-label="Expressions">
         {visible.map((row, i) => {
           n++;
@@ -105,7 +111,7 @@ export function App() {
           return (
             <div
               key={row.id}
-              className={`row type-${row.type} ${row.parent ? 'in-folder' : ''} ${s.focusId === row.id ? 'focused' : ''} ${dropId === row.id && dragId !== row.id ? 'drop-target' : ''}`}
+              className={`row type-${row.type} ${row.type === 'expr' && !row.latex.trim() ? 'is-empty' : ''} ${row.parent ? 'in-folder' : ''} ${s.focusId === row.id ? 'focused' : ''} ${dropId === row.id && dragId !== row.id ? 'drop-target' : ''}`}
               draggable={dragId === row.id}
               onDragStart={(e) => {
                 if (!dragFromHandle.current) return e.preventDefault();
