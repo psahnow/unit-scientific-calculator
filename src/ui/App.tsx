@@ -15,8 +15,8 @@ export function App() {
   // autocomplete and unit dropdowns follow this worksheet's packages (D26)
   setCurrentPackages(settings.packages);
   const result = useMemo(
-    () => evaluateWorksheet(rows, { angle: settings.angle, packages: settings.packages }),
-    [rows, settings.angle, settings.packages],
+    () => evaluateWorksheet(rows, { angle: settings.angle, packages: settings.packages, units: settings.units }),
+    [rows, settings.angle, settings.packages, settings.units],
   );
   const fmt: FormatOptions = { sigFigs: settings.sigFigs, notation: settings.notation, sciAbove: settings.sciAbove, mode: settings.exactDefault ? 'auto' : 'decimal' };
   // names visible from each folder (folder-scoped definitions only count inside their folder)

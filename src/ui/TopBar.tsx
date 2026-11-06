@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore, exportWorksheet, type Settings, type Theme } from '../state/store';
 import { PACKAGES } from '../engine/units/packages';
+import { setCustomUnits } from '../engine/units/registry';
 import { BrandMark, About } from './Brand';
 
 function usePopover() {
@@ -28,6 +29,7 @@ export function TopBar() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [about, setAbout] = useState(false);
+  const customErrors = useMemo(() => setCustomUnits(st.units ?? []), [st.units]);
 
   const doExport = () => {
     const blob = new Blob([exportWorksheet(s.ws)], { type: 'application/json' });
@@ -157,6 +159,36 @@ export function TopBar() {
                   </span>
                 </label>
               ))}
+            </fieldset>
+            <fieldset className="packages custom-units">
+              <legend>Custom units</legend>
+              <p className="pk-help">Define your own units for this worksheet, like bag = 25 kg or ksf = kip/ft^2.</p>
+              {(st.units ?? []).map((u, i) => (
+                <div key={i} className="cu-row">
+                  <input
+                    className="cu-sym"
+                    value={u.symbol}
+                    placeholder="bag"
+                    aria-label={`Custom unit ${i + 1} symbol`}
+                    onChange={(e) => set({ units: st.units.map((x, j) => (j === i ? { ...x, symbol: e.target.value } : x)) })}
+                  />
+                  <span>=</span>
+                  <input
+                    className="cu-def"
+                    value={u.definition}
+                    placeholder="25 kg"
+                    aria-label={`Custom unit ${i + 1} size`}
+                    onChange={(e) => set({ units: st.units.map((x, j) => (j === i ? { ...x, definition: e.target.value } : x)) })}
+                  />
+                  <button className="icon-btn danger small" aria-label="Remove custom unit" onClick={() => set({ units: st.units.filter((_, j) => j !== i) })}>
+                    ✕
+                  </button>
+                  {customErrors[i] && <span className="cu-err">{customErrors[i]}</span>}
+                </div>
+              ))}
+              <button className="text-btn" onClick={() => set({ units: [...(st.units ?? []), { symbol: '', definition: '' }] })}>
+                + Add a unit
+              </button>
             </fieldset>
             <label>
               Theme

@@ -5,7 +5,7 @@ import { isUnitOnly } from './ast';
 import * as N from './num';
 import { evaluate, type Value, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, type Quantity } from './quantity';
-import { parseUnitExpr, getUnit, lookupUnit, type UnitExpr } from './units/registry';
+import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, type UnitExpr, type CustomUnitInput } from './units/registry';
 import { availability, packagesOf } from './units/packages';
 import { dimEq, DIMLESS } from './dim';
 import { symbolToLatex, latexToSymbol } from './latex';
@@ -69,6 +69,8 @@ export interface WorksheetResult {
   notices: Map<string, string>;
   /** Per-row information (not a problem), e.g. how an ambiguous unit was read. */
   infos: Map<string, string>;
+  /** One message per custom unit that couldn't be defined (undefined when fine). */
+  customUnitErrors: (string | undefined)[];
   /** Rows using a unit chip from a package that is off: the packages that would provide it. */
   packageHints: Map<string, { unit: string; packages: string[]; typed?: boolean }>;
 }
@@ -77,6 +79,8 @@ export interface EvalSettings {
   angle: 'rad' | 'deg';
   /** Enabled unit packages (D26). Omitted: every unit is available. */
   packages?: readonly string[];
+  /** Worksheet-defined units (D34), e.g. { symbol: 'bag', definition: '25 kg' }. */
+  units?: readonly CustomUnitInput[];
 }
 
 type DefSource =
@@ -104,6 +108,7 @@ export function definitionScope(r: Row): Scope {
 }
 
 export function evaluateWorksheet(rows: Row[], settings: EvalSettings): WorksheetResult {
+  const customUnitErrors = setCustomUnits(settings.units ?? []);
   const results = new Map<string, RowResult>();
   const colResults = new Map<string, ColumnResult>();
   const chips = new Map<string, ChipFix[]>();
@@ -437,7 +442,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
-  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, infos, packageHints };
+  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, infos, packageHints, customUnitErrors };
 }
 
 class CycleError extends CalcError {}

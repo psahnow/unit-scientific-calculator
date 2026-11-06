@@ -16,6 +16,30 @@ export function TableRow({ row, cols, fmt, vars }: { row: TableRowT; cols: Map<s
     1,
   );
 
+  /** Paste rows of tab-, comma- or semicolon-separated values (from a spreadsheet or CSV), starting at a cell (D34). */
+  const pasteBlock = (ci: number, ri: number, text: string) => {
+    const lines = text.replace(/\r/g, '').split('\n').filter((l, i, a) => l.trim() || i < a.length - 1);
+    const sep = /\t/.test(text) ? '\t' : /;/.test(text) ? ';' : ',';
+    const grid = lines.map((l) => l.split(sep).map((v) => v.trim()));
+    const inputCols = row.columns.map((c, i) => ({ c, i })).filter(({ c }) => cols.get(c.id)?.isInput !== false);
+    const start = inputCols.findIndex(({ i }) => i === ci);
+    const columns = [...row.columns];
+    grid.forEach((cells, dr) =>
+      cells.forEach((v, dc) => {
+        const target = inputCols[start + dc];
+        if (!target) return;
+        const col = columns[target.i];
+        const values = [...col.values];
+        while (values.length <= ri + dr) values.push('');
+        values[ri + dr] = v;
+        columns[target.i] = { ...col, values };
+      }),
+    );
+    for (let i = 0; i < columns.length; i++)
+      if (columns[i].values[columns[i].values.length - 1] !== '') columns[i] = { ...columns[i], values: [...columns[i].values, ''] };
+    setCols(columns);
+  };
+
   const setCell = (ci: number, ri: number, v: string) => {
     const columns = row.columns.map((c, i) => {
       if (i !== ci) return c;
@@ -103,7 +127,18 @@ export function TableRow({ row, cols, fmt, vars }: { row: TableRowT; cols: Map<s
                   if (res?.isInput !== false)
                     return (
                       <td key={c.id}>
-                        <input className="cell" value={c.values[ri] ?? ''} onChange={(e) => setCell(ci, ri, e.target.value)} aria-label={`Row ${ri + 1} column ${ci + 1}`} />
+                        <input
+                          className="cell"
+                          value={c.values[ri] ?? ''}
+                          onChange={(e) => setCell(ci, ri, e.target.value)}
+                          onPaste={(e) => {
+                            const text = e.clipboardData.getData('text/plain');
+                            if (!/[\t\n,;]/.test(text.trim())) return; // a single value: normal paste
+                            e.preventDefault();
+                            pasteBlock(ci, ri, text);
+                          }}
+                          aria-label={`Row ${ri + 1} column ${ci + 1}`}
+                        />
                       </td>
                     );
                   const q = res.values?.[ri];

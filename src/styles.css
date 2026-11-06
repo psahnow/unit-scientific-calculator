@@ -1319,3 +1319,23 @@ body {
 .tb-units-empty {
   padding: 10px 4px;
 }
+
+/* custom units (D34) */
+.cu-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.cu-row .cu-sym {
+  width: 70px;
+}
+.cu-row .cu-def {
+  flex: 1;
+  min-width: 100px;
+}
+.cu-err {
+  flex-basis: 100%;
+  color: var(--error);
+  font-size: 11px;
+}

@@ -1,6 +1,6 @@
 // Unit lookup (with SI prefix expansion), unit-expression helpers and formatting.
 import { type Dim, DIMLESS, dimMul, dimPow, dimEq } from '../dim';
-import { type Num, ONE, mul, powRational, toFraction, float, toNumber } from '../num';
+import { type Num, ONE, mul, powRational, toFraction, float, toNumber, parseDecimal as parseDecimalLocal } from '../num';
 import { UNITS, UNIT_BY_ID, SI_PREFIXES, BINARY_PREFIXES, type UnitDef } from './units.data';
 
 export type { UnitDef };
@@ -276,6 +276,74 @@ export function expandedUnits(): UnitDef[] {
   expanded = out;
   return out;
 }
+
+// ── Worksheet-defined units (D34): "1 bag = 25 kg" ─────────────────────────────
+let customIds: string[] = [];
+let customKey = '';
+
+export interface CustomUnitInput {
+  symbol: string;
+  definition: string;
+}
+
+/**
+ * Replace the worksheet's custom units. Each is defined as "<number> <unit expression>", and may use
+ * units defined above it. Returns an error message per entry (undefined when fine).
+ */
+export function setCustomUnits(defs: readonly CustomUnitInput[]): (string | undefined)[] {
+  const key = JSON.stringify(defs);
+  if (key === customKey) return customErrors;
+  customKey = key;
+  // remove the previous set
+  for (const id of customIds) {
+    UNIT_BY_ID.delete(id);
+    aliasMap.delete(id);
+    const i = UNITS.findIndex((u) => u.id === id);
+    if (i >= 0) UNITS.splice(i, 1);
+  }
+  customIds = [];
+  synth.clear();
+  expanded = null;
+  customErrors = defs.map((d) => {
+    const sym = d.symbol.trim();
+    if (!sym) return undefined;
+    if (!/^[A-Za-z][A-Za-z_]*$/.test(sym)) return 'Use letters only for a unit symbol, like bag or ksf';
+    if (lookupUnit(sym)) return `“${sym}” is already a unit`;
+    const m = /^\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)?\s*(.*)$/.exec(d.definition.replace(/·/g, '*'));
+    if (!m || (!m[1] && !m[2].trim())) return 'Write the size as a number and a unit, like 25 kg';
+    let value: Num;
+    try {
+      value = m[1] ? parseDecimalLocal(m[1]) : ONE;
+    } catch {
+      return 'Write the size as a number and a unit, like 25 kg';
+    }
+    let expr: UnitExpr = [];
+    if (m[2].trim()) {
+      try {
+        expr = parseUnitExpr(m[2].trim());
+      } catch (e) {
+        return (e as Error).message;
+      }
+    }
+    if (offsetUnit(expr)) return 'A custom unit can’t be based on °C or °F; use K or a temperature difference';
+    const def: UnitDef = {
+      id: sym,
+      aliases: [],
+      name: `${sym} = ${d.definition.trim()}`,
+      dim: unitDim(expr),
+      factor: mul(value, unitFactor(expr)),
+      system: 'other',
+      category: 'Custom',
+    };
+    UNITS.push(def);
+    UNIT_BY_ID.set(sym, def);
+    aliasMap.set(sym, def);
+    customIds.push(sym);
+    return undefined;
+  });
+  return customErrors;
+}
+let customErrors: (string | undefined)[] = [];
 
 // kg is the coherent base unit of mass.
 getUnit('kg').base = true;
