@@ -60,7 +60,9 @@ function integrateFinite(f: Fn, a: number, b: number): number {
   const total = segs.reduce((s, x) => s + x.value, 0);
   const err = segs.reduce((s, x) => s + x.error, 0);
   if (err > 1e-6 * Math.max(1, Math.abs(total))) throw new NumericError("doesn't converge");
-  return total;
+  // not converged to full precision (a singular end point, say): show only the digits the error
+  // estimate vouches for (D43)
+  return roundToError(total, err);
 }
 
 /** ∫ₐᵇ f(x) dx; a and b may be ±∞. */
@@ -86,13 +88,44 @@ function integrateInfinite(f: Fn, a: number, b: number, fa: boolean, fb: boolean
 
 // ── Differentiation: Ridders' extrapolation of central differences ──
 export function derivative(f: Fn, x: number, scale: number, order: 1 | 2 = 1): number {
-  if (order === 2) return derivative((y) => derivative(f, y, scale, 1), x, scale, 1);
+  const { value, ref } = derivativeEstimate(f, x, scale, order);
+  // Ridders' own error estimate is often 0, so it can't be trusted. Over 20 000 random smooth
+  // functions the error stayed below 2×10⁻¹⁰ (first) and 1×10⁻⁹ (second derivative) of the
+  // function's scale; show only digits inside 5–10× that (D43).
+  const scaleOf = Math.max(Math.abs(value), ref);
+  return roundToError(snapTo(value, ref), (order === 1 ? 1e-9 : 1e-8) * scaleOf);
+}
+
+/** The derivative with Ridders' own error estimate (absolute), before any rounding. */
+export function derivativeEstimate(f: Fn, x: number, scale: number, order: 1 | 2 = 1): { value: number; err: number; ref: number } {
+  // Ridders' tableau from several starting steps; keep the estimate with the smallest error. A
+  // single large first step (5% of |x|) can stop early on a wrong value for oscillating functions
+  // far from 0, e.g. d/dx sin(x) at x = 97 (D43).
+  const base = 0.05 * Math.max(Math.abs(x), scale);
+  let best = { ans: NaN, err: Infinity, a00: NaN };
+  // smaller first steps help the first derivative of oscillating functions; the second difference
+  // divides by h², so its rounding error grows too fast to start small
+  for (const h0 of order === 1 ? [base, base / 32, base / 1024, base / 32768] : [base, base / 3, base / 9]) {
+    const r = ridders(f, x, h0, order);
+    if (r.err < best.err || Number.isNaN(best.ans)) best = r;
+  }
+  const ref = Math.max(Math.abs(best.a00), Math.abs(f(x)) / Math.pow(Math.max(Math.abs(x), scale), order));
+  return { value: best.ans, err: best.err, ref };
+}
+
+function ridders(f: Fn, x: number, h: number, order: 1 | 2): { ans: number; err: number; a00: number } {
   const CON = 1.4;
   const CON2 = CON * CON;
   const NTAB = 12;
-  let h = 0.05 * Math.max(Math.abs(x), scale);
   const a: number[][] = Array.from({ length: NTAB }, () => new Array(NTAB).fill(0));
-  const cd = (hh: number) => (check(f(x + hh), x + hh) - check(f(x - hh), x - hh)) / (2 * hh);
+  // central differences: both have error series in even powers of h, as the extrapolation needs.
+  // The second derivative uses (f(x+h) − 2f(x) + f(x−h)) / h² directly: differentiating a
+  // numerical derivative again lost up to 4 digits (D43).
+  const fx = order === 2 ? check(f(x), x) : 0;
+  const cd =
+    order === 1
+      ? (hh: number) => (check(f(x + hh), x + hh) - check(f(x - hh), x - hh)) / (2 * hh)
+      : (hh: number) => (check(f(x + hh), x + hh) - 2 * fx + check(f(x - hh), x - hh)) / (hh * hh);
   a[0][0] = cd(h);
   let err = Infinity;
   let ans = a[0][0];
@@ -111,17 +144,20 @@ export function derivative(f: Fn, x: number, scale: number, order: 1 | 2 = 1): n
     }
     if (Math.abs(a[i][i] - a[i - 1][i - 1]) >= 2 * err) break;
   }
-  const ref = Math.max(Math.abs(a[0][0]), Math.abs(f(x)) / Math.max(Math.abs(x), scale));
-  return snapTo(ans, ref);
+  return { ans, err, a00: a[0][0] };
 }
 
 // ── Limits: polynomial (Neville) extrapolation of f(a ± h) as h → 0 ──
 let seenMax = 0;
+/** Last one-sided estimate's error (the change between successive extrapolations). */
+let lastErr = 0;
 function oneSide(g: Fn, h0: number): number {
   const hs: number[] = [];
   const vs: number[] = [];
   let best = NaN;
   let bestErr = Infinity;
+  let prev = NaN;
+  lastErr = 0;
   for (let k = 0; k < 14; k++) {
     const h = h0 / Math.pow(2, k);
     let v: number;
@@ -142,12 +178,18 @@ function oneSide(g: Fn, h0: number): number {
     for (let m = 1; m < n; m++)
       for (let i = n - 1; i >= m; i--) P[i] = (H[i] * P[i - 1] - H[i - m] * P[i]) / (H[i] - H[i - m]);
     const est = P[n - 1];
-    if (Number.isFinite(best)) {
-      const e = Math.abs(est - best);
-      if (e < bestErr) bestErr = e;
-    }
-    best = est;
+    // keep the estimate that changed least from the one before: as h shrinks, rounding noise
+    // (1 − cos x near 0) eventually swamps the values, and the last estimate is the worst (D43)
+    if (Number.isFinite(prev)) {
+      const e = Math.abs(est - prev);
+      if (e < bestErr) {
+        bestErr = e;
+        best = est;
+      }
+    } else if (Number.isNaN(best)) best = est;
+    prev = est;
   }
+  lastErr = Number.isFinite(bestErr) ? bestErr : 0;
   if (!vs.length) throw new NumericError("can't be worked out: the expression is undefined near that point");
   // divergence: values growing without bound
   // divergence: the last few values grow steadily in size with one sign (1/x, 1/√x, ln x …)
@@ -165,18 +207,33 @@ function oneSide(g: Fn, h0: number): number {
 export function limit(f: Fn, a: number, scale: number, dir?: '+' | '-'): number {
   seenMax = 0;
   const snap = (v: number) => snapTo(v, seenMax);
-  if (a === Infinity) return snap(oneSide((t) => f(1 / t), 1 / Math.max(1, scale)));
-  if (a === -Infinity) return snap(oneSide((t) => f(-1 / t), 1 / Math.max(1, scale)));
+  // show only the digits the extrapolation settled on
+  const done = (v: number, err: number) => (Number.isFinite(v) ? roundToError(snap(v), Math.max(err, 1e-13 * Math.abs(v))) : v);
+  if (a === Infinity) return done(oneSide((t) => f(1 / t), 1 / Math.max(1, scale)), 4 * lastErr);
+  if (a === -Infinity) return done(oneSide((t) => f(-1 / t), 1 / Math.max(1, scale)), 4 * lastErr);
   const h0 = 0.01 * Math.max(Math.abs(a), scale);
   const right = dir === '-' ? NaN : oneSide((h) => f(a + h), h0);
+  const errR = lastErr;
   const left = dir === '+' ? NaN : oneSide((h) => f(a - h), h0);
-  if (dir === '+') return snap(right);
-  if (dir === '-') return snap(left);
+  const errL = lastErr;
+  if (dir === '+') return done(right, 4 * errR);
+  if (dir === '-') return done(left, 4 * errL);
   const agree =
     (right === left) || Math.abs(right - left) <= 1e-6 * Math.max(1, Math.abs(right), Math.abs(left));
   if (!agree)
     throw new NumericError(`doesn't exist: from the left it is ≈ ${fmt(left)}, from the right ≈ ${fmt(right)}`);
-  return snap(Number.isFinite(right) ? (right + left) / 2 : right);
+  if (!Number.isFinite(right)) return snap(right);
+  return done((right + left) / 2, Math.max(Math.abs(right - left), 4 * errR, 4 * errL));
+}
+
+/**
+ * Round v to the decimal place of its error, so no digit beyond what the method can vouch for is
+ * shown: 0.616357556 ± 8×10⁻⁹ → 0.61635756 (D43).
+ */
+export function roundToError(v: number, err: number): number {
+  if (!Number.isFinite(v) || !(err > 0) || !Number.isFinite(err)) return v;
+  const q = Math.pow(10, Math.ceil(Math.log10(err)));
+  return Number((Math.round(v / q) * q).toPrecision(15));
 }
 
 /** Round extrapolation noise: 0.9999999999998 → 1, 0.33333333333 → 1/3. */

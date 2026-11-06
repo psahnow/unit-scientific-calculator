@@ -64,6 +64,7 @@
 | D35 | Toolbox: Constants and Units | Constants tab (value and unit in each tooltip); Units tab: searchable list of every unit by kind, package units shown dimmed when off; clicking inserts a chip |
 | D36 | Print / PDF | ☰ → Print / save as PDF: white paper, heading with title and date, boxed answers, no controls or empty rows, rows kept whole |
 | D37 | Usability | Quick fix "+ Add q =" on undefined names; focusing a definition highlights its uses; ✎ renames a definition everywhere it means that definition; Alt+↑/↓ move rows, Ctrl+. Functions, Ctrl+/ shortcuts panel; first-run welcome; DEG-mode notes; on-screen maths keyboard on touch devices |
+| D43 | Correctness suite; honest numeric digits | An independent-oracle suite checks every unit, constant, function and operation (§11). It found three bugs, now fixed: d/dx of an oscillating function far from 0 could be wrong (sin at x = 97), second derivatives lost up to 4 digits (now a direct second difference), and limits returned their noisiest estimate (lim (1 − cos x)/x² showed 0.4999999849). Numeric derivatives, limits and not-fully-converged integrals are now rounded to the digits their error allows, so every digit shown is right to within one unit of the last |
 | D42 | Design study fixes | The welcome is a small floating card in the corner (full width at the bottom on phones) that never pushes the worksheet, so nothing jumps when it is dismissed. Shortcut hints only show with a physical keyboard. The worksheet menu always lists the open sheet. Table header units look like result units; form controls use the accent colour. On wide screens the sheet is a centred 1180 px page so results stay near their inputs. On phones Settings is a bottom sheet and Export/Import are icons |
 | D41 | Dividing by a unit | Typing / (or the on-screen ÷) right after unit chips puts those chips (with any powers) on top of a new fraction and the caret in the denominator: 5 m Tab / s Tab = 5 m/s, 10 N / mm² = 10 N/mm². Anywhere else, / is the usual fraction |
 | D40 | Phone keyboard | MathLive’s on-screen keyboard (touch devices) has Dimensional’s own tabs — numbers (×10ⁿ, subscript, ans, °), common units as chips, functions (trig, logs, Γ, ∫, d/dx, lim, Σ, Π, solve, piecewise, comparisons), letters and Greek — in the notebook palette (light and dark). ↵ adds a row; the page is padded by the keyboard and the Functions drawer hides while it is up; on phones row buttons show only on the row being edited. Every page is the same grid (four rows of ten, digits on top on the letter tabs) with the same bottom row ← → ( ) , = x₁ ⌫ ↵ — the one subscript key; on a physical keyboard, _ makes a subscript. Units has two pages turned by a “more ›” / “‹ back” key. Tests check every key evaluates, every page has the same shape, and no key appears twice on a page |
@@ -510,8 +511,15 @@ The undo stack is per worksheet and holds whole-row snapshots. It covers text ed
   - `√(4 mm²)` → `2 mm`; `√2` → float
   - Inheritance: Y shown in MPa ⇒ `2Y` shown in MPa
   - Errors: `5 m + 3 s`, cycles, unknown identifiers
-- **Property tests:** converting to any same-dim unit and back is the identity (exact units give exact equality).
-- **Catalogue tests:** every factor checked against NIST SP 811 values.
+- **Correctness suite (`tests/correctness.test.ts`, D43):** every result is checked against an oracle that shares no code with the engine, over thousands of seeded random cases (`FUZZ_N=5000 FUZZ_SEED=… npx vitest run tests/correctness.test.ts` for a deeper run):
+  - every catalogue unit, prefix and constant against an independent NIST SP 811 / CODATA 2022 table (value and dimension; a new unit fails until it has a reference)
+  - random conversions between same-dimension units through the whole pipeline (LaTeX → result → display unit), prefixed units, and affine temperatures
+  - random +, −, ×, ÷, powers and roots against floating point; fraction sums exact and reduced; identities exact
+  - random products, quotients and sums of quantities: SI value and dimension, and the displayed value × its displayed unit equals the SI value (smart simplify never changes a value); mismatched sums are refused
+  - functions against JavaScript's Math, Γ by factorials, half-integers, recurrence and reflection, erf by independent numerical integration, statistics and number theory by direct computation
+  - integrals, derivatives, limits and solve against closed forms; numeric results show only digits within one unit of their last digit
+  - formatting: every notation and significant-figure setting shows the correctly rounded number
+  - mutation-checked: planting a wrong unit factor, an extra digit in formatting, a wrong trig identity, a perturbed Γ coefficient or an over-eager snap each fails the suite
 - **E2E (Playwright):** chip autocomplete, Backspace turning a chip into text, dropdown changes, folder drag-and-drop, slider dragging, export → import round-trip.
 
 ---
