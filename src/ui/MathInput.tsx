@@ -17,7 +17,7 @@ export function loadMathLive() {
   return mathlive;
 }
 import { suggestionsFor, type Suggestion } from '../engine/suggest';
-import { setUpKeyboard, setReturnHandler } from './keyboard';
+import { setUpKeyboard, setReturnHandler, setDivideHandler } from './keyboard';
 import { latexToSymbol } from '../engine/latex';
 
 export const MACROS = {
@@ -59,6 +59,32 @@ export function insertIntoMath(latex: string, opts: { pending?: boolean } = {}):
   }
   if (!lastField || !lastField.isConnected) return false;
   insertInto(lastField, latex);
+  return true;
+}
+
+/**
+ * "/" right after unit chips (5 m / s): MathLive only takes letters and numbers as the numerator, so
+ * after a chip it made an empty fraction and "s" landed on top. Wrap the trailing chips (with any
+ * powers) as the numerator and put the caret in the denominator: 5 m/s (D41). Returns false when
+ * the caret isn't after a chip, so the usual "/" applies.
+ */
+export function divideAfterChips(mf: MathfieldElement): boolean {
+  const pos = mf.position;
+  if (pos <= 0) return false;
+  const before = mf.getValue(0, pos, 'latex');
+  const m = /(?:\\(?:unit|const)\{(?:[^{}]|\{[^{}]*\})*\}(?:\^\{[^{}]*\}|\^[0-9])?)+$/.exec(before);
+  if (!m) return false;
+  const term = m[0];
+  // the caret offset where those chips start (a chip spans several offsets)
+  let start = -1;
+  for (let k = pos - 1; k >= 0; k--)
+    if (mf.getValue(k, pos, 'latex') === term) {
+      start = k;
+      break;
+    }
+  if (start < 0) return false;
+  mf.selection = { ranges: [[start, pos]], direction: 'forward' };
+  mf.executeCommand(['insert', `\\frac{${term}}{#?}`, { format: 'latex', insertionMode: 'replaceSelection', selectionMode: 'placeholder' }]);
   return true;
 }
 
@@ -190,6 +216,12 @@ export function MathInput(p: Props) {
         e.stopPropagation();
         return;
       }
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && divideAfterChips(mf)) {
+        e.preventDefault();
+        e.stopPropagation();
+        props.current.onChange(mf.getValue('latex'));
+        return;
+      }
       if (e.key === '*' && !e.ctrlKey && !e.metaKey) {
         // typeset multiplication as a centred dot, never an asterisk
         e.preventDefault();
@@ -252,6 +284,11 @@ export function MathInput(p: Props) {
     const onFocus = () => {
       lastField = mf;
       setReturnHandler(() => props.current.onEnter());
+      setDivideHandler(() => {
+        const done = divideAfterChips(mf);
+        if (done) props.current.onChange(mf.getValue('latex'));
+        return done;
+      });
       props.current.onFocus();
       if (pendingInsert) {
         const l = pendingInsert;

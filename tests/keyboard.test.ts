@@ -22,6 +22,7 @@ function example(ins: string): string | null {
   if (['=', ',', '!', '.', '_{#0}', r`\%`].includes(ins)) return null; // only meaningful next to something else
   if (ins === 'x') return 'x+1'; // x is already defined on the test sheet
   if (ins.startsWith(r`\cdot`)) return '3' + ins.replace('#0', '2'); // ×10ⁿ follows a number
+  if (ins.includes('#@') && !ins.startsWith('#@')) return ins.replace('#@', '6').replace(/#\?/g, '3'); // ÷: a fraction of what's before the caret
   if (ins.startsWith('#@')) return '3' + ins.slice(2).replace('#0', '2').replace(/#\?/g, '2'); // acts on the value before the caret
   if (ins.includes('solve')) return ins.replace('#0', 'x^2').replace('#?', '2');
   let first = '0.5';

@@ -28,6 +28,8 @@ const NAV: Key[] = [
   { label: '↵', class: 'action dim-return', command: 'performWithFeedback(commit)', width: 1.5, tooltip: 'New row' /* handled by setReturnHandler */ },
 ]
 const DIGITS: Key[] = ['[1]', '[2]', '[3]', '[4]', '[5]', '[6]', '[7]', '[8]', '[9]', '[0]'];
+/** ÷: a fraction of what's before the caret; after unit chips, handled by setDivideHandler. */
+const DIVIDE: Key = { latex: '\\frac{#@}{#?}', label: '÷', class: 'big-op dim-divide', tooltip: 'Divide (a fraction)' };
 
 /**
  * The keyboard's ↵ adds a row below the focused one (D40). It acts on its own press, not on MathLive's
@@ -37,14 +39,23 @@ let onReturn: (() => void) | null = null;
 export function setReturnHandler(fn: (() => void) | null) {
   onReturn = fn;
 }
+/** ÷ after unit chips puts them on top (see divideAfterChips); otherwise MathLive's own fraction. */
+let onDivide: (() => boolean) | null = null;
+export function setDivideHandler(fn: (() => boolean) | null) {
+  onDivide = fn;
+}
 if (typeof document !== 'undefined')
   document.addEventListener(
     'pointerdown',
     (e) => {
-      if ((e.target as Element | null)?.closest?.('.dim-return') && onReturn) {
+      const t = e.target as Element | null;
+      if (t?.closest?.('.dim-return') && onReturn) {
         e.preventDefault();
         e.stopPropagation();
         onReturn();
+      } else if (t?.closest?.('.dim-divide') && onDivide?.()) {
+        e.preventDefault();
+        e.stopPropagation();
       }
     },
     true,
@@ -57,7 +68,7 @@ const NUMBERS: VirtualKeyboardLayout = {
   label: '123',
   tooltip: 'Numbers',
   rows: [
-    ['[7]', '[8]', '[9]', '[/]', { latex: '\\sqrt{#0}', tooltip: 'Square root' }, { latex: '#@^{2}', tooltip: 'Square' }, { latex: '#@^{#?}', tooltip: 'Power' }, { latex: '\\pi', tooltip: 'π' }, { label: 'e', insert: 'e', tooltip: "Euler's number" }, fn('×10ⁿ', '\\cdot10^{#0}', 'Times ten to the power')],
+    ['[7]', '[8]', '[9]', DIVIDE, { latex: '\\sqrt{#0}', tooltip: 'Square root' }, { latex: '#@^{2}', tooltip: 'Square' }, { latex: '#@^{#?}', tooltip: 'Power' }, { latex: '\\pi', tooltip: 'π' }, { label: 'e', insert: 'e', tooltip: "Euler's number" }, fn('×10ⁿ', '\\cdot10^{#0}', 'Times ten to the power')],
     ['[4]', '[5]', '[6]', '[*]', fn('%', '\\%', 'Percent'), { latex: '\\left|#0\\right|', tooltip: 'Absolute value' }, fn('°', '\\unit{\\degree}', 'Degrees'), fn('ans', 'ans', 'The answer of the row above'), fn('f(x)', '#@\\left(#0\\right)', 'Brackets after a name: f(x)'), fn('n!', '!', 'Factorial')],
     ['[1]', '[2]', '[3]', '[-]', trig('sin', '\\sin', 'Sine'), trig('cos', '\\cos', 'Cosine'), trig('tan', '\\tan', 'Tangent'), trig('ln', '\\ln', 'Natural log'), trig('log', '\\log', 'Log base 10'), fn('eˣ', 'e^{#0}', 'e to the power')],
     ['[0]', '[.]', '[+]', fn('[ ]', '\\left[#0\\right]', 'List'), fn('∫', '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', 'Definite integral'), fn('d/dx', '\\frac{\\mathrm{d}}{\\mathrm{d}x}#0', 'Derivative at the current x'), fn('lim', '\\lim_{x\\to#0}#?', 'Limit'), fn('Σ', '\\sum_{n=#0}^{#?}#?', 'Sum'), fn('solve', '\\operatorname{solve}\\left(#0=#?,x\\right)', 'Solve an equation for x'), fn('∞', '\\infty', 'Infinity')],

@@ -153,3 +153,42 @@ test.describe('phone', () => {
     await expect(rows).toHaveCount(before + 1);
   });
 });
+
+test('“/” after unit chips puts them on top: 5 m Tab / s Tab = 5 m/s', async ({ page }) => {
+  await freshSheet(page);
+  await field(page, 1).click();
+  await expect(field(page, 1)).toBeFocused();
+  const keys = async (ks: string[]) => {
+    for (const k of ks) {
+      if (k === 'Tab') await expect(page.locator('.ac-pop')).toBeVisible(); // Tab inserts the suggestion
+      await (k.length > 1 ? page.keyboard.press(k) : page.keyboard.type(k));
+    }
+  };
+  await keys(['5', 'm', 'Tab', '/', 's', 'Tab']);
+  await expect(field(page, 1)).toHaveJSProperty('value', String.raw`5\frac{\unit{m}}{\unit{s}}`);
+  await expect(result(page, 1)).toContainText('m/s');
+  await nextRow(page, 2);
+  await keys(['1', '0', 'N', 'Tab', '/', 'm', 'm', 'Tab', '^', '2']);
+  await expect(result(page, 2)).toContainText('N/mm²');
+});
+
+test.describe('phone ÷', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  test('the on-screen ÷ after a unit chip divides by what comes next', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await page.getByRole('button', { name: 'Worksheets' }).tap();
+    await page.getByRole('button', { name: '+ New worksheet' }).tap();
+    await page.locator('.row math-field').first().tap();
+    const key = (sel: string, text?: RegExp) =>
+      (text ? page.locator(`.MLK__layer.is-visible ${sel}`).filter({ hasText: text }) : page.locator(`.MLK__layer.is-visible ${sel}`)).first();
+    await page.locator('.MLK__layer.is-visible div[tabindex="-1"]').filter({ has: page.locator('span.ML__cmr', { hasText: /^5$/ }) }).last().tap();
+    await page.locator('.ML__keyboard [data-layer]').filter({ hasText: /^m kg$/ }).locator('visible=true').first().tap();
+    await key('div[tabindex="-1"]', /^m$/).tap();
+    await page.locator('.ML__keyboard [data-layer]').filter({ hasText: /^123$/ }).locator('visible=true').first().tap();
+    await key('.dim-divide').tap();
+    await page.locator('.ML__keyboard [data-layer]').filter({ hasText: /^m kg$/ }).locator('visible=true').first().tap();
+    await key('div[tabindex="-1"]', /^s$/).tap();
+    await expect(page.locator('.row math-field').first()).toHaveJSProperty('value', String.raw`5\frac{\unit{m}}{\unit{s}}`);
+  });
+});
