@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as N from '../src/engine/num';
 import { evaluateWorksheet } from '../src/engine/worksheet';
 
 const r = String.raw;
@@ -26,5 +27,19 @@ describe('plain-language errors (D28)', () => {
     expect(msg(r`x<3`)).toMatch(/only go inside a piecewise/);
     expect(msg(r`a=b=2`)).toMatch(/Only one “=”/);
     expect(msg(r`\lim_{x\to}x`)).toMatch(/say where the variable goes/);
+  });
+});
+
+describe('fractions MathLive writes without braces', () => {
+  it('frac25 is 2/5, and the one-digit rule matches LaTeX', () => {
+    const val = (latex: string) => {
+      const res = evaluateWorksheet([{ id: 'x', type: 'expr', latex }], { angle: 'rad', packages: [] }).rows.get('x');
+      return res?.kind === 'value' && res.value.t === 'q' ? N.toNumber(res.value.q.si) : res?.kind === 'error' ? res.message : '?';
+    };
+    expect(val(String.raw`\frac25`)).toBe(0.4);
+    expect(val(String.raw`\frac{12}{5}`)).toBe(2.4);
+    expect(val(String.raw`\frac125`)).toBe(2.5); // \frac125 = (1/2)·5 in LaTeX
+    expect(val(String.raw`\sqrt4`)).toBe(2);
+    expect(val(String.raw`\frac{2}{5}\unit{m}`)).toBe(0.4);
   });
 });

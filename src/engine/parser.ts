@@ -360,7 +360,18 @@ class Parser {
   }
 
   group(): Node {
-    if (!this.isOpen('{')) return this.parsePostfix(false);
+    if (!this.isOpen('{')) {
+      // LaTeX without braces takes one character: MathLive writes 2/5 as \frac25
+      const t = this.peek();
+      if (t?.t === 'num' && t.v.length > 1) {
+        this.toks.splice(this.i, 1, { ...t, v: t.v[0], e: t.s + 1 }, { ...t, v: t.v.slice(1), s: t.s + 1 });
+      }
+      if (t?.t === 'num') {
+        this.i++;
+        return { k: 'num', v: parseDecimal((this.toks[this.i - 1] as { v: string }).v) };
+      }
+      return this.parsePostfix(false);
+    }
     this.i++;
     if (this.isClose('}')) throw new ParseError('There’s an empty box (part of a fraction or root): fill it in or delete it');
     const e = this.parseExpr();
