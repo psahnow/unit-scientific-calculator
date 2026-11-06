@@ -11,10 +11,18 @@ export interface Settings {
   /** Enabled unit packages for this worksheet (D26). Base units are always on. */
   packages: string[];
   exactDefault: boolean; // show non-terminating exact results as fractions
-  theme: 'system' | 'light' | 'dark';
+  /** Worksheet-defined units, e.g. { symbol: 'bag', definition: '25 kg' } (D34). */
+  units: CustomUnit[];
 }
 
-export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, packages: [], exactDefault: true, theme: 'light' };
+export interface CustomUnit {
+  symbol: string;
+  definition: string;
+}
+
+export type Theme = 'system' | 'light' | 'dark';
+
+export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, packages: [], exactDefault: true, units: [] };
 
 export interface Worksheet {
   schema: 1;
@@ -39,6 +47,11 @@ interface State {
   mergeKey: string | null;
   focusId: string | null;
   focusNonce: number;
+  /** Light/dark is a per-browser preference (D32), not saved in worksheets. */
+  theme: Theme;
+  /** Set when this browser couldn't save (storage full, blocked or private mode). */
+  storageError: string | null;
+  setTheme(t: Theme): void;
 
   setTitle(t: string): void;
   setSettings(p: Partial<Settings>): void;
@@ -110,12 +123,18 @@ function lsGet(k: string): string | null {
     return null;
   }
 }
-function lsSet(k: string, v: string) {
+function lsSet(k: string, v: string): boolean {
   try {
     localStorage.setItem(k, v);
+    return true;
   } catch {
-    /* storage unavailable */
+    return false;
   }
+}
+const LS_THEME = 'dimensional:theme';
+function initialTheme(): Theme {
+  const t = lsGet(LS_THEME);
+  return t === 'dark' || t === 'system' || t === 'light' ? t : 'light';
 }
 function lsDel(k: string) {
   try {
@@ -127,14 +146,67 @@ function lsDel(k: string) {
 
 export function migrate(raw: unknown): Worksheet {
   const w = raw as Partial<Worksheet>;
-  if (!w || typeof w !== 'object' || !Array.isArray(w.rows)) throw new Error('Not a worksheet file');
-  const rows = (w.rows as Row[]).filter((r) => r && typeof r.id === 'string' && ['expr', 'note', 'folder', 'table'].includes(r.type));
+  if (!w || typeof w !== 'object' || !Array.isArray(w.rows)) throw new Error("That file isn't a Dimensional worksheet");
+  // Every field is checked, so a damaged or hand-edited file can't break the page (D32).
+  const str = (v: unknown, d = '') => (typeof v === 'string' ? v : d);
+  const optStr = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+  const seen = new Set<string>();
+  const freshId = (v: unknown) => {
+    let id = typeof v === 'string' && v ? v : uid();
+    while (seen.has(id)) id = uid();
+    seen.add(id);
+    return id;
+  };
+  const rows: Row[] = [];
+  for (const r of w.rows as Record<string, unknown>[]) {
+    if (!r || typeof r !== 'object') continue;
+    const base = { id: freshId(r.id), parent: optStr(r.parent) };
+    if (r.type === 'expr') {
+      const s = r.slider as Record<string, unknown> | undefined;
+      rows.push({
+        ...base,
+        type: 'expr',
+        latex: str(r.latex),
+        displayUnit: optStr(r.displayUnit),
+        displayMode: ['auto', 'decimal', 'fraction'].includes(r.displayMode as string) ? (r.displayMode as 'auto') : undefined,
+        slider: s && typeof s === 'object' ? { min: str(s.min, '0'), max: str(s.max, '10'), step: str(s.step, '0.1') } : undefined,
+        scope: r.scope === 'folder' ? 'folder' : undefined,
+      });
+    } else if (r.type === 'note') rows.push({ ...base, type: 'note', text: str(r.text) });
+    else if (r.type === 'folder') rows.push({ id: base.id, type: 'folder', title: str(r.title, 'Folder'), collapsed: r.collapsed === true });
+    else if (r.type === 'table') {
+      const cols = Array.isArray(r.columns) ? (r.columns as Record<string, unknown>[]) : [];
+      const columns = cols
+        .filter((c) => c && typeof c === 'object')
+        .map((c) => ({
+          id: freshId(c.id),
+          header: str(c.header, 'x'),
+          unit: optStr(c.unit),
+          values: Array.isArray(c.values) ? (c.values as unknown[]).map((v) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')) : [],
+        }));
+      if (columns.length) rows.push({ ...base, type: 'table', columns });
+    }
+  }
+  // a parent must be a folder in this worksheet
+  const folders = new Set(rows.filter((r) => r.type === 'folder').map((r) => r.id));
+  for (const r of rows) if (r.parent && !folders.has(r.parent)) delete r.parent;
+  const s = (w.settings ?? {}) as Partial<Settings>;
+  const num = (v: unknown, d: number, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : d);
+  const settings: Settings = {
+    angle: s.angle === 'deg' ? 'deg' : 'rad',
+    sigFigs: num(s.sigFigs, DEFAULT_SETTINGS.sigFigs, 1, 16),
+    notation: ['auto', 'scientific', 'engineering'].includes(s.notation as string) ? (s.notation as Settings['notation']) : 'auto',
+    sciAbove: num(s.sciAbove, DEFAULT_SETTINGS.sciAbove, 1, 21),
+    packages: Array.isArray(s.packages) ? s.packages.filter((p): p is string => typeof p === 'string') : [],
+    exactDefault: typeof s.exactDefault === 'boolean' ? s.exactDefault : DEFAULT_SETTINGS.exactDefault,
+    units: Array.isArray(s.units) ? s.units.filter((u) => u && typeof u.symbol === 'string' && typeof u.definition === 'string') : [],
+  };
   return {
     schema: 1,
     id: typeof w.id === 'string' ? w.id : uid(),
     title: typeof w.title === 'string' ? w.title : 'Imported worksheet',
     rows: rows.length ? rows : [{ id: uid(), type: 'expr', latex: '' }],
-    settings: { ...DEFAULT_SETTINGS, ...(w.settings ?? {}) },
+    settings,
     updated: Date.now(),
   };
 }
@@ -192,6 +264,12 @@ export const useStore = create<State>((set, get) => {
     future: [],
     mergeKey: null,
     focusId: null,
+    theme: initialTheme(),
+    storageError: lsSet('dimensional:probe', '1') ? null : "This browser isn't saving your work (storage is blocked or in a private window). Use Export to keep a copy.",
+    setTheme(t) {
+      lsSet(LS_THEME, t);
+      set({ theme: t });
+    },
     focusNonce: 0,
 
     setTitle(title) {
@@ -332,9 +410,10 @@ export function visibleRows(rows: Row[]): Row[] {
 }
 
 function saveNow() {
-  const { ws, index } = useStore.getState();
-  lsSet(lsWs(ws.id), JSON.stringify(ws));
-  lsSet(LS_CURRENT, ws.id);
+  const { ws, index, storageError } = useStore.getState();
+  const ok = lsSet(lsWs(ws.id), JSON.stringify(ws)) && lsSet(LS_CURRENT, ws.id);
+  const err = ok ? null : "This browser isn't saving your work (storage is full, blocked or in a private window). Use Export to keep a copy.";
+  if (err !== storageError) useStore.setState({ storageError: err });
   const entry = { id: ws.id, title: ws.title, updated: ws.updated };
   const next = [entry, ...index.filter((w) => w.id !== ws.id)];
   lsSet(LS_INDEX, JSON.stringify(next));

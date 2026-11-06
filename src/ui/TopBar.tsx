@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore, exportWorksheet, type Settings } from '../state/store';
+import { useStore, exportWorksheet, type Settings, type Theme } from '../state/store';
 import { PACKAGES } from '../engine/units/packages';
 import { BrandMark, About } from './Brand';
 
@@ -33,7 +33,7 @@ export function TopBar() {
     const blob = new Blob([exportWorksheet(s.ws)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${s.ws.title.replace(/[^\w\- ]+/g, '').trim() || 'worksheet'}.usc.json`;
+    a.download = `${s.ws.title.replace(/[^\w\- ]+/g, '').trim() || 'worksheet'}.dimensional.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
@@ -100,11 +100,11 @@ export function TopBar() {
       <div className="pop-wrap" ref={settings.ref}>
         <button
           className="icon-btn"
-          title={st.theme === 'dark' ? 'Light paper' : 'Dark (graphite) paper'}
+          title={s.theme === 'dark' ? 'Light paper' : 'Dark (graphite) paper'}
           aria-label="Switch light or dark"
-          onClick={() => set({ theme: st.theme === 'dark' ? 'light' : 'dark' })}
+          onClick={() => s.setTheme(s.theme === 'dark' ? 'light' : 'dark')}
         >
-          {st.theme === 'dark' ? '☀' : '☾'}
+          {s.theme === 'dark' ? '☀' : '☾'}
         </button>
         <button className="icon-btn" title="Settings" onClick={() => settings.setOpen(!settings.open)}>
           ⚙
@@ -160,7 +160,7 @@ export function TopBar() {
             </fieldset>
             <label>
               Theme
-              <select value={st.theme} onChange={(e) => set({ theme: e.target.value as Settings['theme'] })}>
+              <select value={s.theme} onChange={(e) => s.setTheme(e.target.value as Theme)}>
                 <option value="system">System</option>
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
@@ -172,7 +172,7 @@ export function TopBar() {
       <button className="text-btn" onClick={doExport} title="Download worksheet as JSON">
         ⤓ Export
       </button>
-      <button className="text-btn" onClick={() => fileRef.current?.click()} title="Open a .usc.json file">
+      <button className="text-btn" onClick={() => fileRef.current?.click()} title="Open a Dimensional worksheet (.dimensional.json, or an older .usc.json)">
         ⤒ Import
       </button>
       <input

@@ -13,7 +13,7 @@ npm run build      # type-check + production build into dist/
 
 ## Deploy to Cloudflare Pages
 
-It's a static site with no backend. Worksheets are saved in the browser's localStorage and can be exported or imported as `.usc.json` files.
+It's a static site with no backend. Worksheets are saved in the browser's localStorage and can be exported or imported as `.dimensional.json` files (older `.usc.json` exports still import).
 
 **Git integration (dashboard):** Workers & Pages → Create → Pages → connect the repository. Use these settings:
 

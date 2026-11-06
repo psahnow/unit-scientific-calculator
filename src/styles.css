@@ -1208,3 +1208,43 @@ body {
   background: var(--accent-soft);
   color: var(--fg);
 }
+
+/* crash safety and storage warnings (D32) */
+.storage-banner {
+  background: var(--warn-soft);
+  color: var(--warn);
+  padding: 8px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.crash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.crash-card {
+  max-width: 520px;
+  border: 1.5px solid var(--result-border);
+  border-radius: 4px;
+  padding: 22px 24px;
+  background: var(--result-bg);
+}
+.crash-card h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.crash-actions {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+.crash-card pre {
+  white-space: pre-wrap;
+  font-size: 11px;
+  max-height: 200px;
+  overflow: auto;
+}

@@ -469,7 +469,7 @@ A display-unit change skips steps 1–3: only rows that inherit that unit re-run
 ```
 
 - Only the source (LaTeX), the user's display-unit choices, and display options are saved. Results are always recomputed on load.
-- Autosave goes to `localStorage["usc:worksheets"]` (an index) and `usc:ws:<id>`, debounced at 500 ms. Export downloads `<title>.usc.json`; import checks `schema` and runs migrations.
+- Autosave goes to `localStorage["usc:worksheets"]` (an index) and `usc:ws:<id>`, debounced at 500 ms. Export downloads `<title>.dimensional.json` (older `.usc.json` files still import); import checks every field and repairs or drops anything malformed (D32).
 
 ---
 

@@ -86,7 +86,7 @@ Try deliberately broken input and judge whether each message tells a non-expert 
 ### 9. Persistence, files, settings
 - Reload the page → the worksheet and settings come back.
 - ☰ menu: create, switch between and delete worksheets.
-- **Export** downloads a `.usc.json`; **Import** that file back → identical worksheet (rows, folders, units chosen, slider, packages).
+- **Export** downloads a `.dimensional.json`; **Import** that file back → identical worksheet (rows, folders, units chosen, slider, packages).
 - ⚙: change significant figures (e.g. 4) and notation (Scientific, Engineering) and check results update; toggle exact fractions; switch theme Light/Dark/System and check everything stays readable (results, chips, warnings, toolbox, dropdowns).
 
 ### 10. Layout

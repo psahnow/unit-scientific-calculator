@@ -7,6 +7,7 @@ import { TopBar } from './TopBar';
 import { ExpressionRow, NoteRow, FolderRow } from './rows';
 import { TableRow } from './TableRow';
 import { Toolbox, ToolboxButton } from './Toolbox';
+import { RowBoundary } from './ErrorBoundary';
 
 export function App() {
   const s = useStore();
@@ -30,9 +31,9 @@ export function App() {
   // theme
   useEffect(() => {
     const el = document.documentElement;
-    el.setAttribute('data-theme', settings.theme);
+    el.setAttribute('data-theme', s.theme);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(el).getPropertyValue('--bg').trim());
-  }, [settings.theme]);
+  }, [s.theme]);
 
   // global undo/redo
   useEffect(() => {
@@ -90,6 +91,11 @@ export function App() {
         <ToolboxButton open={toolbox} onToggle={() => toggleToolbox(!toolbox)} />
       </div>
       </header>
+      {s.storageError && (
+        <div className="storage-banner" role="alert">
+          ⚠ {s.storageError}
+        </div>
+      )}
       <main className="list" aria-label="Expressions">
         {visible.map((row, i) => {
           n++;
@@ -145,12 +151,14 @@ export function App() {
                   ⋮⋮
                 </span>
               </div>
+              <RowBoundary resetKey={JSON.stringify(row)}>
               {row.type === 'expr' && (
                 <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), notice: result.notices.get(row.id), info: result.infos.get(row.id), packageHint: result.packageHints.get(row.id) }} />
               )}
               {row.type === 'note' && <NoteRow row={row} />}
               {row.type === 'folder' && <FolderRow row={row} count={childCount} />}
               {row.type === 'table' && <TableRow row={row} cols={result.columns} fmt={fmt} vars={varsFor(row.parent ?? null)} />}
+              </RowBoundary>
             </div>
           );
         })}
