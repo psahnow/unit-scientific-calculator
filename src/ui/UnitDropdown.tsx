@@ -121,9 +121,13 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
     }
   }
   const searchRef = useRef<HTMLInputElement>(null);
-  // the menu is hidden until it is placed, so focus the search box once it is visible
+  // the menu is hidden until it is placed, so focus the search box once it is visible. Not on touch
+  // screens: that would open the phone's keyboard, and usually a unit is picked from the list; tap
+  // the search box to type one
   useEffect(() => {
-    if (style.visibility !== 'hidden') searchRef.current?.focus();
+    if (style.visibility === 'hidden') return;
+    if (window.matchMedia?.('(pointer: coarse)').matches) return;
+    searchRef.current?.focus();
   }, [style.visibility]);
   const lq = qtrim.toLowerCase();
   const filtered = groups

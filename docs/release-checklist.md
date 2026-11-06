@@ -10,7 +10,7 @@ Status as of 6 November 2026. ✅ = done and verified · ⬜ = your action · �
 - ✅ Impossible displays are refused with a message, never shown wrongly (e.g. a temperature *difference* in °C). A plain K value in °C/°F is the one exception, with a warning badge on the result (D45).
 
 ## App
-- ✅ 13 browser tests pass against the production build (`npm run test:e2e`). They cover typing, dropdowns, toolbox, drag, undo, export/import, phone keyboard ↵ and ÷, no sideways scroll, no layout shift, and no console errors on load.
+- ✅ 15 browser tests pass against the production build (`npm run test:e2e`). They cover typing, dropdowns, toolbox, drag, undo, export/import, phone keyboard ↵ and ÷, no sideways scroll, no layout shift, and no console errors on load.
 - ✅ The design study fixes are in (D42), for desktop and phone in light and dark.
 - ✅ Error boundaries per row and for the app; a storage failure warns the user to Export.
 - ✅ The welcome card says worksheets live in this browser only and to Export a copy.

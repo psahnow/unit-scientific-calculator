@@ -204,6 +204,46 @@ test('“/” after unit chips puts them on top: 5 m Tab / s Tab = 5 m/s', async
   await expect(result(page, 2)).toContainText('N/mm²');
 });
 
+test.describe('phone keyboards', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  test('the unit menu opens without the phone keyboard; tapping its search box brings it up', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await page.locator('.row-result .unit-chip').first().tap();
+    const search = page.getByPlaceholder(/type a unit/);
+    await expect(search).toBeVisible();
+    await expect(search).not.toBeFocused();
+    await search.tap();
+    await expect(search).toBeFocused();
+  });
+  test('the row being edited stays visible above the on-screen keyboard', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    // (row 4 of the sample sits where the keyboard will cover it)
+    const field = page.locator('.row math-field').nth(3);
+    await field.tap();
+    // wait for the keyboard to finish sliding in: its bottom at the bottom of the screen
+    const plate = page.locator('.ML__keyboard .MLK__backdrop');
+    await expect(async () => {
+      const k = (await plate.boundingBox())!;
+      expect(Math.abs(k.y + k.height - 844)).toBeLessThan(2);
+    }).toPass({ timeout: 3000 });
+    const visible = async (el: typeof field) => {
+      const f = (await el.boundingBox())!;
+      const k = (await plate.boundingBox())!;
+      const head = (await page.locator('.app-head').boundingBox())!;
+      expect(f.y + f.height).toBeLessThanOrEqual(k.y);
+      expect(f.y).toBeGreaterThanOrEqual(head.y + head.height);
+    };
+    await expect(() => visible(field)).toPass({ timeout: 2000 });
+    // still visible after typing a new row with ↵
+    await page.locator('.MLK__layer.is-visible .dim-return').first().tap();
+    const next = page.locator('.row math-field').nth(4); // the new row, right after it
+    await expect(next).toBeFocused();
+    await expect(() => visible(next)).toPass({ timeout: 2000 });
+  });
+});
+
 test.describe('phone ÷', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   test('the on-screen ÷ after a unit chip divides by what comes next', async ({ page }) => {

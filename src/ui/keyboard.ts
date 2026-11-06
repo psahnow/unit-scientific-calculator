@@ -167,5 +167,37 @@ export function setUpKeyboard(
     const root = document.documentElement;
     root.style.setProperty('--osk-h', `${Math.round(h)}px`);
     root.classList.toggle('osk-open', h > 0);
+    if (h > 0) keepFieldVisible(h);
   });
+  // the field can also move or grow while the keyboard is up (a new row, a fraction)
+  const later = () => {
+    const h = mathVirtualKeyboard.visible ? (mathVirtualKeyboard.boundingRect?.height ?? 0) : 0;
+    if (h > 0) keepFieldVisible(h);
+  };
+  document.addEventListener('focusin', later);
+  document.addEventListener('input', later);
+}
+
+/**
+ * Scroll so the math field being edited sits between the sticky header and the on-screen keyboard
+ * (with its result too, when the whole row fits). Runs now and again after the keyboard's slide-in.
+ */
+function keepFieldVisible(oskHeight: number) {
+  const run = () => {
+    const active = document.activeElement;
+    const field = active?.closest?.('math-field') ?? (active?.tagName === 'MATH-FIELD' ? active : null);
+    if (!field) return;
+    const head = document.querySelector('.app-head')?.getBoundingClientRect().bottom ?? 0;
+    const bottomLimit = window.innerHeight - oskHeight - 12;
+    const room = bottomLimit - head - 12;
+    const row = field.closest('.row');
+    const f = field.getBoundingClientRect();
+    const r = row?.getBoundingClientRect();
+    // the whole row (input and result) if it fits, else just the field
+    const target = r && r.height <= room ? r : f;
+    if (target.bottom > bottomLimit) window.scrollBy({ top: target.bottom - bottomLimit, behavior: 'instant' as ScrollBehavior });
+    else if (target.top < head + 12) window.scrollBy({ top: target.top - head - 12, behavior: 'instant' as ScrollBehavior });
+  };
+  requestAnimationFrame(run);
+  setTimeout(run, 320);
 }
