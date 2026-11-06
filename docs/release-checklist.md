@@ -23,7 +23,7 @@ Status as of 6 November 2026. ✅ = done and verified · ⬜ = your action · �
   - Immutable caching for `/assets/*`; `no-cache` for `sw.js` and `precache.json`.
   - Security headers: nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy.
 - ✅ `robots.txt`, manifest, icons (192/512/maskable/apple), OG image, and a canonical URL for dimensional.perrysahnow.com.
-- ⬜ Push `main` to GitHub. It is 10+ commits ahead of `origin/main`, and nothing has been pushed by me.
+- ✅ Pushed `main` to GitHub.
 - ⬜ Create the Pages project:
   - Connect the repo.
   - Build command `npm run build`, output `dist`.
@@ -38,10 +38,7 @@ Status as of 6 November 2026. ✅ = done and verified · ⬜ = your action · �
 
 ## Decisions for you
 1. ~~**Kelvin to °C/°F.**~~ Decided: a plain K value can be shown in °C/°F as an absolute temperature, with a warning badge that explains the risk on hover (D45).
-2. **Licence.** There is no LICENSE file. Choose one of:
-   - All rights reserved (the default with no file).
-   - MIT/Apache to open-source it.
-   - Keep the repository private.
+2. ~~**Licence.**~~ Decided: MIT (`LICENSE`).
 3. **Repository name.** The repo is still `unit-scientific-calculator`. Rename it to `dimensional`? GitHub redirects the old URL; update `origin` afterwards.
 4. **Version.** `package.json` says `0.1.0`. Call the launch `1.0.0`?
 5. **Analytics.** None today. Cloudflare Web Analytics is cookieless and can be switched on in the dashboard with no code change, if you want visitor counts.

@@ -39,3 +39,7 @@ npx wrangler pages deploy dist --project-name dimensional
 - `src/state/` — Zustand store: undo/redo and localStorage persistence
 - `src/ui/` — React components (MathLive inputs, unit chips, unit dropdowns, rows, tables, sliders)
 - `public/mathlive-fonts/` — MathLive math fonts, served locally
+
+## License
+
+[MIT](LICENSE)
