@@ -8,7 +8,7 @@
   --fg-muted: #6e6a60; /* pencil */
   --border: #dde3e8; /* faint blue ruled lines */
   --border-strong: #c9c0ab;
-  --margin: #e3a091; /* red margin rule */
+  --margin: #b8c4d0; /* margin rule: one blue-grey pencil line */
   /* pens */
   --accent: #2b5ca8; /* blue pen: focus, selected and active states */
   --accent-soft: #e3ebf7;
@@ -40,7 +40,7 @@
   --fg-muted: #a39d8f;
   --border: #2f333a;
   --border-strong: #4a4f57;
-  --margin: #7c3d33;
+  --margin: #414a56;
   --accent: #86aef0;
   --accent-soft: #1f2c42;
   --brand: #f08a5d;
@@ -66,7 +66,7 @@
     --fg-muted: #a39d8f;
     --border: #2f333a;
     --border-strong: #4a4f57;
-    --margin: #7c3d33;
+    --margin: #414a56;
     --accent: #86aef0;
     --accent-soft: #1f2c42;
     --brand: #f08a5d;
@@ -344,7 +344,7 @@ textarea {
   width: 44px;
   flex: none;
   background: var(--bg-gutter);
-  border-right: 3px double var(--margin); /* the notebook's red margin */
+  border-right: 1.5px solid var(--margin); /* the notebook's margin rule */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1163,7 +1163,7 @@ body {
   max-width: 460px;
   width: 100%;
   padding: 20px 22px 18px 26px;
-  border-left: 4px double var(--margin); /* notebook margin rule */
+  border-left: 3px solid var(--margin); /* notebook margin rule */
 }
 .about-card h2 {
   margin: 0 0 4px;
