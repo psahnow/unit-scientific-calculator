@@ -1148,6 +1148,11 @@ html,
 body {
   overflow-x: clip; /* clip, not hidden: hidden would break the sticky header */
 }
+/* keep room for the scrollbar even when the sheet is short, so the page doesn't change width
+   when a long sheet brings the scrollbar in (no effect with overlay scrollbars, e.g. phones) */
+html {
+  scrollbar-gutter: stable;
+}
 
 /* ── Dimensional branding (D30) ── */
 .brand {
