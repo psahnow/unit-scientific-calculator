@@ -95,6 +95,37 @@ test('a number right after a letter is a subscript: T1 = 5, then 2·T12', async 
   await expect(field(page, 4)).toHaveJSProperty('value', '2x+2e3');
 });
 
+test('wide screens list the variables in the margin; clicking one goes to its row', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  const panel = page.getByRole('complementary', { name: 'Variables' });
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('.var-item').filter({ hasText: 'σ' })).toContainText('300 MPa');
+  await expect(panel.locator('.var-group-title')).toHaveText(['Beam inputs']);
+  // collapse the folder, then jump to a variable inside it: the folder opens and the row has the caret
+  await page.getByRole('button', { name: /Collapse folders/ }).click();
+  await panel.locator('.var-item').filter({ hasText: 'A' }).first().click();
+  const row = page.locator('.row').filter({ has: page.locator('math-field') }).nth(1);
+  await expect(row.locator('math-field')).toBeFocused();
+  await expect(row.locator('math-field')).toHaveJSProperty('value', 'A=20\\unit{mm}^2');
+  // narrower: no panel
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(panel).toBeHidden();
+});
+
+test('Tab straight after fast typing takes the whole unit (mm, not m)', async ({ page }) => {
+  await freshSheet(page);
+  await field(page, 1).click();
+  await expect(field(page, 1)).toBeFocused();
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.type('mm'); // no delay, then Tab at once
+    await page.keyboard.press('Tab');
+    await page.keyboard.type('+');
+  }
+  await expect(field(page, 1)).toHaveJSProperty('value', String.raw`\unit{mm}+\unit{mm}+\unit{mm}+\unit{mm}+\unit{mm}+`);
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

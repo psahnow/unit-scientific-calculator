@@ -10,6 +10,7 @@ import { TableRow } from './TableRow';
 import { Toolbox, ToolboxButton } from './Toolbox';
 import { RowBoundary } from './ErrorBoundary';
 import { BrandMark } from './Brand';
+import { VarPanel } from './VarPanel';
 
 export function App() {
   const s = useStore();
@@ -138,6 +139,8 @@ export function App() {
         <span className="print-date">{new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
       </div>
       <Welcome />
+      <div className="sheet-wrap">
+      <VarPanel rows={calcRows} result={result} fmt={fmt} />
       <main className="list" aria-label="Expressions">
         {visible.map((row, i) => {
           n++;
@@ -147,6 +150,7 @@ export function App() {
           return (
             <div
               key={row.id}
+              data-row-id={row.id}
               className={`row type-${row.type} ${usesFocus(row.id) ? 'uses-focus' : ''} ${row.type === 'expr' && !row.latex.trim() ? 'is-empty' : ''} ${row.parent ? 'in-folder' : ''} ${s.focusId === row.id ? 'focused' : ''} ${dropId === row.id && dragId !== row.id ? 'drop-target' : ''}`}
               draggable={dragId === row.id}
               onDragStart={(e) => {
@@ -208,6 +212,7 @@ export function App() {
           + Add expression
         </button>
       </main>
+      </div>
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-main">

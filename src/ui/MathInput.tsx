@@ -214,14 +214,26 @@ export function MathInput(p: Props) {
       setPop(items.length ? { items, sel: 0, navigated: false, prefixLatex: run.latex } : null);
     };
 
-    const accept = (s: Suggestion) => {
-      const pv = popRef.current;
-      if (!pv) return;
-      const n = atomCount(pv.prefixLatex);
+    /**
+     * Insert a suggestion for the letters before the caret. Works from the text as it is now, not
+     * the list on screen, which can be a keystroke behind when typing fast (m, m, Tab): the user's
+     * own pick (arrow keys or a click) is kept if it still fits, otherwise the best match for what
+     * is actually typed. Returns false if nothing fits.
+     */
+    const accept = (picked?: Suggestion, chosen = false): boolean => {
+      const run = trailingRun(mf.getValue(0, mf.position, 'latex'));
+      const items = run ? suggestionsFor(latexToSymbol(run.latex), props.current.vars, run.afterNumber) : [];
+      if (!run || !items.length) {
+        setPop(null);
+        return false;
+      }
+      const s = (chosen && picked && items.find((i) => i.insert === picked.insert)) || items[0];
+      const n = atomCount(run.latex);
       for (let i = 0; i < n; i++) mf.executeCommand('deleteBackward');
       mf.executeCommand(['insert', s.insert, { insertionMode: 'replaceSelection', selectionMode: 'placeholder', format: 'latex' }]);
       setPop(null);
       props.current.onChange(mf.getValue('latex'));
+      return true;
     };
 
     const onInput = (e: Event) => {
@@ -243,7 +255,7 @@ export function MathInput(p: Props) {
         if (e.key === 'Tab' || (e.key === 'Enter' && pv.navigated)) {
           e.preventDefault();
           e.stopPropagation();
-          accept(pv.items[pv.sel]);
+          accept(pv.items[pv.sel], pv.navigated);
           return;
         }
         if (e.key === 'Escape') {
@@ -252,6 +264,12 @@ export function MathInput(p: Props) {
           setPop(null);
           return;
         }
+      }
+      if (e.key === 'Tab' && !e.shiftKey && !pv && accept()) {
+        // the list hadn't appeared yet: Tab still completes what was typed, rather than leaving the field
+        e.preventDefault();
+        e.stopPropagation();
+        return;
       }
       if (e.key === 'Escape') {
         // MathLive would otherwise enter raw-LaTeX mode, which is confusing here
@@ -407,7 +425,7 @@ export function MathInput(p: Props) {
               className={i === pop.sel ? 'sel' : ''}
               onMouseDown={(e) => {
                 e.preventDefault();
-                (mfRef.current as unknown as { __accept: (s: Suggestion) => void }).__accept(s);
+                (mfRef.current as unknown as { __accept: (s: Suggestion, chosen: boolean) => boolean }).__accept(s, true);
                 mfRef.current?.focus();
               }}
             >

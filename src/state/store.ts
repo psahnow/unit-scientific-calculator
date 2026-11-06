@@ -66,6 +66,8 @@ interface State {
   setRows(rows: Row[]): void;
   setFocus(id: string | null): void;
   focusRelative(id: string, delta: number): void;
+  /** Put the caret in a row, opening its folder if it is collapsed (the variables panel, D50). */
+  focusRow(id: string): void;
   setAllCollapsed(c: boolean): void;
   undo(): void;
   redo(): void;
@@ -378,6 +380,13 @@ export const useStore = create<State>((set, get) => {
     },
     setFocus(id) {
       set({ focusId: id });
+    },
+    focusRow(id) {
+      const rows = get().ws.rows;
+      const parent = rows.find((r) => r.id === id)?.parent;
+      const folder = parent ? rows.find((r) => r.id === parent) : undefined;
+      if (folder?.type === 'folder' && folder.collapsed) commit(rows.map((r) => (r.id === folder.id ? { ...r, collapsed: false } : r)));
+      set({ focusId: id, focusNonce: get().focusNonce + 1 });
     },
     focusRelative(id, delta) {
       const s = get();
