@@ -56,6 +56,8 @@ interface Props {
   onChange(latex: string): void;
   onEnter(): void;
   onMoveOut(dir: 'up' | 'down'): void;
+  /** Alt+↑ / Alt+↓: move this row (optional). */
+  onMoveRow?(delta: -1 | 1): void;
   onDeleteEmpty(): void;
   onFocus(): void;
   onBlur(): void;
@@ -101,7 +103,8 @@ export function MathInput(p: Props) {
     const applyOptions = () => {
       mf.macros = { ...mf.macros, ...MACROS };
       mf.inlineShortcuts = INLINE_SHORTCUTS;
-      mf.mathVirtualKeyboardPolicy = 'manual';
+      // phones and tablets: MathLive's on-screen maths keyboard; mouse and keyboard: none (D7, D37)
+      mf.mathVirtualKeyboardPolicy = window.matchMedia?.('(pointer: coarse)').matches ? 'auto' : 'manual';
       mf.smartFence = true;
       mf.smartSuperscript = false; // 10^23: keep typing digits in the exponent
       mf.popoverPolicy = 'off';
@@ -172,6 +175,12 @@ export function MathInput(p: Props) {
         e.stopPropagation();
         mf.executeCommand(['insert', '\\cdot', { format: 'latex' }]);
         props.current.onChange(mf.getValue('latex'));
+        return;
+      }
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && props.current.onMoveRow) {
+        e.preventDefault();
+        e.stopPropagation();
+        props.current.onMoveRow(e.key === 'ArrowUp' ? -1 : 1);
         return;
       }
       if (e.key === 'Enter' && !e.shiftKey) {

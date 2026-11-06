@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { evaluateWorksheet } from '../engine/worksheet';
+import { evaluateWorksheet, renameDefinition, definitionScope } from '../engine/worksheet';
+import { Shortcuts, Welcome } from './Help';
 import { setCurrentPackages } from '../engine/units/packages';
 import type { FormatOptions } from '../engine/format';
 import { useStore, visibleRows, type RowType } from '../state/store';
@@ -39,6 +40,17 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
+      // Ctrl+/ shortcuts, Ctrl+. functions drawer: from anywhere (D37)
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setShortcuts((v) => !v);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '.') {
+        e.preventDefault();
+        setToolboxRef.current(!toolboxRef.current);
+        return;
+      }
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -57,10 +69,25 @@ export function App() {
     };
   }, []);
 
+  // "used by": while a definition row is focused, mark the rows that use its name (D37)
+  const focusRes = s.focusId ? result.rows.get(s.focusId) : undefined;
+  const focusName = focusRes?.kind === 'value' || focusRes?.kind === 'error' ? focusRes.defName : focusRes?.kind === 'func' ? focusRes.name : undefined;
+  const focusRow = s.focusId ? rows.find((r) => r.id === s.focusId) : undefined;
+  const focusLevel = focusRow ? (definitionScope(focusRow) ?? 'global') : null;
+  const usesFocus = (id: string) =>
+    !!focusName && id !== s.focusId && !!result.refs.get(id)?.some((x) => x.name === focusName) && result.resolves(id, focusName) === focusLevel;
+  const doRename = (id: string, name: string) => {
+    const out = renameDefinition(rows, result, id, name);
+    if (typeof out === 'string') return out;
+    s.setRows(out);
+    return undefined;
+  };
+
   const visible = visibleRows(rows);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const dragFromHandle = useRef(false);
+  const [shortcuts, setShortcuts] = useState(false);
   const [toolbox, setToolbox] = useState(() => {
     try {
       return localStorage.getItem('usc:toolbox') === '1';
@@ -68,6 +95,10 @@ export function App() {
       return false;
     }
   });
+  const toolboxRef = useRef(toolbox);
+  toolboxRef.current = toolbox;
+  const setToolboxRef = useRef((v: boolean) => toggleToolbox(v));
+  setToolboxRef.current = (v: boolean) => toggleToolbox(v);
   const toggleToolbox = (v: boolean) => {
     setToolbox(v);
     try {
@@ -102,6 +133,7 @@ export function App() {
         <span className="print-title">{s.ws.title}</span>
         <span className="print-date">{new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
       </div>
+      <Welcome />
       <main className="list" aria-label="Expressions">
         {visible.map((row, i) => {
           n++;
@@ -111,7 +143,7 @@ export function App() {
           return (
             <div
               key={row.id}
-              className={`row type-${row.type} ${row.type === 'expr' && !row.latex.trim() ? 'is-empty' : ''} ${row.parent ? 'in-folder' : ''} ${s.focusId === row.id ? 'focused' : ''} ${dropId === row.id && dragId !== row.id ? 'drop-target' : ''}`}
+              className={`row type-${row.type} ${usesFocus(row.id) ? 'uses-focus' : ''} ${row.type === 'expr' && !row.latex.trim() ? 'is-empty' : ''} ${row.parent ? 'in-folder' : ''} ${s.focusId === row.id ? 'focused' : ''} ${dropId === row.id && dragId !== row.id ? 'drop-target' : ''}`}
               draggable={dragId === row.id}
               onDragStart={(e) => {
                 if (!dragFromHandle.current) return e.preventDefault();
@@ -159,7 +191,7 @@ export function App() {
               </div>
               <RowBoundary resetKey={JSON.stringify(row)}>
               {row.type === 'expr' && (
-                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), notice: result.notices.get(row.id), info: result.infos.get(row.id), packageHint: result.packageHints.get(row.id) }} />
+                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), onRename: (n: string) => doRename(row.id, n), usesFocus: usesFocus(row.id), notice: result.notices.get(row.id), info: result.infos.get(row.id), packageHint: result.packageHints.get(row.id) }} />
               )}
               {row.type === 'note' && <NoteRow row={row} />}
               {row.type === 'folder' && <FolderRow row={row} count={childCount} />}
@@ -179,6 +211,7 @@ export function App() {
         </span>
       </footer>
       {toolbox && <Toolbox onClose={() => toggleToolbox(false)} />}
+      {shortcuts && <Shortcuts onClose={() => setShortcuts(false)} />}
     </div>
   );
 }

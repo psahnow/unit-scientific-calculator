@@ -1,5 +1,5 @@
 // Whole-worksheet evaluation: definitions, dependency resolution, display units, inheritance.
-import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContext } from './parser';
+import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContext, type NameRef } from './parser';
 import type { ChipFix, ParsedRow, Node } from './ast';
 import { isUnitOnly } from './ast';
 import * as N from './num';
@@ -69,6 +69,12 @@ export interface WorksheetResult {
   notices: Map<string, string>;
   /** Per-row information (not a problem), e.g. how an ambiguous unit was read. */
   infos: Map<string, string>;
+  /** Where each row uses row-defined names (for "used by" and rename, D37). */
+  refs: Map<string, NameRef[]>;
+  /** Where each definition row writes its name. */
+  defSpans: Map<string, { s: number; e: number }>;
+  /** Which definition a name means from a row: 'global' or a folder id; null if undefined there. */
+  resolves(rowId: string, name: string): string | null;
   /** One message per custom unit that couldn't be defined (undefined when fine). */
   customUnitErrors: (string | undefined)[];
   /** Rows using a unit chip from a package that is off: the packages that would provide it. */
@@ -163,6 +169,8 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
 
   // 2. Parse each row with the names visible from its folder.
   const blockedUnits = new Map<string, string[]>();
+  const refsByRow = new Map<string, NameRef[]>();
+  const defSpans = new Map<string, { s: number; e: number }>();
   const parsed = new Map<string, ParsedRow | Error>();
   for (const r of rows) {
     if (r.type !== 'expr') continue;
@@ -171,6 +179,8 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       parsed.set(r.id, p.row);
       if (p.chips.length) chips.set(r.id, p.chips);
       if (p.blocked.length) blockedUnits.set(r.id, p.blocked);
+      refsByRow.set(r.id, p.refs);
+      if (p.defSpan) defSpans.set(r.id, p.defSpan);
     } catch (e) {
       parsed.set(r.id, e as Error);
       const b = (e as ParseError).blocked;
@@ -441,8 +451,26 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     }
   }
 
+  // DEG mode changes what bare numbers in trig mean: say so on the rows it affects (D37)
+  if (settings.angle === 'deg')
+    for (const r of rows) {
+      const p = parsed.get(r.id);
+      if (!p || p instanceof Error || p.kind === 'empty' || infos.has(r.id)) continue;
+      if (degreeSensitive(p.expr)) infos.set(r.id, 'DEG mode: plain numbers in trig functions are degrees, and inverse trig answers in degrees. Switch to RAD at the top for radians.');
+    }
+
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
-  return { rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, infos, packageHints, customUnitErrors };
+  return {
+    rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, infos, packageHints, customUnitErrors,
+    refs: refsByRow,
+    defSpans,
+    resolves(rowId, name) {
+      const scope = rowById.get(rowId)?.parent ?? null;
+      const lv = levelOf(scope, name);
+      if (!lv.vars.has(name) && !lv.funcs.has(name)) return null;
+      return lv === global ? 'global' : scope;
+    },
+  };
 }
 
 class CycleError extends CalcError {}
@@ -521,4 +549,46 @@ export function applyChips(latex: string, chips: ChipFix[]): string {
     out = out.slice(0, c.s) + (c.kind === 'unit' ? `\\unit{${inner}}` : `\\const{${constLatex(c.id)}}`) + out.slice(c.e);
   }
   return out;
+}
+
+const TRIG = new Set(['sin', 'cos', 'tan', 'sec', 'csc', 'cot']);
+const INV_TRIG = new Set(['asin', 'acos', 'atan', 'arcsec', 'arccsc', 'arccot', 'atan2']);
+const hasUnit = (n: Node): boolean =>
+  n.k === 'unit' || Object.values(n).some((v) => (Array.isArray(v) ? v.some((x) => x && typeof x === 'object' && 'k' in x && hasUnit(x)) : v && typeof v === 'object' && 'k' in v && hasUnit(v as Node)));
+/** Whether the RAD/DEG mode changes this expression's value: trig of something without an angle unit, or inverse trig. */
+function degreeSensitive(n: Node): boolean {
+  if (n.k === 'call' && ((TRIG.has(n.name) && !hasUnit(n.args[0])) || INV_TRIG.has(n.name))) return true;
+  return Object.values(n).some((v) =>
+    Array.isArray(v) ? v.some((x) => x && typeof x === 'object' && 'k' in x && degreeSensitive(x)) : v && typeof v === 'object' && 'k' in v && degreeSensitive(v as Node),
+  );
+}
+
+/**
+ * Rename a defined name everywhere it means that definition (D37). Returns the new rows, or an
+ * explanation when the new name can't be used.
+ */
+export function renameDefinition(rows: Row[], result: WorksheetResult, defRowId: string, newName: string): Row[] | string {
+  const def = rows.find((r) => r.id === defRowId);
+  const span = result.defSpans.get(defRowId);
+  if (!def || def.type !== 'expr' || !span) return 'Only a row that defines a name can be renamed';
+  const oldName = latexToSymbol(def.latex.slice(span.s, span.e)).replace(/_\{?([^}]*)\}?/, '_$1');
+  const name = newName.trim().replace(/\s+/g, '');
+  if (!/^[A-Za-zα-ωΑ-Ω](_[A-Za-z0-9]+)?$/.test(name)) return 'A name is one letter, optionally with a subscript, like F, σ or F_1';
+  if (name === oldName) return 'That is already its name';
+  if (result.defined.has(name)) return `“${name}” is already defined in this worksheet`;
+  const level = definitionScope(def) ?? 'global';
+  const newLatex = (() => {
+    const [b, sub] = name.split('_');
+    const g = symbolToLatex(b);
+    return sub ? `${g}_{${sub}}` : g;
+  })();
+  return rows.map((r) => {
+    if (r.type !== 'expr') return r;
+    const spans = (result.refs.get(r.id) ?? []).filter((x) => x.name === oldName && result.resolves(r.id, oldName) === level);
+    if (r.id === defRowId) spans.push({ ...span, name: oldName });
+    if (!spans.length) return r;
+    let latex = r.latex;
+    for (const x of [...spans].sort((a, b) => b.s - a.s)) latex = latex.slice(0, x.s) + newLatex + latex.slice(x.e);
+    return { ...r, latex };
+  });
 }

@@ -56,6 +56,12 @@ export function TopBar() {
             <button className="menu-item" onClick={() => (menu.setOpen(false), setTimeout(() => window.print(), 50))}>
               Print / save as PDF…
             </button>
+            <button
+              className="menu-item"
+              onClick={() => (menu.setOpen(false), window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true })))}
+            >
+              Keyboard shortcuts <span className="menu-date">Ctrl /</span>
+            </button>
             <button className="menu-item" onClick={() => (setAbout(true), menu.setOpen(false))}>
               About Dimensional
             </button>

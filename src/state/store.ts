@@ -60,6 +60,10 @@ interface State {
   deleteRow(id: string): void;
   duplicateRow(id: string): void;
   moveRow(id: string, beforeId: string | null, parent?: string): void;
+  /** Move a row up (−1) or down (+1) past its neighbour, staying in its folder (D37). */
+  moveRowBy(id: string, delta: -1 | 1): void;
+  /** Replace every row in one undoable step (rename). */
+  setRows(rows: Row[]): void;
   setFocus(id: string | null): void;
   focusRelative(id: string, delta: number): void;
   setAllCollapsed(c: boolean): void;
@@ -350,6 +354,27 @@ export const useStore = create<State>((set, get) => {
       if (at < 0) at = rest.length;
       rest.splice(at, 0, ...block);
       commit(rest);
+    },
+    moveRowBy(id, delta) {
+      const rows = get().ws.rows;
+      const me = rows.find((r) => r.id === id);
+      if (!me) return;
+      // siblings: rows at the same level (same folder, or top level where folders count as one block)
+      const siblings = rows.filter((r) => (me.type === 'folder' ? r.type === 'folder' || !r.parent : r.parent === me.parent));
+      const i = siblings.findIndex((r) => r.id === id);
+      const other = siblings[i + delta];
+      if (!other) return;
+      if (delta === -1) get().moveRow(id, other.id, me.type === 'folder' ? undefined : me.parent);
+      else {
+        // insert after the neighbour (and after its children, if it's a folder)
+        const block = other.type === 'folder' ? [other, ...rows.filter((r) => r.parent === other.id)] : [other];
+        const after = rows[rows.indexOf(block[block.length - 1]) + 1];
+        get().moveRow(id, after ? after.id : null, me.type === 'folder' ? undefined : me.parent);
+      }
+      set({ focusId: id, focusNonce: get().focusNonce + 1 });
+    },
+    setRows(rows) {
+      commit(rows);
     },
     setFocus(id) {
       set({ focusId: id });

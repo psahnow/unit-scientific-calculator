@@ -8,6 +8,7 @@ import { formatUnit } from '../engine/units/registry';
 import { MathInput } from './MathInput';
 import { UnitButton } from './UnitDropdown';
 import { useStore } from '../state/store';
+import { varLatex } from '../engine/suggest';
 import { PACKAGE_BY_ID } from '../engine/units/packages';
 
 export interface RowCtx {
@@ -22,6 +23,10 @@ export interface RowCtx {
   notice?: string;
   /** Information to show under the row (how something was read). */
   info?: string;
+  /** Rename this row's defined name everywhere it's used; returns an error message or undefined (D37). */
+  onRename?(newName: string): string | undefined;
+  /** This row uses the name defined in the focused row. */
+  usesFocus?: boolean;
   /** A unit chip on this row comes from packages that are off (D26). */
   packageHint?: { unit: string; packages: string[]; typed?: boolean };
 }
@@ -56,7 +61,28 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
 
   let resultEl: ReactNode = null;
   let copyText = '';
-  if (r?.kind === 'error') resultEl = <div className="result error" title={r.message}>⚠ {r.message}</div>;
+  const missing = r?.kind === 'error' ? /^“(.+)” isn't defined yet/.exec(r.message)?.[1] : undefined;
+  if (r?.kind === 'error')
+    resultEl = (
+      <div className="result error" title={r.message}>
+        ⚠ {r.message}
+        {missing && (
+          <button
+            className="quick-fix"
+            title={`Add a row above that defines ${missing}`}
+            onClick={() => {
+              const st = useStore.getState();
+              const i = st.ws.rows.findIndex((x) => x.id === row.id);
+              const prev = i > 0 ? st.ws.rows[i - 1].id : null;
+              const id = st.addRow('expr', prev, { latex: `${varLatex(missing)}=`, parent: row.parent });
+              if (prev === null) st.moveRow(id, row.id, row.parent);
+            }}
+          >
+            + Add {missing} =
+          </button>
+        )}
+      </div>
+    );
   else if (r?.kind === 'value' && q) {
     const unitBtn = (
       <UnitButton
@@ -84,6 +110,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
     }
   }
 
+  const defName = r?.kind === 'value' || r?.kind === 'error' ? r.defName : r?.kind === 'func' ? r.name : undefined;
   const actions = (
     <div className="row-actions">
       {fracAvail && (
@@ -112,11 +139,11 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         </button>
       )}
       {copyText && <CopyButton text={copyText} />}
+      {ctx.onRename && defName && <RenameButton name={defName} onRename={ctx.onRename} />}
       <RowMenu id={row.id} />
     </div>
   );
 
-  const defName = r?.kind === 'value' || r?.kind === 'error' ? r.defName : r?.kind === 'func' ? r.name : undefined;
   const local = row.scope === 'folder';
   const scopeBtn =
     row.parent && defName ? (
@@ -147,6 +174,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
               if (latex !== row.latex) s.updateRow(row.id, { latex }, `edit-${row.id}-${session.current}`);
             }}
             onEnter={() => s.addRow('expr', row.id)}
+            onMoveRow={(d) => s.moveRowBy(row.id, d)}
             onMoveOut={(d) => s.focusRelative(row.id, d === 'up' ? -1 : 1)}
             onDeleteEmpty={() => s.deleteRow(row.id)}
             onFocus={() => s.setFocus(row.id)}
@@ -217,6 +245,47 @@ export function typesetNumber(text: string): ReactNode {
     ) : (
       p
     ),
+  );
+}
+
+/** Rename a defined name everywhere it means this definition (D37). */
+function RenameButton({ name, onRename }: { name: string; onRename(n: string): string | undefined }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(name);
+  const [err, setErr] = useState<string | undefined>();
+  const submit = () => {
+    const e = onRename(value);
+    if (e) setErr(e);
+    else setOpen(false);
+  };
+  return (
+    <>
+      <button className="icon-btn" title={`Rename ${name} everywhere`} aria-label="Rename" onClick={() => (setOpen(!open), setValue(name), setErr(undefined))}>
+        ✎
+      </button>
+      {open && (
+        <div className="rename-pop" role="dialog" aria-label={`Rename ${name}`}>
+          <label>
+            Rename <b>{name}</b> to
+          </label>
+          <input
+            autoFocus
+            value={value}
+            onChange={(e) => (setValue(e.target.value), setErr(undefined))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit();
+              if (e.key === 'Escape') setOpen(false);
+            }}
+            aria-label="New name"
+          />
+          {err && <span className="err">{err}</span>}
+          <span className="muted">Every row that uses this {name} changes too. Use F_1 for a subscript.</span>
+          <button className="text-btn strong" onClick={submit}>
+            Rename
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 

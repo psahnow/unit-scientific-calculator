@@ -18,6 +18,15 @@ export interface ParseContext {
   funcs: Set<string>;
   /** Units recognised from bare letters (unit packages, D26). Chips always work. Default: all. */
   units?: Availability;
+  /** Names bound inside this expression (function parameters, ∫ dx, Σ n, solve x): not references to rows. */
+  bound?: ReadonlySet<string>;
+}
+
+/** Where a name is used in a row's LaTeX (character offsets). */
+export interface NameRef {
+  s: number;
+  e: number;
+  name: string;
 }
 
 /** Functions callable by a plain letter run followed by "(". */
@@ -79,6 +88,10 @@ export interface ParseResult {
   chips: ChipFix[];
   /** Units typed as letters that exist but are in a package that is off (longest first). */
   blocked: string[];
+  /** Every reference to a row-defined name (not bound variables). */
+  refs: NameRef[];
+  /** Where the defined name is written on the left of "=". */
+  defSpan?: { s: number; e: number };
 }
 
 /** Extract the defined name (variable or function) from a row without full parsing. */
@@ -171,7 +184,8 @@ export function parseRow(latex: string, ctx: ParseContext): ParseResult {
 function parseRowInner(latex: string, ctx: ParseContext, blocked: string[]): ParseResult {
   const toks = tokenize(latex);
   const chips: ChipFix[] = [];
-  if (!toks.length) return { row: { kind: 'empty' }, chips, blocked };
+  const refs: NameRef[] = [];
+  if (!toks.length) return { row: { kind: 'empty' }, chips, blocked, refs };
   const eq = topLevelEq(toks);
   if (eq >= 0) {
     const lhs = parseLhs(toks.slice(0, eq));
@@ -179,17 +193,22 @@ function parseRowInner(latex: string, ctx: ParseContext, blocked: string[]): Par
     const rhsToks = toks.slice(eq + 1);
     if (!rhsToks.length) throw new ParseError('Nothing after “=” yet');
     const local: ParseContext =
-      lhs.kind === 'func' ? { ...ctx, vars: new Set([...ctx.vars, ...lhs.params]) } : ctx;
-    const p = new Parser(rhsToks, local, chips, blocked);
+      lhs.kind === 'func' ? { ...ctx, vars: new Set([...ctx.vars, ...lhs.params]), bound: new Set([...(ctx.bound ?? []), ...lhs.params]) } : ctx;
+    const p = new Parser(rhsToks, local, chips, blocked, refs);
     const expr = p.parseAll();
+    // the defined name: its first letter, plus a subscript if it has one
+    const nameEnd = toks[1]?.t === 'op' && toks[1].v === '_' ? readSub(toks, 1)[1] : 1;
+    const defSpan = toks[0].s >= 0 && toks[nameEnd - 1].e >= 0 ? { s: toks[0].s, e: toks[nameEnd - 1].e } : undefined;
     return {
       row: lhs.kind === 'func' ? { kind: 'fdef', name: lhs.name, params: lhs.params, expr } : { kind: 'def', name: lhs.name, expr },
       chips,
       blocked,
+      refs,
+      defSpan,
     };
   }
-  const p = new Parser(toks, ctx, chips, blocked);
-  return { row: { kind: 'expr', expr: p.parseAll() }, chips, blocked };
+  const p = new Parser(toks, ctx, chips, blocked, refs);
+  return { row: { kind: 'expr', expr: p.parseAll() }, chips, blocked, refs };
 }
 
 /** Parse a standalone expression (table cells, slider bounds). */
@@ -206,6 +225,7 @@ class Parser {
     private ctx: ParseContext,
     private chips: ChipFix[],
     private blocked: string[] = [],
+    private refs: NameRef[] = [],
   ) {}
 
   peek(o = 0): Tok | undefined {
@@ -580,13 +600,13 @@ class Parser {
   sub(toks: Tok[], bound?: string): Node {
     if (!toks.length) throw new ParseError(INCOMPLETE);
     const ctx = bound ? { ...this.ctx, vars: new Set([...this.ctx.vars, bound]) } : this.ctx;
-    return new Parser(toks, ctx, this.chips, this.blocked).parseAll();
+    return new Parser(bound ? toks : toks, bound ? { ...ctx, bound: new Set([...(ctx.bound ?? []), bound]) } : ctx, this.chips, this.blocked, this.refs).parseAll();
   }
 
   /** Parse with `v` treated as a variable (so x, t, s… aren't read as units). */
   withVar<T>(v: string, fn: () => T): T {
     const saved = this.ctx;
-    this.ctx = { ...saved, vars: new Set([...saved.vars, v]) };
+    this.ctx = { ...saved, vars: new Set([...saved.vars, v]), bound: new Set([...(saved.bound ?? []), v]) };
     try {
       return fn();
     } finally {
@@ -838,7 +858,10 @@ class Parser {
     const nextParen = this.isOpen('(');
 
     if (nextParen) {
-      if (this.ctx.funcs.has(full)) return { k: 'ucall', name: full, args: this.parseArgs() };
+      if (this.ctx.funcs.has(full)) {
+        if (run.every((x) => x.s >= 0)) this.refs.push({ s: run[0].s, e: run[run.length - 1].e, name: full });
+        return { k: 'ucall', name: full, args: this.parseArgs() };
+      }
       if (letters === 'solve' && run[run.length - 1].sub === undefined) return this.parseSolve();
       if (LETTER_FUNCS.has(letters) && run[run.length - 1].sub === undefined) return this.parseFuncTail(normalizeFn(letters));
       // Γ(x) is the gamma function unless Γ is a user name
@@ -865,6 +888,7 @@ class Parser {
         if (seg.slice(0, -1).some((r) => r.sub !== undefined)) continue;
         if (seg.length === 1 && isVar(segName)) {
           nodes.push({ k: 'var', name: segName });
+          if (fixable && !this.ctx.bound?.has(segName)) this.refs.push({ s: seg[0].s, e: seg[0].e, name: segName });
           matched = true;
         } else {
           const allVars = seg.every((r, idx) => isVar(r.v + (idx === seg.length - 1 ? subOf(r) : '')));
