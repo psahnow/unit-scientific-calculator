@@ -230,7 +230,64 @@ function inUnitOf(q: Quantity, like: Quantity): Quantity {
   return { ...q, unit: like.unit, tempKind: like.tempKind ?? q.tempKind };
 }
 
-const ELEMENTWISE = new Set(['sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'asin', 'acos', 'atan', 'arcsec', 'arccsc', 'arccot', 'sinh', 'cosh', 'tanh', 'exp', 'ln', 'log', 'sqrt', 'abs', 'floor', 'ceil', 'sign']);
+const ELEMENTWISE = new Set([
+  'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'asin', 'acos', 'atan', 'arcsec', 'arccsc', 'arccot', 'sinh', 'cosh', 'tanh',
+  'asinh', 'acosh', 'atanh', 'exp', 'ln', 'log', 'sqrt', 'abs', 'floor', 'ceil', 'sign', 'gamma', 'erf', 'erfc',
+]);
+
+/** Non-negative integer argument (exact), for combinatorics and number theory. */
+function requireInt(x: Quantity, fn: string): bigint {
+  if (!isDimlessLoose(x.dim)) throw new CalcError(`${fn} expects whole numbers; got ${describe(x)}`);
+  const v = x.si;
+  if (N.isExact(v) && v.d === 1n) return v.n;
+  const f = N.toNumber(v);
+  if (Number.isInteger(f) && Math.abs(f) <= Number.MAX_SAFE_INTEGER) return BigInt(f);
+  throw new CalcError(`${fn} expects whole numbers`);
+}
+
+const bigAbs = (a: bigint) => (a < 0n ? -a : a);
+function bigGcd(a: bigint, b: bigint): bigint {
+  a = bigAbs(a);
+  b = bigAbs(b);
+  while (b) [a, b] = [b, a % b];
+  return a;
+}
+
+const LANCZOS = [
+  0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
+  12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
+];
+/** Γ(x) for real x (Lanczos, g = 7; reflection for x < ½). */
+export function gammaReal(x: number): number {
+  if (x < 0.5) return Math.PI / (Math.sin(Math.PI * x) * gammaReal(1 - x));
+  x -= 1;
+  let a = LANCZOS[0];
+  const t = x + 7.5;
+  for (let i = 1; i < 9; i++) a += LANCZOS[i] / (x + i);
+  return Math.sqrt(2 * Math.PI) * Math.pow(t, x + 0.5) * Math.exp(-t) * a;
+}
+
+/** erf(x): Taylor series near 0, continued fraction for erfc in the tails. */
+export function erfReal(x: number): number {
+  if (x < 0) return -erfReal(-x);
+  if (x < 2.5) {
+    let term = x;
+    let sum = x;
+    for (let n = 1; n < 100; n++) {
+      term *= (-x * x) / n;
+      const add = term / (2 * n + 1);
+      sum += add;
+      if (Math.abs(add) < 1e-17 * Math.abs(sum)) break;
+    }
+    return (2 / Math.sqrt(Math.PI)) * sum;
+  }
+  return 1 - erfcTail(x);
+}
+function erfcTail(x: number): number {
+  let k = x;
+  for (let n = 60; n >= 1; n--) k = x + n / 2 / k;
+  return Math.exp(-x * x) / (Math.sqrt(Math.PI) * k);
+}
 
 function callBuiltin(name: string, args: Value[], env: Env, base: Quantity | undefined, argNodes: Node[]): Value {
   if (ELEMENTWISE.has(name)) {
@@ -323,6 +380,35 @@ function callBuiltin(name: string, args: Value[], env: Env, base: Quantity | und
     }
     case 'count':
       return qv(scalar(N.exact(BigInt(flatten(args).length))));
+    case 'nCr':
+    case 'nPr': {
+      if (args.length !== 2) throw new CalcError(`${name} expects 2 arguments`);
+      return broadcast2(args[0], args[1], (a, b) => {
+        const n = requireInt(a, name);
+        const k = requireInt(b, name);
+        if (n < 0n || k < 0n) throw new CalcError(`${name} expects non-negative whole numbers`);
+        if (k > n) return scalar(N.ZERO);
+        let r = 1n;
+        for (let i = 0n; i < k; i++) r *= n - i;
+        if (name === 'nCr') {
+          let f = 1n;
+          for (let i = 2n; i <= k; i++) f *= i;
+          r /= f;
+        }
+        return scalar(N.exact(r));
+      });
+    }
+    case 'gcd':
+    case 'lcm': {
+      const xs = flatten(args).map((x) => requireInt(x, name));
+      if (!xs.length) throw new CalcError(`${name} needs at least one value`);
+      let acc = bigAbs(xs[0]);
+      for (const v of xs.slice(1)) {
+        if (name === 'gcd') acc = bigGcd(acc, v);
+        else acc = acc === 0n || v === 0n ? 0n : bigAbs(acc * v) / bigGcd(acc, v);
+      }
+      return qv(scalar(N.exact(acc)));
+    }
     case 'hypot': {
       const xs = flatten(args);
       sameDimAll(xs, name);
@@ -371,6 +457,31 @@ function elementwise(name: string, x: Quantity, env: Env, base?: Quantity): Quan
     }
     case 'sinh':
       return scalar(N.float(Math.sinh(requireDimless(x, name))));
+    case 'asinh':
+      return scalar(N.float(Math.asinh(requireDimless(x, name))));
+    case 'acosh': {
+      const v = requireDimless(x, name);
+      if (v < 1) throw new CalcError('acosh: argument must be at least 1');
+      return scalar(N.float(Math.acosh(v)));
+    }
+    case 'atanh': {
+      const v = requireDimless(x, name);
+      if (Math.abs(v) >= 1) throw new CalcError('atanh: argument must be between −1 and 1');
+      return scalar(N.float(Math.atanh(v)));
+    }
+    case 'gamma': {
+      const v = requireDimless(x, name);
+      if (Number.isInteger(v) && v <= 0) throw new CalcError('Γ is undefined at 0 and negative whole numbers');
+      // exact for positive whole numbers: Γ(n) = (n − 1)!
+      if (N.isExact(x.si) && x.si.d === 1n && x.si.n <= 1001n) return scalar(N.factorial(N.exact(x.si.n - 1n)));
+      return scalar(N.float(gammaReal(v)));
+    }
+    case 'erf':
+      return scalar(N.float(erfReal(requireDimless(x, name))));
+    case 'erfc': {
+      const v = requireDimless(x, name);
+      return scalar(N.float(v >= 2.5 ? erfcTail(v) : 1 - erfReal(v)));
+    }
     case 'cosh':
       return scalar(N.float(Math.cosh(requireDimless(x, name))));
     case 'tanh':

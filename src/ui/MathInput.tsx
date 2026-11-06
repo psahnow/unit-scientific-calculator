@@ -28,6 +28,26 @@ export const INLINE_SHORTCUTS: Record<string, string> = {
   '>=': '\\ge', '<=': '\\le',
 };
 
+// ── Toolbox insertion: the most recently focused field receives function keys ──
+let lastField: MathfieldElement | null = null;
+let pendingInsert: string | null = null;
+
+function insertInto(mf: MathfieldElement, latex: string) {
+  mf.focus();
+  mf.executeCommand(['insert', latex, { format: 'latex', selectionMode: 'placeholder', insertionMode: 'replaceSelection' }]);
+}
+
+/** Insert LaTeX at the caret of the expression being edited. With `pending`, the next field to get focus receives it. */
+export function insertIntoMath(latex: string, opts: { pending?: boolean } = {}): boolean {
+  if (opts.pending) {
+    pendingInsert = latex;
+    return true;
+  }
+  if (!lastField || !lastField.isConnected) return false;
+  insertInto(lastField, latex);
+  return true;
+}
+
 interface Props {
   latex: string;
   focusNonce?: number;
@@ -190,7 +210,15 @@ export function MathInput(p: Props) {
         props.current.onMoveOut(dir === 'upward' ? 'up' : 'down');
       }
     };
-    const onFocus = () => props.current.onFocus();
+    const onFocus = () => {
+      lastField = mf;
+      props.current.onFocus();
+      if (pendingInsert) {
+        const l = pendingInsert;
+        pendingInsert = null;
+        setTimeout(() => insertInto(mf, l), 0);
+      }
+    };
     const onBlur = () => {
       setTimeout(() => setPop(null), 150);
       props.current.onBlur();
@@ -208,6 +236,7 @@ export function MathInput(p: Props) {
       mf.removeEventListener('move-out', onMoveOut);
       mf.removeEventListener('focus', onFocus);
       mf.removeEventListener('blur', onBlur);
+      if (lastField === mf) lastField = null;
       mf.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

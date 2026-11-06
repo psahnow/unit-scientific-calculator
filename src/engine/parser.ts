@@ -18,6 +18,7 @@ export const LETTER_FUNCS = new Set([
   'abs', 'sqrt', 'exp', 'ln', 'log', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'asin', 'acos', 'atan', 'atan2',
   'arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'min', 'max', 'mod', 'round', 'floor', 'ceil', 'sign',
   'sum', 'mean', 'median', 'stdev', 'var', 'count', 'length', 'nthroot', 'hypot', 'total',
+  'asinh', 'acosh', 'atanh', 'arsinh', 'arcosh', 'artanh', 'gamma', 'erf', 'erfc', 'nCr', 'nPr', 'gcd', 'lcm',
 ]);
 /** LaTeX commands that are functions (\sin, \operatorname{abs}, …). */
 const CMD_FUNCS = new Set([...LETTER_FUNCS, 'arcsec', 'arccsc', 'arccot', 'lg', 'sgn', 'operatorname']);
@@ -475,6 +476,8 @@ class Parser {
     if (nextParen) {
       if (this.ctx.funcs.has(full)) return { k: 'ucall', name: full, args: this.parseArgs() };
       if (LETTER_FUNCS.has(letters) && run[run.length - 1].sub === undefined) return this.parseFuncTail(normalizeFn(letters));
+      // Γ(x) is the gamma function unless Γ is a user name
+      if (letters === 'Γ' && run[0].sub === undefined && !this.ctx.vars.has('Γ')) return this.parseFuncTail('gamma');
     }
 
     const isVar = (n: string) => this.ctx.vars.has(n) || this.ctx.funcs.has(n);
@@ -531,7 +534,10 @@ class Parser {
 }
 
 function normalizeFn(n: string): string {
-  const map: Record<string, string> = { arcsin: 'asin', arccos: 'acos', arctan: 'atan', lg: 'log', sgn: 'sign', total: 'sum', length: 'count' };
+  const map: Record<string, string> = {
+    arcsin: 'asin', arccos: 'acos', arctan: 'atan', lg: 'log', sgn: 'sign', total: 'sum', length: 'count',
+    arsinh: 'asinh', arcosh: 'acosh', artanh: 'atanh',
+  };
   return map[n] ?? n;
 }
 

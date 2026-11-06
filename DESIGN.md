@@ -51,6 +51,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D22 | Where results appear | **On their own line below the input**, right-aligned and typeset like printed math, so the sheet reads like a scientific worksheet. Every row with a value gets the result box, plain typed values included (`L = 1.5 m` → `= 1.5 m`), for consistency. A row counts as a plain typed value (and can become a slider) only when it is a number (optionally ×10ⁿ) with units |
 | D23 | `MPa·mm²` and similar products of named units | **Collapse to the named unit** (`N`), prefixed to keep the value. Stresses (`N/mm²`), torque (`N·m`) and `kW·h` stay as written |
 | D24 | Variable scope | Global by default; a **per-row global/folder switch** limits a definition to its folder. Folder definitions win inside their folder and may shadow globals; lookups are lexical |
+| D25 | Function toolbox | A **bottom keypad drawer** with tabbed groups (trig, hyperbolic, powers & logs, rounding, special, statistics) that inserts at the caret. Adds Γ, erf/erfc, inverse hyperbolics, nCr, nPr, gcd, lcm |
 
 ---
 
@@ -110,6 +111,18 @@ Lists (`[1, 2, 3] m`, `[1 m, 20 mm]`) are expression values, not a separate row 
 Angle mode (RAD/DEG; also in the top bar), significant figures, notation mode, exact/decimal default, temperature-difference symbol style (`Δ°C` or `°C` with a "Δ" badge), theme (light/dark/system).
 
 ---
+
+### 3.5 Function toolbox (D25)
+The **ƒ(x) Functions** button in the toolbar opens a keypad drawer docked to the bottom of the window (it stays open while you work; the open state and last tab are remembered per browser). Tabs:
+
+- **Trig:** sin, cos, tan, sec, csc, cot and their inverses, atan2(y, x), hypot, π, °.
+- **Hyperbolic:** sinh, cosh, tanh, sinh⁻¹, cosh⁻¹, tanh⁻¹.
+- **Powers & logs:** x², xʸ, √x, ⁿ√x, eˣ, 10ˣ, ln, log, logₐ, exp, e.
+- **Rounding:** |x|, round, floor, ceil, sign, mod, gcd, lcm.
+- **Special:** Γ(x), x!, nCr, nPr, erf, erfc.
+- **Statistics:** mean, median, stdev, var, sum, count, min, max, list brackets.
+
+A key inserts at the caret of the expression being edited (the last one focused) and puts the caret in the first argument; clicking a key doesn't take focus away. With no expression edited yet, it starts a new row at the end. Each key's tooltip says what it does. Γ(n) and nCr/nPr/gcd/lcm are exact for whole numbers; `Γ(…)` typed directly is the gamma function unless `Γ` is a user variable.
 
 ## 4. Input: typeset math and unit chips
 

@@ -5,6 +5,7 @@ import { useStore, visibleRows, type RowType } from '../state/store';
 import { TopBar } from './TopBar';
 import { ExpressionRow, NoteRow, FolderRow } from './rows';
 import { TableRow } from './TableRow';
+import { Toolbox, ToolboxButton } from './Toolbox';
 
 export function App() {
   const s = useStore();
@@ -53,16 +54,32 @@ export function App() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const dragFromHandle = useRef(false);
+  const [toolbox, setToolbox] = useState(() => {
+    try {
+      return localStorage.getItem('usc:toolbox') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleToolbox = (v: boolean) => {
+    setToolbox(v);
+    try {
+      localStorage.setItem('usc:toolbox', v ? '1' : '0');
+    } catch {
+      /* per-viewer convenience only */
+    }
+  };
 
   let n = 0;
   return (
-    <div className="app">
+    <div className={`app ${toolbox ? 'with-toolbox' : ''}`}>
       <TopBar />
       <div className="toolbar">
         <AddMenu />
         <button className="text-btn" onClick={() => s.setAllCollapsed(!rows.some((r) => r.type === 'folder' && r.collapsed))}>
           ⊟ {rows.some((r) => r.type === 'folder' && r.collapsed) ? 'Expand' : 'Collapse'} folders
         </button>
+        <ToolboxButton open={toolbox} onToggle={() => toggleToolbox(!toolbox)} />
       </div>
       <main className="list" aria-label="Expressions">
         {visible.map((row, i) => {
@@ -135,6 +152,7 @@ export function App() {
       <footer className="footer">
         Type units after numbers (6N, 2 mm^2) · Tab inserts a suggestion · Backspace on a unit chip turns it back into letters
       </footer>
+      {toolbox && <Toolbox onClose={() => toggleToolbox(false)} />}
     </div>
   );
 }

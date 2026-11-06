@@ -919,3 +919,93 @@ td.computed {
   font-size: 12.5px;
   line-height: 1.4;
 }
+
+/* ── Function toolbox: a keypad drawer docked to the bottom (D25) ── */
+.text-btn.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tb-f {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+}
+.app.with-toolbox {
+  padding-bottom: var(--toolbox-h, 196px);
+}
+.toolbox {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: var(--bg-soft);
+  border-top: 1px solid var(--border-strong);
+  box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.08);
+  max-height: 46vh;
+  display: flex;
+  flex-direction: column;
+}
+.tb-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+.tb-tabs [role='tab'] {
+  border: none;
+  background: transparent;
+  padding: 6px 12px 7px;
+  font-size: 13px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.tb-tabs [role='tab'].on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.tb-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 6px;
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+  max-width: 1100px;
+}
+.tb-key {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 8px 6px;
+  font-family: var(--serif);
+  font-size: 17px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 var(--border);
+}
+.tb-key.wide {
+  grid-column: span 2;
+}
+.tb-key:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tb-key:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+@media (max-width: 640px) {
+  .tb-keys {
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  }
+  .tb-key {
+    font-size: 15px;
+    padding: 7px 4px;
+  }
+}
