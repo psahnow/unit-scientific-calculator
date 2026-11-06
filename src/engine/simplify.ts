@@ -1,14 +1,41 @@
 // Smart simplify (DESIGN.md §5.4). Only the display unit changes; the SI magnitude never does.
 import { type Dim, dimEq, isDimless, dropAngle } from './dim';
-import { type UnitExpr, getUnit, combine, unitDim } from './units/registry';
-import { UNITS } from './units/units.data';
-import { isExact } from './num';
+import { type UnitExpr, getUnit, combine, unitDim, unitFactor, lookupUnit } from './units/registry';
+import { UNITS, SI_PREFIXES, type UnitDef } from './units/units.data';
+import { isExact, cmp } from './num';
 
 const COLLAPSE_TARGETS = UNITS.filter((u) => u.coherentNamed);
 
 function isCoherent(id: string) {
   const u = getUnit(id);
   return (u.base || u.coherentNamed) && isExact(u.factor) && u.factor.n === 1n && u.factor.d === 1n;
+}
+
+/** A named coherent unit or a prefixed one (MPa, kN, mJ). */
+function isNamed(id: string) {
+  const u = getUnit(id);
+  return !!u.coherentNamed || COLLAPSE_TARGETS.some((t) => t.id !== id && id.endsWith(t.id) && dimEq(t.dim, u.dim));
+}
+
+const FORCE_OR_POWER = COLLAPSE_TARGETS.filter((u) => u.id === 'N' || u.id === 'W');
+
+function keepAsWritten(e: UnitExpr, target: UnitDef) {
+  if (target.id === 'Pa') return true;
+  if (target.id === 'J') return e.some((t) => FORCE_OR_POWER.some((f) => dimEq(f.dim, getUnit(t.id).dim)));
+  // already a single named unit of that dimension in the product (e.g. kept from the input)
+  return false;
+}
+
+/** The target unit, prefixed so the value is unchanged (kPa·m² → kN); undefined if no prefix fits. */
+function prefixedFor(target: UnitDef, e: UnitExpr): string | undefined {
+  const f = unitFactor(e);
+  if (!isExact(f)) return undefined;
+  if (cmp(f, target.factor) === 0) return target.id;
+  for (const [p] of SI_PREFIXES) {
+    const u = lookupUnit(p + target.id);
+    if (u && dimEq(u.dim, target.dim) && cmp(u.factor, f) === 0) return u.id;
+  }
+  return undefined;
 }
 
 export interface Simplified {
@@ -40,6 +67,17 @@ export function simplify(input: UnitExpr, d: Dim): Simplified {
   if (e.length >= 2 && baseCount >= 2 && e.every((t) => isCoherent(t.id))) {
     const target = COLLAPSE_TARGETS.find((u) => dimEq(u.dim, d));
     if (target) e = [{ id: target.id, power: 1 }];
+  }
+
+  // 4b. A named unit combined so the result is a *different* named unit collapses to it:
+  //     MPa·mm² → N, V·A → W, Pa·m³ → J, J/s → W. Conventional compound forms stay as written:
+  //     stresses (N/mm², D16) and torque/energy built from force·length or power·time (N·m, kW·h; D13).
+  if (e.length >= 2 && e.some((t) => isNamed(t.id))) {
+    const target = COLLAPSE_TARGETS.find((u) => dimEq(u.dim, d));
+    if (target && !keepAsWritten(e, target)) {
+      const id = prefixedFor(target, e);
+      if (id) e = [{ id, power: 1 }];
+    }
   }
 
   // 6. Angles: arc length & tangential velocity drop the radian (rad·m → m, rad·m/s → m/s).

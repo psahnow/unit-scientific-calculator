@@ -184,3 +184,19 @@ describe('literal rows', () => {
     expect(literal(String.raw`X=\sqrt{2}`)).toBe(false);
   });
 });
+
+describe('named-unit collapse (D23)', () => {
+  const r = String.raw;
+  it('collapses to a different named unit', () => {
+    expect(calc(r`3\unit{MPa}\cdot2\unit{mm}^{2}`)).toBe('6 N');
+    expect(calc(r`3\unit{kPa}\cdot2\unit{m}^{2}`)).toBe('6 kN');
+    expect(calc(r`2\unit{V}\cdot3\unit{A}`)).toBe('6 W');
+    expect(calc(r`2\unit{Pa}\cdot3\unit{m}^{3}`)).toBe('6 J');
+    expect(calc(r`6\unit{J}/2\unit{s}`)).toBe('3 W');
+  });
+  it('keeps conventional compound forms', () => {
+    expect(calc(r`6\unit{N}/2\unit{mm}^{2}`)).toBe('3 N/mm²');
+    expect(calc(r`2\unit{N}\cdot3\unit{m}`)).toBe('6 N·m');
+    expect(calc(r`2\unit{kW}\cdot3\unit{h}`)).toBe('6 kW·h');
+  });
+});

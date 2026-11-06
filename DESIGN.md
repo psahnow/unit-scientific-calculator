@@ -49,6 +49,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D20 | Typing `lb` | Always opens the autocomplete prompt (lbm or lbf), even after a number. If you don't pick (e.g. focus leaves the row), it falls back to lbm (D14) |
 | D21 | Defined variable vs. unit symbol after a number | **The variable wins**: with `F` defined, `2F` is 2×F, not 2 farads. Chips, and runs that aren't defined variables (`6N`), still mean the unit. A run of several letters made only of defined variables (`Pa` with `P` and `a` defined) means the unit after a number |
 | D22 | Where results appear | **On their own line below the input**, right-aligned and typeset like printed math, so the sheet reads like a scientific worksheet. A row counts as a plain typed value only when it is a number (optionally ×10ⁿ) with units; `3·10⁵ MPa/7` is computed and gets a result line |
+| D23 | `MPa·mm²` and similar products of named units | **Collapse to the named unit** (`N`), prefixed to keep the value. Stresses (`N/mm²`), torque (`N·m`) and `kW·h` stay as written |
 
 ---
 
@@ -214,6 +215,7 @@ These rules run after every `·` and `/`, in order:
 2. **Merge same-dimension units into the first one's unit (D16).** `3 mm · 2 m` → `6000 mm²`; `N/mm² · m²` → `N`. Only units of the *same base dimension* merge (lengths with lengths), never across different named compounds.
 3. **Collapse messy forms.** If the expression still has only SI base units (or base units plus at most one named unit) and matches a named coherent unit exactly, it collapses: `kg·m/s²` → `N`, `kg/(m·s²)` → `Pa`, `A·s` → `C`, `N/m²` stays `N/m²` (it was written by the user from named units; see rule 4).
 4. **Keep products of named units.** If every factor was already a named unit the user typed or inherited (`N·m`, `N/mm²`, `kW·h`), keep it as written. The collapsed form (`J`, `MPa`, `kWh`) goes first in the dropdown's suggestions.
+4b. **…unless the product turns one named unit into another (D23).** `MPa·mm²` → `N`, `kPa·m²` → `kN`, `V·A` → `W`, `Pa·m³` → `J`, `J/s` → `W`. The prefix is picked so the value doesn't change; if none fits, the product is kept. Conventional forms are still kept as written: stresses (`N/mm²`) and energy built from a force or power (`N·m`, `kW·h`).
 5. **Fully dimensionless result.**
    - If it came from cancelling identical units it shows nothing (`m/m` → no unit).
    - If it came from *different* units of the same dimension (`mm/m`), it is reduced to a pure number with the conversion applied, and the dropdown offers `mm/m`, `%`, `‰`, `ppm`, `µε` (strain).
