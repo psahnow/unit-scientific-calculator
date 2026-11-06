@@ -21,23 +21,25 @@ export function Welcome() {
       /* per-browser convenience only */
     }
   };
+  // a floating card over the corner of the page: it never pushes the worksheet down, so nothing
+  // jumps when it's dismissed (D42)
   return (
-    <section className="welcome" aria-label="Welcome">
+    <section className="welcome" role="dialog" aria-label="Welcome to Dimensional">
       <button className="icon-btn about-close" aria-label="Dismiss welcome" onClick={dismiss}>
         ✕
       </button>
       <h2>Welcome to Dimensional</h2>
+      <p className="welcome-eg">
+        <span className="eg">F = 6 kN</span>, then <span className="eg">F / 2 mm²</span> → <span className="eg">3 MPa</span>
+      </p>
       <ul>
+        <li>Type units after numbers; suggestions appear as you type.</li>
+        <li>Tap a result’s unit to see it in another unit.</li>
         <li>
-          Type numbers with units: <span className="eg">F = 6 kN</span>, then <span className="eg">F / 2 mm²</span> gives <span className="eg">3 MPa</span>.
+          <b>ƒ(x) Functions</b> has trig, calculus, solve and constants; <b>⚙</b> has more unit packages.
         </li>
-        <li>Suggestions appear as you type a unit or name; <b>Tab</b> inserts one.</li>
-        <li>Click the unit on any result to show it in another unit.</li>
-        <li>
-          <b>ƒ(x) Functions</b> has trig, calculus, solve, constants and a units list. <b>⚙</b> turns on unit packages.
-        </li>
-        <li>
-          Press <kbd>Ctrl</kbd> <kbd>/</kbd> for keyboard shortcuts. Your worksheets save in this browser; use Export to keep a copy.
+        <li className="kbd-only">
+          <kbd>Ctrl</kbd> <kbd>/</kbd> lists keyboard shortcuts.
         </li>
       </ul>
       <button className="text-btn strong" onClick={dismiss}>

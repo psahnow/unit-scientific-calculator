@@ -845,8 +845,15 @@ math-field::part(virtual-keyboard-toggle) {
   font-size: 16px;
 }
 .th-inner .unit-chip {
-  font-size: 12px;
-  padding: 1px 6px;
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 400;
+  padding: 0 4px;
+  background: transparent;
+  border-radius: 4px;
+}
+.th-inner .unit-chip.chosen::after {
+  display: none;
 }
 .col-error {
   color: var(--error);
@@ -1552,28 +1559,41 @@ body {
   font-size: 12px;
 }
 .welcome {
-  margin: 10px 12px 4px 56px;
-  padding: 12px 16px;
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + var(--toolbox-h, 0px));
+  z-index: 35;
+  width: min(380px, calc(100vw - 32px));
+  padding: 14px 18px 14px;
   border: 1.5px solid var(--result-border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--result-bg);
+  box-shadow: var(--shadow);
   font-size: 14px;
-  position: relative;
+  animation: welcome-in 0.25s ease-out;
+}
+@keyframes welcome-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 .welcome h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.welcome .welcome-eg {
   margin: 0 0 6px;
+  font-family: var(--serif);
   font-size: 16px;
 }
 .welcome ul {
   margin: 0;
   padding-left: 18px;
-  line-height: 1.6;
-}
-.welcome .eg {
-  font-family: var(--serif);
+  line-height: 1.55;
 }
 .welcome .text-btn {
-  margin-top: 8px;
+  margin-top: 10px;
 }
 .shortcuts table {
   border-collapse: collapse;
@@ -1596,9 +1616,6 @@ body {
   white-space: nowrap;
 }
 @media (max-width: 640px) {
-  .welcome {
-    margin-left: 12px;
-  }
 }
 
 /* keep rows their height while MathLive loads (D38) */
@@ -1693,4 +1710,65 @@ html.osk-open .app.with-toolbox {
 /* the units page key reads as a link to the next page */
 .ML__keyboard .dim-page {
   color: var(--accent);
+}
+
+/* ── design study fixes (D42) ── */
+/* form controls in the accent colour, not the browser's */
+input[type='checkbox'],
+input[type='range'],
+input[type='radio'] {
+  accent-color: var(--accent);
+}
+/* wide screens: keep results near their inputs (a centred sheet, like a notebook page) */
+@media (min-width: 1240px) {
+  .list {
+    width: 1180px;
+    margin: 0 auto;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+}
+/* a little less air in each row */
+math-field {
+  padding: 4px 2px;
+}
+.row-result {
+  padding-bottom: 6px;
+}
+/* things that only make sense with a physical keyboard */
+@media (pointer: coarse) {
+  .kbd-only,
+  .footer > span:first-child {
+    display: none !important;
+  }
+}
+@media (max-width: 640px) {
+  /* Settings as a sheet from the bottom of the screen (it opened off the left edge), leaving the
+     top bar and its ⚙ free */
+  .popover.settings {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 8px;
+    width: auto;
+    min-width: 0;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  /* Export / Import as icons, so the top bar fits on one line */
+  .btn-label {
+    display: none;
+  }
+  .welcome {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    bottom: 8px;
+  }
+}
+@media print {
+  .welcome {
+    display: none !important;
+  }
 }

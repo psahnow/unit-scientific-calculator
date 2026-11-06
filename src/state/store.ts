@@ -90,7 +90,7 @@ function sampleWorksheet(): Worksheet {
       { id: uid(), type: 'expr', latex: 'A=20\\unit{mm}^{2}', parent: f },
       { id: uid(), type: 'expr', latex: 'L=1.5\\unit{m}', parent: f, slider: { min: '0', max: '3', step: '0.1' } },
       { id: uid(), type: 'note', text: 'Stress check — results come out in the units of the expression. Use the unit chip to switch.' },
-      { id: uid(), type: 'expr', latex: '\\sigma=\\frac{F}{A}' },
+      { id: uid(), type: 'expr', latex: '\\sigma=\\frac{F}{A}', displayUnit: 'MPa' },
       { id: uid(), type: 'expr', latex: 'M=F\\cdot L' },
       { id: uid(), type: 'expr', latex: 'f\\left(x\\right)=x^{2}\\cdot4\\frac{\\unit{N}}{\\unit{m}^{2}}' },
       { id: uid(), type: 'expr', latex: 'f\\left(L\\right)' },

@@ -57,7 +57,7 @@ export function TopBar() {
               Print / save as PDF…
             </button>
             <button
-              className="menu-item"
+              className="menu-item kbd-only"
               onClick={() => (menu.setOpen(false), window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', ctrlKey: true })))}
             >
               Keyboard shortcuts <span className="menu-date">Ctrl /</span>
@@ -66,8 +66,7 @@ export function TopBar() {
               About Dimensional
             </button>
             <div className="menu-sep" />
-            {s.index.length === 0 && <div className="menu-empty">No saved worksheets yet</div>}
-            {s.index.map((w) => (
+            {(s.index.some((w) => w.id === s.ws.id) ? s.index : [{ id: s.ws.id, title: s.ws.title, updated: s.ws.updated }, ...s.index]).map((w) => (
               <div key={w.id} className={`menu-ws ${w.id === s.ws.id ? 'current' : ''}`}>
                 <button className="menu-item" onClick={() => (s.openWorksheet(w.id), menu.setOpen(false))}>
                   {w.id === s.ws.id ? s.ws.title : w.title}
@@ -210,11 +209,11 @@ export function TopBar() {
           </div>
         )}
       </div>
-      <button className="text-btn" onClick={doExport} title="Download worksheet as JSON">
-        ⤓ Export
+      <button className="text-btn" onClick={doExport} title="Download worksheet as JSON" aria-label="Export">
+        ⤓<span className="btn-label"> Export</span>
       </button>
-      <button className="text-btn" onClick={() => fileRef.current?.click()} title="Open a Dimensional worksheet (.dimensional.json, or an older .usc.json)">
-        ⤒ Import
+      <button className="text-btn" aria-label="Import" onClick={() => fileRef.current?.click()} title="Open a Dimensional worksheet (.dimensional.json, or an older .usc.json)">
+        ⤒<span className="btn-label"> Import</span>
       </button>
       <input
         ref={fileRef}
