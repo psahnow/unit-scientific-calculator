@@ -1533,3 +1533,8 @@ body {
     margin-left: 12px;
   }
 }
+
+/* keep rows their height while MathLive loads (D38) */
+.math-host:empty {
+  min-height: 38px;
+}

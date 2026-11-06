@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { MathfieldElement } from 'mathlive';
+import type { MathfieldElement } from 'mathlive';
 
-MathfieldElement.fontsDirectory = '/mathlive-fonts';
-MathfieldElement.soundsDirectory = null;
+// MathLive is most of the app's code: load it in its own chunk so the page shows first (D38)
+let mathlive: Promise<typeof import('mathlive')> | null = null;
+export function loadMathLive() {
+  mathlive ??= import('mathlive').then((m) => {
+    m.MathfieldElement.fontsDirectory = '/mathlive-fonts';
+    m.MathfieldElement.soundsDirectory = null;
+    return m;
+  });
+  return mathlive;
+}
 import { suggestionsFor, type Suggestion } from '../engine/suggest';
 import { latexToSymbol } from '../engine/latex';
 
@@ -95,7 +103,12 @@ export function MathInput(p: Props) {
   const popRef = useRef<Popover | null>(null);
   popRef.current = pop;
 
+  const [ready, setReady] = useState(false);
   useEffect(() => {
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    void loadMathLive().then(({ MathfieldElement }) => {
+    if (cancelled || !host.current) return;
     const mf = new MathfieldElement();
     host.current!.appendChild(mf);
     // MathLive resets its options when the element is moved in the page (dragging rows reorders
@@ -248,7 +261,8 @@ export function MathInput(p: Props) {
     mf.addEventListener('blur', onBlur);
     (mf as unknown as { __accept: typeof accept }).__accept = accept;
     if (p.autoFocus) requestAnimationFrame(() => mf.focus());
-    return () => {
+    setReady(true);
+    cleanup = () => {
       mf.removeEventListener('input', onInput);
       mf.removeEventListener('keydown', onKey, { capture: true });
       mf.removeEventListener('move-out', onMoveOut);
@@ -258,6 +272,11 @@ export function MathInput(p: Props) {
       if (lastField === mf) lastField = null;
       mf.remove();
     };
+    });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -265,7 +284,7 @@ export function MathInput(p: Props) {
   useEffect(() => {
     const mf = mfRef.current;
     if (mf && mf.getValue('latex') !== p.latex) mf.setValue(p.latex, { silenceNotifications: true });
-  }, [p.latex]);
+  }, [p.latex, ready]);
 
   useEffect(() => {
     if (p.focusNonce && mfRef.current) {
@@ -279,7 +298,7 @@ export function MathInput(p: Props) {
       };
       setTimeout(attempt, 0);
     }
-  }, [p.focusNonce]);
+  }, [p.focusNonce, ready]);
 
   return (
     <div className="math-input">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { evaluateWorksheet, renameDefinition, definitionScope } from '../engine/worksheet';
 import { Shortcuts, Welcome } from './Help';
 import { setCurrentPackages } from '../engine/units/packages';
@@ -15,9 +15,12 @@ export function App() {
   const { rows, settings } = s.ws;
   // autocomplete and unit dropdowns follow this worksheet's packages (D26)
   setCurrentPackages(settings.packages);
+  // recalculating a big sheet (integrals, solves) can take tens of ms: let typing stay responsive and
+  // recalculate just after, in the background (D38)
+  const calcRows = useDeferredValue(rows);
   const result = useMemo(
-    () => evaluateWorksheet(rows, { angle: settings.angle, packages: settings.packages, units: settings.units }),
-    [rows, settings.angle, settings.packages, settings.units],
+    () => evaluateWorksheet(calcRows, { angle: settings.angle, packages: settings.packages, units: settings.units }),
+    [calcRows, settings.angle, settings.packages, settings.units],
   );
   const fmt: FormatOptions = { sigFigs: settings.sigFigs, notation: settings.notation, sciAbove: settings.sciAbove, mode: settings.exactDefault ? 'auto' : 'decimal' };
   // names visible from each folder (folder-scoped definitions only count inside their folder)
