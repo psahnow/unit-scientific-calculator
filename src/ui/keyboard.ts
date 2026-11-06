@@ -44,7 +44,7 @@ let onDivide: (() => boolean) | null = null;
 export function setDivideHandler(fn: (() => boolean) | null) {
   onDivide = fn;
 }
-if (typeof document !== 'undefined')
+if (typeof document !== 'undefined') {
   document.addEventListener(
     'pointerdown',
     (e) => {
@@ -56,10 +56,96 @@ if (typeof document !== 'undefined')
       } else if (t?.closest?.('.dim-divide') && onDivide?.()) {
         e.preventDefault();
         e.stopPropagation();
+      } else if (t?.closest?.('.dim-hide-kb')) {
+        // hidden on lift (below): MathLive would refocus the field after a press in the keyboard
+        e.preventDefault();
+        e.stopPropagation();
+      } else if (e.pointerType === 'touch') {
+        // a touch on a math field that isn't being edited may be the start of a scroll: don't let
+        // MathLive focus it (and raise the keyboard) yet; focus it on lift if the finger didn't move
+        const mf = t?.closest?.('math-field') as (HTMLElement & { getOffsetFromPoint?(x: number, y: number): number; position: number }) | null;
+        if (mf && document.activeElement !== mf && !mf.contains(document.activeElement)) {
+          e.stopPropagation();
+          pendingTap = { mf, id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
+        }
       }
     },
     true,
   );
+  // a lift close to where the touch began, soon after, is a tap: edit that field there
+  document.addEventListener(
+    'pointerup',
+    (e) => {
+      if ((e.target as Element | null)?.closest?.('.dim-hide-kb')) {
+        e.preventDefault();
+        e.stopPropagation();
+        hideKeyboard();
+        return;
+      }
+      const p = pendingTap;
+      if (!p || e.pointerId !== p.id) return;
+      pendingTap = null;
+      if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > TAP_SLOP || e.timeStamp - p.at > 800) return;
+      e.stopPropagation();
+      p.mf.focus();
+      try {
+        const offset = p.mf.getOffsetFromPoint?.(e.clientX, e.clientY);
+        if (typeof offset === 'number' && offset >= 0) p.mf.position = offset;
+      } catch {
+        /* keep MathLive's caret */
+      }
+    },
+    true,
+  );
+  // the browser took the touch for a scroll
+  document.addEventListener('pointercancel', (e) => {
+    if (pendingTap?.id === e.pointerId) pendingTap = null;
+  }, true);
+}
+
+/** Pixels a finger may drift and still count as a tap. */
+const TAP_SLOP = 10;
+let pendingTap: { mf: HTMLElement & { getOffsetFromPoint?(x: number, y: number): number; position: number }; id: number; x: number; y: number; at: number } | null = null;
+
+let keyboardRef: { hide?(): void } | undefined;
+/** Close the on-screen keyboard and stop editing (the "hide keyboard" button). */
+function hideKeyboard() {
+  const active = document.activeElement as HTMLElement | null;
+  if (active?.tagName === 'MATH-FIELD') active.blur();
+  keyboardRef?.hide?.();
+  // in case a late handler put focus back
+  setTimeout(() => {
+    const a = document.activeElement as HTMLElement | null;
+    if (a?.tagName === 'MATH-FIELD') a.blur();
+  }, 0);
+}
+
+/** A "hide keyboard" button at the right of the keyboard's tab bar (MathLive leaves it empty). */
+let watched: Element | null = null;
+function ensureHideButton() {
+  // MathLive redraws the tab bar (switching pages, say): put the button back each time
+  const kb = document.querySelector('.ML__keyboard');
+  if (kb && kb !== watched) {
+    watched = kb;
+    new MutationObserver(() => ensureHideButton()).observe(kb, { childList: true, subtree: true });
+  }
+  // every keyboard page has its own tab bar
+  for (const right of document.querySelectorAll('.ML__keyboard .MLK__toolbar .right')) {
+    if (!right.querySelector('.dim-hide-kb')) right.appendChild(hideButton());
+  }
+}
+
+function hideButton(): HTMLElement {
+  const b = document.createElement('div');
+  b.className = 'dim-hide-kb';
+  b.setAttribute('role', 'button');
+  b.setAttribute('aria-label', 'Hide keyboard');
+  b.title = 'Hide keyboard';
+  b.innerHTML =
+    '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<rect x="3" y="3" width="18" height="11" rx="2"/><path d="M7 7h.01M10 7h.01M13 7h.01M16 7h.01M8 10.5h8"/><path d="M9 18l3 3 3-3"/></svg>';
+  return b;
+}
 
 const trig = (n: string, cmd: string, tip: string) => fn(n, op(n, cmd), tip);
 
@@ -158,6 +244,7 @@ export function setUpKeyboard(
   mathVirtualKeyboard: ({ layouts: unknown; editToolbar?: string; visible?: boolean; boundingRect?: DOMRect } & EventTarget) | undefined,
 ) {
   if (!mathVirtualKeyboard) return;
+  keyboardRef = mathVirtualKeyboard as { hide?(): void };
   mathVirtualKeyboard.layouts = DIMENSIONAL_LAYOUTS;
   mathVirtualKeyboard.editToolbar = 'none';
   // while it's up: pad the page by its height so nothing hides behind it, and hide the Functions
@@ -167,7 +254,10 @@ export function setUpKeyboard(
     const root = document.documentElement;
     root.style.setProperty('--osk-h', `${Math.round(h)}px`);
     root.classList.toggle('osk-open', h > 0);
-    if (h > 0) keepFieldVisible(h);
+    if (h > 0) {
+      ensureHideButton();
+      keepFieldVisible(h);
+    }
   });
   // the field can also move or grow while the keyboard is up (a new row, a fraction)
   const later = () => {

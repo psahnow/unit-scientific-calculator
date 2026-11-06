@@ -216,6 +216,40 @@ test.describe('phone keyboards', () => {
     await search.tap();
     await expect(search).toBeFocused();
   });
+  test('a button in the keyboard’s tab bar hides it, and stays after switching tabs', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    const field = page.locator('.row math-field').nth(1);
+    await field.tap();
+    const kb = page.locator('.ML__keyboard.is-visible');
+    await expect(kb).toBeVisible();
+    const hide = page.getByRole('button', { name: 'Hide keyboard' });
+    await expect(hide).toBeVisible();
+    await page.locator('.ML__keyboard [data-layer]').filter({ hasText: /^abc$/ }).locator('visible=true').first().tap();
+    await expect(hide).toBeVisible();
+    await hide.tap();
+    await expect(kb).toBeHidden();
+    await expect(field).not.toBeFocused();
+  });
+  test('a swipe that starts on a field scrolls without raising the keyboard; a tap edits', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    const field = page.locator('.row math-field').nth(1);
+    const box = (await field.boundingBox())!;
+    const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+    // a touch that moves, then is taken over by scrolling (the browser cancels the pointer)
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let i = 1; i <= 8; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - i * 15 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(400);
+    await expect(field).not.toBeFocused();
+    await expect(page.locator('.ML__keyboard.is-visible')).toHaveCount(0);
+    // a tap does edit it
+    await field.tap();
+    await expect(field).toBeFocused();
+    await expect(page.locator('.ML__keyboard.is-visible')).toBeVisible();
+  });
   test('the row being edited stays visible above the on-screen keyboard', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Dismiss welcome' }).tap();

@@ -1820,3 +1820,23 @@ math-field {
 .unit-note:focus .unit-note-tip {
   display: block;
 }
+
+/* "hide keyboard" button at the right of the keyboard's tab bar */
+.ML__keyboard .MLK__toolbar .right {
+  display: flex;
+  align-items: center;
+}
+.ML__keyboard .dim-hide-kb {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 34px;
+  margin-right: 4px;
+  border-radius: 6px;
+  color: var(--accent);
+  cursor: pointer;
+}
+.ML__keyboard .dim-hide-kb:hover,
+.ML__keyboard .dim-hide-kb:active {
+  background: var(--accent-soft);
+}
