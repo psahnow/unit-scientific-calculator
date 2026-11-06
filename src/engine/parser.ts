@@ -139,7 +139,7 @@ function readSub(toks: Tok[], i: number): [string, number] {
   return ['', i + 1];
 }
 
-function parseLhs(toks: Tok[]): { name: string; kind: 'var' | 'func'; params: string[] } | null {
+function parseLhs(toks: Tok[]): { name: string; kind: 'var' | 'func'; params: string[]; paramTypes?: (Tok[] | undefined)[] } | null {
   if (!toks.length || toks[0].t !== 'letter') return null;
   let name = toks[0].v;
   let i = 1;
@@ -151,6 +151,7 @@ function parseLhs(toks: Tok[]): { name: string; kind: 'var' | 'func'; params: st
   if (i === toks.length) return { name, kind: 'var', params: [] };
   if (toks[i].t === 'open' && toks[i].v === '(') {
     const params: string[] = [];
+    const paramTypes: (Tok[] | undefined)[] = [];
     i++;
     while (i < toks.length && !(toks[i].t === 'close' && toks[i].v === ')')) {
       const t = toks[i];
@@ -163,10 +164,26 @@ function parseLhs(toks: Tok[]): { name: string; kind: 'var' | 'func'; params: st
           i = j;
         }
         params.push(p);
+        // an optional declared unit: f(l: m) (D52) — everything up to the next top-level "," or ")"
+        if (toks[i]?.t === 'op' && toks[i].v === ':') {
+          i++;
+          const start = i;
+          let depth = 0;
+          while (i < toks.length) {
+            const u = toks[i];
+            if (u.t === 'open' && u.v !== '|') depth++;
+            else if (u.t === 'close' && u.v !== '|') {
+              if (depth === 0) break;
+              depth--;
+            } else if (depth === 0 && u.t === 'op' && u.v === ',') break;
+            i++;
+          }
+          paramTypes[params.length - 1] = toks.slice(start, i);
+        }
       } else if (t.t === 'op' && t.v === ',') i++;
       else return null;
     }
-    if (i === toks.length - 1) return { name, kind: 'func', params };
+    if (i === toks.length - 1) return { name, kind: 'func', params, paramTypes };
   }
   return null;
 }
@@ -196,11 +213,23 @@ function parseRowInner(latex: string, ctx: ParseContext, blocked: string[]): Par
       lhs.kind === 'func' ? { ...ctx, vars: new Set([...ctx.vars, ...lhs.params]), bound: new Set([...(ctx.bound ?? []), ...lhs.params]) } : ctx;
     const p = new Parser(rhsToks, local, chips, blocked, refs);
     const expr = p.parseAll();
+    // declared input units: letters are units here, not names
+    const paramUnits = lhs.kind === 'func' ? lhs.params.map((name, k) => {
+      const tt = lhs.paramTypes?.[k];
+      if (!tt) return undefined;
+      if (!tt.length) throw new ParseError(`Put a unit after “${name}:”, like ${name}: m`);
+      const unitCtx: ParseContext = { ...ctx, vars: new Set(), bound: new Set() };
+      const node = new Parser(tt, unitCtx, chips, blocked, refs).parseAll();
+      if (!isUnitOnly(node)) throw new ParseError(`After “${name}:” put a unit, like ${name}: m or ${name}: N/mm²`);
+      return node;
+    }) : [];
     // the defined name: its first letter, plus a subscript if it has one
     const nameEnd = toks[1]?.t === 'op' && toks[1].v === '_' ? readSub(toks, 1)[1] : 1;
     const defSpan = toks[0].s >= 0 && toks[nameEnd - 1].e >= 0 ? { s: toks[0].s, e: toks[nameEnd - 1].e } : undefined;
     return {
-      row: lhs.kind === 'func' ? { kind: 'fdef', name: lhs.name, params: lhs.params, expr } : { kind: 'def', name: lhs.name, expr },
+      row: lhs.kind === 'func'
+        ? { kind: 'fdef', name: lhs.name, params: lhs.params, ...(paramUnits.some(Boolean) ? { paramUnits } : {}), expr }
+        : { kind: 'def', name: lhs.name, expr },
       chips,
       blocked,
       refs,

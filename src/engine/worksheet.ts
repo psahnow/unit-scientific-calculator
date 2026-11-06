@@ -290,7 +290,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         if (duplicateIn(lv, name)) throw new CalcError(dupMessage(lv, name));
         const p = parsed.get(ids[0]);
         if (!p || p instanceof Error || p.kind !== 'fdef') throw new CalcError(`“${name}” has an error`);
-        return { params: p.params, body: p.expr, env: envFor(scopeOf(ids[0])) };
+        return { params: p.params, paramUnits: p.paramUnits, body: p.expr, env: envFor(scopeOf(ids[0])) };
       },
     };
     envCache.set(scope, env);

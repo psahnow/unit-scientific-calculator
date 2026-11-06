@@ -15,6 +15,8 @@ export type Value = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] };
 
 export interface FuncDef {
   params: string[];
+  /** Declared input units, f(l: m) (D52). */
+  paramUnits?: (Node | undefined)[];
   body: Node;
   /** Scope the function was defined in; its body looks names up there (lexical scoping). */
   env?: Env;
@@ -47,6 +49,18 @@ function constQuantity(key: string): Quantity {
     constCache.set(key, q);
   }
   return q;
+}
+
+/**
+ * An input to f(l: m) (D52): a quantity of the declared dimension, shown in the declared unit
+ * (3 in → 0.0762 m); a plain number is read in that unit (3 → 3 m).
+ */
+function typedInput(q: Quantity, u: UnitExpr, fn: string, param: string): Quantity {
+  const want = unitDim(u);
+  if (!q.unit.length && dimEq(q.dim, DIMLESS) && !dimEq(want, DIMLESS)) return Q.fromUnit(q.si, u);
+  if (!dimEq(q.dim, want))
+    throw new CalcError(`${fn} needs ${param} in ${formatUnit(u)} (${describe({ dim: want, unit: u })}); got ${describe(q)}`);
+  return Q.convertTo(q, u);
 }
 
 function asQ(v: Value, what = 'value'): Quantity {
@@ -158,7 +172,11 @@ export function evaluate(n: Node, env: Env): Value {
         throw new CalcError(`${n.name} expects ${fd.params.length} argument${fd.params.length === 1 ? '' : 's'}`);
       if ((env.depth ?? 0) > 200) throw new RecursionError(`“${n.name}” keeps calling itself and never stops: give it a case that doesn't call ${n.name}, e.g. with a piecewise { }`);
       const locals = new Map(env.locals ?? []);
-      fd.params.forEach((p, i) => locals.set(p, evaluate(n.args[i], env)));
+      fd.params.forEach((p, i) => {
+        const arg = evaluate(n.args[i], env);
+        const un = fd.paramUnits?.[i];
+        locals.set(p, un ? broadcast1(arg, (q) => typedInput(q, combine(evalUnitNode(un, fd.env ?? env)), n.name, p)) : arg);
+      });
       try {
         return evaluate(fd.body, { ...(fd.env ?? env), locals, depth: (env.depth ?? 0) + 1 });
       } catch (e) {

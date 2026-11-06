@@ -42,7 +42,8 @@ export type ParsedRow =
   | { kind: 'empty' }
   | { kind: 'expr'; expr: Node }
   | { kind: 'def'; name: string; expr: Node }
-  | { kind: 'fdef'; name: string; params: string[]; expr: Node };
+  // paramUnits (D52): f(l: m) — an input's declared unit (a unit-only node), if it has one
+  | { kind: 'fdef'; name: string; params: string[]; paramUnits?: (Node | undefined)[]; expr: Node };
 
 /** A letter run the parser resolved to a unit/constant that should become a chip. */
 export interface ChipFix {

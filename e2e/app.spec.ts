@@ -145,6 +145,19 @@ test('arrow keys go into a note and out again', async ({ page }) => {
   await expect(above).toBeFocused();
 });
 
+test('typed function input: F(l:m) converts inches to metres', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, 'F(l:m)=2l');
+  await page.keyboard.press('Escape');
+  await nextRow(page, 2);
+  await page.keyboard.type('F(3in)', { delay: 25 });
+  await page.keyboard.press('Escape');
+  await expect(result(page, 2)).toContainText('0.1524');
+  await expect(result(page, 2)).toContainText('m');
+  await page.locator('.title-input').click(); // leave: the m becomes a unit chip
+  await expect(field(page, 1)).toHaveJSProperty('value', String.raw`F\left(l:\unit{m}\right)=2l`);
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();
