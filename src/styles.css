@@ -988,42 +988,6 @@ td.computed {
 }
 
 /* variable scope switch (D24): always shown when folder-only, otherwise on hover/focus */
-.scope-btn {
-  flex: none;
-  margin-top: 9px;
-  margin-right: 4px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--fg-muted);
-  border-radius: 999px;
-  padding: 1px 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.1s;
-}
-.row:hover .scope-btn,
-.row.focused .scope-btn,
-.scope-btn:focus-visible,
-.scope-btn.local {
-  opacity: 1;
-}
-.scope-btn:hover {
-  border-color: var(--border-strong);
-  color: var(--fg);
-}
-.scope-btn.local {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-@media (max-width: 640px) {
-  .scope-btn {
-    opacity: 1;
-  }
-}
-
 .row-notice {
   align-self: flex-end;
   max-width: 560px;
@@ -1470,7 +1434,7 @@ html {
   .toolbox,
   .add-bottom,
   .row-actions,
-  .scope-btn:not(.local),
+  .gutter-btn:not(.on),
   .handle,
   .storage-banner,
   .footer-tips,
@@ -1725,12 +1689,10 @@ html.osk-open .app.with-toolbox {
   .row-top > .row-line {
     flex-basis: 100%;
   }
-  .row-actions,
-  .scope-btn {
+  .row-actions {
     display: none;
   }
-  .row.focused .row-actions,
-  .row.focused .scope-btn {
+  .row.focused .row-actions {
     display: flex;
     opacity: 1;
     margin-top: 0;
@@ -1738,9 +1700,6 @@ html.osk-open .app.with-toolbox {
   }
   .row.focused .row-actions {
     margin-left: auto;
-  }
-  .scope-btn.local {
-    display: inline-flex;
   }
 }
 
@@ -2095,4 +2054,50 @@ math-field {
 .hover-tip:hover .hover-tip-text,
 .hover-tip:focus .hover-tip-text {
   display: block;
+}
+
+/* the row's switches in the margin, under its number (D57) */
+.gutter-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.gutter-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-family: var(--serif);
+  font-size: 11.5px;
+  font-style: italic;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.gutter-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.row:hover .gutter-btn,
+.row.focused .gutter-btn,
+.gutter-btn:focus-visible,
+.gutter-btn.on {
+  opacity: 1;
+}
+.gutter-btn:hover {
+  border-color: var(--border-strong);
+  background: var(--bg);
+  color: var(--fg);
+}
+.gutter-btn.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }

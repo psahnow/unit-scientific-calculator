@@ -216,6 +216,29 @@ test('a unit that no longer fits: picking one that does clears the error, (none)
   await expect(result(page, 1)).toContainText('500');
 });
 
+test('margin switches: folder scope and fraction', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  // row 3 of the sample, A = 20 mm², is inside the "Beam inputs" folder
+  const row = page.locator('.row').nth(2);
+  await row.hover();
+  const scope = row.locator('.gutter-btn.scope');
+  await expect(scope).toHaveAttribute('aria-pressed', 'false');
+  await expect(scope).toHaveAttribute('title', /A is visible everywhere. Click to keep it inside “Beam inputs”/);
+  await scope.click();
+  await expect(scope).toHaveAttribute('aria-pressed', 'true');
+  await expect(scope).toHaveAttribute('title', /A is only defined inside “Beam inputs”/);
+  // the fraction switch: L = 1.5 m is 3/2 m
+  const l = page.locator('.row').nth(3);
+  await l.hover();
+  const frac = l.locator('.gutter-btn.frac');
+  await frac.click();
+  await expect(l.locator('.row-result .result')).toContainText('3');
+  await expect(frac).toHaveAttribute('aria-pressed', 'true');
+  await frac.click();
+  await expect(l.locator('.row-result .result')).toContainText('1.5');
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

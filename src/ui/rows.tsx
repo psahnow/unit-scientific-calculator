@@ -56,7 +56,6 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
 
   const q = r?.kind === 'value' ? (r.value.t === 'q' ? r.value.q : r.value.items[0]) : undefined;
   const unitText = q ? formatUnit(q.unit) : '';
-  const fracAvail = r?.kind === 'value' && r.value.t === 'q' && hasFractionForm(displayValue(r.value.q));
   const sliderMatch = /^(.*=\s*)(-?\d+(?:\.\d+)?)(.*)$/s.exec(row.latex);
 
   let resultEl: ReactNode = null;
@@ -134,15 +133,6 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
   const defName = r?.kind === 'value' || r?.kind === 'error' ? r.defName : r?.kind === 'func' ? r.name : undefined;
   const actions = (
     <div className="row-actions">
-      {fracAvail && (
-        <button
-          className="icon-btn"
-          title="Toggle fraction / decimal" aria-label="Toggle fraction or decimal"
-          onClick={() => s.updateRow(row.id, { displayMode: mode === 'fraction' ? 'decimal' : mode === 'decimal' ? 'fraction' : ctx.fmt.mode === 'auto' && /\//.test(formatQuantity(q!, fmt).value) ? 'decimal' : 'fraction' })}
-        >
-          a/b
-        </button>
-      )}
       {r?.kind === 'value' && r.literal && sliderMatch && (
         <button
           className={`icon-btn ${row.slider ? 'on' : ''}`}
@@ -166,23 +156,6 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
     </div>
   );
 
-  const local = row.scope === 'folder';
-  const scopeBtn =
-    row.parent && defName ? (
-      <button
-        className={`scope-btn ${local ? 'local' : ''}`}
-        title={
-          local
-            ? `“${defName}” is only defined inside this folder${ctx.shadows ? ' (it overrides the global one here)' : ''}. Click to make it global.`
-            : `“${defName}” is global. Click to limit it to this folder, so other folders can define their own.`
-        }
-        aria-pressed={local}
-        onClick={() => s.updateRow(row.id, { scope: local ? undefined : 'folder' })}
-      >
-        {local ? '▣ folder' : '◎ global'}
-      </button>
-    ) : null;
-
   return (
     <div className={`row-body col ${row.slider ? 'has-slider' : ''}`}>
       <div className="row-top">
@@ -203,7 +176,6 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
             onBlur={onBlur}
           />
         </div>
-        {scopeBtn}
         {actions}
       </div>
       {resultEl && <div className="row-result">{resultEl}</div>}
@@ -258,6 +230,66 @@ export function HoverTip({ text, kind, align = 'right', children }: { text: stri
         {text}
       </span>
     </span>
+  );
+}
+
+/**
+ * The row's switches, in the margin under its number (D57):
+ * - scope, for a definition inside a folder: a globe when the name is visible everywhere, a
+ *   highlighted folder when it is kept inside this folder;
+ * - a/b, when the answer has a fraction form: fraction or decimal.
+ * They show on hover and while the row is edited; a folder scope or a fraction stays visible.
+ */
+export function GutterTools({ row, ctx, folderTitle }: { row: ExprRow; ctx: RowCtx; folderTitle?: string }) {
+  const s = useStore();
+  const r = ctx.result;
+  const mode = row.displayMode ?? (row.displayUnit ? 'decimal' : ctx.fmt.mode);
+  const q = r?.kind === 'value' && r.value.t === 'q' ? r.value.q : undefined;
+  const fracAvail = !!q && hasFractionForm(displayValue(q));
+  const showsFraction = !!q && fracAvail && formatQuantity(q, { ...ctx.fmt, mode }).value.includes('/');
+  const defName = r?.kind === 'value' || r?.kind === 'error' ? r.defName : r?.kind === 'func' ? r.name : undefined;
+  const local = row.scope === 'folder';
+  const where = folderTitle ? `“${folderTitle}”` : 'this folder';
+  if (!(row.parent && defName) && !fracAvail) return null;
+  return (
+    <div className="gutter-tools">
+      {row.parent && defName && (
+        <button
+          className={`gutter-btn scope ${local ? 'on' : ''}`}
+          title={
+            local
+              ? `${defName} is only defined inside ${where}${ctx.shadows ? ', where it replaces the global one' : ''}. Click to make it visible everywhere.`
+              : `${defName} is visible everywhere. Click to keep it inside ${where}, so other folders can use the name for something else.`
+          }
+          aria-label={local ? `${defName}: only in ${where}. Make it visible everywhere` : `${defName}: visible everywhere. Keep it inside ${where}`}
+          aria-pressed={local}
+          onClick={() => s.updateRow(row.id, { scope: local ? undefined : 'folder' })}
+        >
+          {local ? (
+            <svg viewBox="0 0 20 16" aria-hidden>
+              <path d="M1.5 3.5a1 1 0 0 1 1-1h4.6l1.8 2h8.6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 16 16" aria-hidden fill="none" stroke="currentColor" strokeWidth="1.3">
+              <circle cx="8" cy="8" r="6.3" />
+              <ellipse cx="8" cy="8" rx="2.6" ry="6.3" />
+              <path d="M1.9 6h12.2M1.9 10h12.2" />
+            </svg>
+          )}
+        </button>
+      )}
+      {fracAvail && (
+        <button
+          className={`gutter-btn frac ${showsFraction ? 'on' : ''}`}
+          title={showsFraction ? 'Shown as a fraction. Click for a decimal.' : 'Shown as a decimal. Click for a fraction.'}
+          aria-label={showsFraction ? 'Show as a decimal' : 'Show as a fraction'}
+          aria-pressed={showsFraction}
+          onClick={() => s.updateRow(row.id, { displayMode: showsFraction ? 'decimal' : 'fraction' })}
+        >
+          a/b
+        </button>
+      )}
+    </div>
   );
 }
 

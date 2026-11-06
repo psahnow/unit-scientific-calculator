@@ -5,7 +5,7 @@ import { setCurrentPackages } from '../engine/units/packages';
 import type { FormatOptions } from '../engine/format';
 import { useStore, visibleRows, type RowType } from '../state/store';
 import { TopBar } from './TopBar';
-import { ExpressionRow, NoteRow, FolderRow, HoverTip } from './rows';
+import { ExpressionRow, NoteRow, FolderRow, HoverTip, GutterTools } from './rows';
 import { TableRow } from './TableRow';
 import { Toolbox, ToolboxButton } from './Toolbox';
 import { RowBoundary } from './ErrorBoundary';
@@ -192,6 +192,16 @@ export function App() {
                   <span className="num" title={res?.kind === 'value' && !res.defName ? `Row ${num}: use #${num} to refer to its answer` : undefined}>
                     {num}
                   </span>
+                )}
+                {row.type === 'expr' && (
+                  <GutterTools
+                    row={row}
+                    ctx={{ result: res, fmt, shadows: result.shadows.has(row.id) } as never}
+                    folderTitle={(() => {
+                      const f = row.parent ? rows.find((x) => x.id === row.parent) : undefined;
+                      return f?.type === 'folder' ? f.title : undefined;
+                    })()}
+                  />
                 )}
                 <span
                   className="handle"
