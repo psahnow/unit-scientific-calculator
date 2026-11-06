@@ -469,13 +469,10 @@ math-field {
 math-field:focus-within {
   outline: none;
 }
-math-field::part(menu-toggle) {
+/* no in-field buttons: the maths keyboard opens on tap (touch), and the menu isn't used */
+math-field::part(menu-toggle),
+math-field::part(virtual-keyboard-toggle) {
   display: none;
-}
-@media (pointer: fine) {
-  math-field::part(virtual-keyboard-toggle) {
-    display: none;
-  }
 }
 /* autocomplete */
 .ac-pop {
@@ -1607,4 +1604,74 @@ body {
 /* keep rows their height while MathLive loads (D38) */
 .math-host:empty {
   min-height: 48px; /* the height of a one-line maths field */
+}
+
+/* the on-screen maths keyboard (touch devices) in the notebook palette, light and dark (D40) */
+:root {
+  --keyboard-background: var(--bg-soft);
+  --keyboard-border: var(--border-strong);
+  --keyboard-horizontal-rule: var(--border);
+  --keyboard-accent-color: var(--accent);
+  --keyboard-toolbar-text: var(--fg-muted);
+  --keyboard-toolbar-text-active: var(--accent);
+  --keyboard-toolbar-background: transparent;
+  --keyboard-toolbar-background-hover: var(--accent-soft);
+  --keyboard-toolbar-background-selected: var(--accent-soft);
+  --keycap-background: var(--bg);
+  --keycap-background-hover: var(--accent-soft);
+  --keycap-background-active: var(--accent);
+  --keycap-background-pressed: var(--accent);
+  --keycap-border: var(--border);
+  --keycap-border-bottom: var(--border-strong);
+  --keycap-text: var(--fg);
+  --keycap-text-active: var(--bg);
+  --keycap-text-hover: var(--fg);
+  --keycap-text-pressed: var(--bg);
+  --keycap-secondary-background: var(--bg-soft);
+  --keycap-secondary-background-hover: var(--accent-soft);
+  --keycap-secondary-text: var(--fg);
+  --keycap-secondary-border: var(--border);
+  --keycap-secondary-border-bottom: var(--border-strong);
+  --keycap-primary-background: var(--accent);
+  --keycap-primary-background-hover: var(--accent);
+  --keycap-primary-text: var(--bg);
+  --keycap-shift-text: var(--fg-muted);
+  --keycap-shift-color: var(--accent);
+}
+.ML__keyboard {
+  font-family: var(--sans);
+}
+html.osk-open .toolbox {
+  display: none;
+}
+html.osk-open .app,
+html.osk-open .app.with-toolbox {
+  padding-bottom: var(--osk-h, 0px);
+}
+
+/* phones: row buttons only on the row being edited, on their own line under the input (D40) */
+@media (max-width: 640px) {
+  .row-top {
+    flex-wrap: wrap;
+  }
+  .row-top > .row-line {
+    flex-basis: 100%;
+  }
+  .row-actions,
+  .scope-btn {
+    display: none;
+  }
+  .row.focused .row-actions,
+  .row.focused .scope-btn {
+    display: flex;
+    opacity: 1;
+    margin-top: 0;
+    padding-top: 0;
+  }
+  .row.focused .row-actions {
+    margin-left: auto;
+  }
+  .scope-btn.local {
+    display: inline-flex;
+  }
 }

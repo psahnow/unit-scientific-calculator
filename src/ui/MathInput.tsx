@@ -9,12 +9,15 @@ export function loadMathLive() {
   mathlive ??= import('mathlive').then((m) => {
     m.MathfieldElement.fontsDirectory = '/mathlive-fonts';
     m.MathfieldElement.soundsDirectory = null;
+    // the on-screen keyboard (touch devices) gets Dimensional's own keys (D40)
+    setUpKeyboard((window as unknown as { mathVirtualKeyboard?: Parameters<typeof setUpKeyboard>[0] }).mathVirtualKeyboard);
     mathliveModule = m;
     return m;
   });
   return mathlive;
 }
 import { suggestionsFor, type Suggestion } from '../engine/suggest';
+import { setUpKeyboard } from './keyboard';
 import { latexToSymbol } from '../engine/latex';
 
 export const MACROS = {
@@ -259,6 +262,11 @@ export function MathInput(p: Props) {
       setTimeout(() => setPop(null), 150);
       props.current.onBlur();
     };
+    // on-screen keyboard ↵ commits the field: while it still has focus, treat it like Enter
+    const onCommit = () => {
+      if (document.activeElement === mf) props.current.onEnter();
+    };
+    mf.addEventListener('change', onCommit);
     mf.addEventListener('input', onInput);
     mf.addEventListener('keydown', onKey, { capture: true });
     mf.addEventListener('move-out', onMoveOut);
@@ -268,6 +276,7 @@ export function MathInput(p: Props) {
     if (p.autoFocus) requestAnimationFrame(() => mf.focus());
     setReady(true);
     cleanup = () => {
+      mf.removeEventListener('change', onCommit);
       mf.removeEventListener('input', onInput);
       mf.removeEventListener('keydown', onKey, { capture: true });
       mf.removeEventListener('move-out', onMoveOut);
