@@ -20,6 +20,8 @@ const GREEK_TO_CMD: Record<string, string> = Object.fromEntries(Object.entries(G
 
 const SKIP = new Set([',', ';', ':', '!', ' ', 'quad', 'qquad', 'displaystyle', 'textstyle', 'limits', 'nolimits', 'bigl', 'bigr', 'Bigl', 'Bigr', 'left', 'right', 'mleft', 'mright']);
 const TIMES = new Set(['cdot', 'times', 'ast', 'cdotp']);
+/** Comparison commands → operator tokens (piecewise conditions, D27). */
+const CMP_CMDS: Record<string, string> = { lt: '<', gt: '>', le: '≤', leq: '≤', leqslant: '≤', ge: '≥', geq: '≥', geqslant: '≥', ne: '≠', neq: '≠' };
 
 /** Find index of matching '}' for a '{' at position i. */
 export function matchBrace(src: string, i: number): number {
@@ -133,6 +135,12 @@ export function tokenize(src: string): Tok[] {
       else if (name === 'rvert') toks.push({ t: 'close', v: '|', s, e: i });
       else if (name === '{') toks.push({ t: 'open', v: '{', s, e: i });
       else if (name === '}') toks.push({ t: 'close', v: '}', s, e: i });
+      else if (name === 'lbrace') toks.push({ t: 'open', v: '{', s, e: i });
+      else if (name === 'rbrace') toks.push({ t: 'close', v: '}', s, e: i });
+      else if (CMP_CMDS[name]) toks.push({ t: 'op', v: CMP_CMDS[name], s, e: i });
+      else if (name === 'to' || name === 'rightarrow' || name === 'longrightarrow') toks.push({ t: 'op', v: '→', s, e: i });
+      else if (name === 'colon') toks.push({ t: 'op', v: ':', s, e: i });
+      else if (name === 'differentialD') toks.push({ t: 'letter', v: 'd', s, e: i });
       else if (name === 'degree' || name === 'circ') toks.push({ t: 'letter', v: '°', s, e: i });
       else if (name === 'exponentialE') toks.push({ t: 'letter', v: 'e', s, e: i });
       else if (name === 'prime') toks.push({ t: 'letter', v: '′', s, e: i });
@@ -145,7 +153,8 @@ export function tokenize(src: string): Tok[] {
     else if (c === '{') toks.push({ t: 'open', v: '{', s, e: i + 1 });
     else if (c === '}') toks.push({ t: 'close', v: '}', s, e: i + 1 });
     else if (c === '|') toks.push({ t: 'open', v: '|', s, e: i + 1 });
-    else if ('+-*/=,!^_%'.includes(c)) toks.push({ t: 'op', v: c === '*' ? '*' : c, s, e: i + 1 });
+    else if ('+-*/=,!^_%:<>'.includes(c)) toks.push({ t: 'op', v: c, s, e: i + 1 });
+    else if ('≤≥≠→'.includes(c)) toks.push({ t: 'op', v: c, s, e: i + 1 });
     else if (c === '−') toks.push({ t: 'op', v: '-', s, e: i + 1 });
     else if (c === '·' || c === '×') toks.push({ t: 'op', v: '*', s, e: i + 1 });
     else if (c === "'") {

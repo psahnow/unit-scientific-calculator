@@ -121,6 +121,26 @@ export const GROUPS: { id: string; label: string; keys: Key[] }[] = [
     ],
   },
   {
+    id: 'calculus',
+    label: 'Calculus',
+    keys: [
+      { label: '∫ₐᵇ dx', insert: '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', title: 'Definite integral. Units carry through: ∫ F dx over metres gives N·m. Limits may be ±∞', wide: true },
+      { label: '∫₀^∞ dx', insert: '\\int_{0}^{\\infty}#0\\,\\mathrm{d}x', title: 'Integral from 0 to infinity', wide: true },
+      { label: 'd/dx', insert: '\\frac{\\mathrm{d}}{\\mathrm{d}x}#0', title: 'Derivative, taken at the current value of x (define x, or use it inside a function g(x) = …)' },
+      { label: 'd²/dx²', insert: '\\frac{\\mathrm{d}^2}{\\mathrm{d}x^2}#0', title: 'Second derivative at the current value of x' },
+      { label: 'lim', insert: '\\lim_{x\\to#0}#?', title: 'Limit as x approaches a value. Write 0^+ or 0^- for one side' },
+      { label: 'lim x→∞', insert: '\\lim_{x\\to\\infty}#0', title: 'Limit as x grows without bound', wide: true },
+      { label: 'Σ', insert: '\\sum_{n=#0}^{#?}#?', title: 'Sum: Σ from n = a to b (whole numbers)' },
+      { label: 'Π', insert: '\\prod_{n=#0}^{#?}#?', title: 'Product: Π from n = a to b (whole numbers)' },
+      { label: '{ x<a: …, … }', insert: '\\left\\{x<#0:#?,#?\\right\\}', title: 'Piecewise: { condition: value, …, otherwise value }. The first true condition wins', wide: true },
+      { label: '<', insert: '<', title: 'Less than (in piecewise conditions)' },
+      { label: '≤', insert: '\\le', title: 'Less than or equal' },
+      { label: '>', insert: '>', title: 'Greater than' },
+      { label: '≥', insert: '\\ge', title: 'Greater than or equal' },
+      { label: '∞', insert: '\\infty', title: 'Infinity (integral and limit bounds)' },
+    ],
+  },
+  {
     id: 'greek',
     label: 'Greek',
     keys: [

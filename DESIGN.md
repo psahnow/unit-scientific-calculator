@@ -53,6 +53,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D24 | Variable scope | Global by default; a **per-row global/folder switch** limits a definition to its folder. Folder definitions win inside their folder and may shadow globals; lookups are lexical |
 | D25 | Function toolbox | A **bottom keypad drawer** with tabbed groups (trig, hyperbolic, powers & logs, rounding, special, statistics) that inserts at the caret. Adds Γ, erf/erfc, inverse hyperbolics, nCr, nPr, gcd, lcm |
 | D26 | Unit packages | **Base set always on; per-worksheet packages** (Mechanical, Electrical, Physics, Chemistry, Cooking, UK imperial) in ⚙ Settings. Packages overlap; chips from an off package still work and offer to turn it on |
+| D27 | Solvers | **Numeric, unit-aware** definite integrals (±∞ limits), derivatives (1st/2nd, at the current value), limits (one/two-sided, ∞), exact Σ/Π, and Desmos-style piecewise `{cond: value, …, otherwise}` |
 
 ---
 
@@ -122,6 +123,7 @@ The **ƒ(x) Functions** button in the toolbar opens a keypad drawer docked to th
 - **Rounding:** |x|, round, floor, ceil, sign, mod, gcd, lcm.
 - **Special:** Γ(x), x!, nCr, nPr, erf, erfc.
 - **Statistics:** mean, median, stdev, var, sum, count, min, max, list brackets.
+- **Calculus:** ∫ₐᵇ dx, ∫₀^∞ dx, d/dx, d²/dx², lim, lim x→∞, Σ, Π, piecewise `{x<a: …, …}`, <, ≤, >, ≥, ∞.
 - **Greek:** all lower-case letters (with ε/ϵ, θ/ϑ, ϕ/φ variants) and the capitals that differ from Latin (Γ Δ Θ Λ Ξ Π Σ Υ Φ Ψ Ω), each with a tooltip on its usual engineering meaning.
 
 A key inserts at the caret of the expression being edited (the last one focused) and puts the caret in the first argument; clicking a key doesn't take focus away. With no expression edited yet, it starts a new row at the end. Each key's tooltip says what it does. Γ(n) and nCr/nPr/gcd/lcm are exact for whole numbers; `Γ(…)` typed directly is the gamma function unless `Γ` is a user variable.
@@ -222,7 +224,7 @@ interface Quantity {
 
 Trig with **bare numbers** uses the global RAD/DEG mode. Trig with **angle-tagged** values ignores the mode: `sin(30°)` = ½ in either mode.
 
-Comparisons (`<`, `≤`, …) are not in v1, but the engine supports them: they need equal dims and return booleans for future piecewise use.
+Comparisons (`<`, `>`, `≤`, `≥`, `=`, `≠`, chained like `0 < x < 10`) are used in piecewise conditions (§5.10). They need equal dimensions; a bare 0 or ∞ compares with anything.
 
 ### 5.4 Smart simplify (D5, D13)
 These rules run after every `·` and `/`, in order:
@@ -283,6 +285,19 @@ Errors appear inline in place of the result and give the dimensions in plain wor
 - `Unit 'lbs' not found — did you mean lbm or lbf?`
 
 ---
+
+### 5.10 Calculus, Σ/Π and piecewise (D27)
+All numeric and unit-aware, inside the engine (no external library understands our units). Results carry units: the integrand's unit × the variable's unit, the expression's unit ÷ the variable's unit, and so on.
+
+| Feature | Write | Method and notes |
+|---|---|---|
+| Definite integral | `\int_{a}^{b} f(x)\,dx` (`dx` or `\mathrm{d}x` ends the integrand) | Adaptive Gauss–Kronrod 7/15, relative tolerance 1e-12. Limits may be ±∞ (change of variable). `x` takes the units of the limits; 0 and ∞ fit any unit. Limits can be variables (`F(t) = ∫₀ᵗ …`). Divergent integrals say so. |
+| Derivative | `\frac{d}{dx} f(x)`, `\frac{d^2}{dx^2} f(x)` | Ridders' extrapolation of central differences, taken at the **current value of x**: a defined variable, or a function parameter (`g(x) = d/dx …`). Applies to the rest of the product term. Results snap to exact small fractions when within 1e-9. |
+| Limit | `\lim_{x\to a} f(x)`, `a^+`/`a^-` for one side, `a = ∞` | Polynomial (Neville) extrapolation of f(a ± h) as h → 0, from both sides; reports "doesn't exist" when the sides disagree, and ±∞ when values grow without bound. |
+| Sum / product | `\sum_{n=a}^{b}`, `\prod_{n=a}^{b}` | Exact, whole-number bounds, up to a million terms. Empty range: 0 / 1. `\sum(list)` without bounds is still the list function. |
+| Piecewise | `\left\{x<0: -x, x\right\}` | Desmos style: `condition: value` items separated by commas; the first true condition wins; a last item without a condition is the "otherwise" value; with none, no match is an error. `{x>0}` alone means 1 when true. |
+
+The bound variable is parsed as a variable inside its body, so `t`, `s` or `m` there aren't read as units. Trig on a bare integration/limit variable follows the RAD/DEG mode like everywhere else. The toolbox has a **Calculus** tab for all of these (§3.5).
 
 ## 6. Unit dropdown
 

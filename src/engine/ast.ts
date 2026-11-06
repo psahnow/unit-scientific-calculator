@@ -20,7 +20,20 @@ export type Node =
   | { k: 'list'; items: Node[] }
   | { k: 'fact'; a: Node }
   | { k: 'abs'; a: Node }
-  | { k: 'root'; n: Node; a: Node };
+  | { k: 'root'; n: Node; a: Node }
+  // calculus and piecewise (D27): `v` is the bound variable
+  | { k: 'integral'; v: string; lo: Node; hi: Node; body: Node }
+  | { k: 'deriv'; v: string; order: 1 | 2; body: Node }
+  | { k: 'limit'; v: string; to: Node; dir?: '+' | '-'; body: Node }
+  | { k: 'series'; op: 'sum' | 'prod'; v: string; lo: Node; hi: Node; body: Node }
+  | { k: 'piecewise'; branches: { cond?: Cond; value: Node }[] };
+
+/** Chained comparison a < b ≤ c … */
+export interface Cond {
+  items: Node[];
+  ops: CmpOp[];
+}
+export type CmpOp = '<' | '>' | '≤' | '≥' | '=' | '≠';
 
 export type ParsedRow =
   | { kind: 'empty' }
@@ -87,6 +100,27 @@ export function collectRefs(n: Node, out: Set<string> = new Set()): Set<string> 
     case 'root':
       collectRefs(n.n, out);
       collectRefs(n.a, out);
+      break;
+    case 'integral':
+    case 'series':
+    case 'deriv':
+    case 'limit': {
+      const inner = collectRefs(n.body);
+      inner.delete(n.v);
+      inner.forEach((r) => out.add(r));
+      if (n.k === 'integral' || n.k === 'series') {
+        collectRefs(n.lo, out);
+        collectRefs(n.hi, out);
+      }
+      if (n.k === 'limit') collectRefs(n.to, out);
+      if (n.k === 'deriv') out.add(n.v); // evaluated at the current value of v
+      break;
+    }
+    case 'piecewise':
+      for (const b of n.branches) {
+        b.cond?.items.forEach((x) => collectRefs(x, out));
+        collectRefs(b.value, out);
+      }
       break;
   }
   return out;

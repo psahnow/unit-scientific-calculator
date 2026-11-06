@@ -1,7 +1,7 @@
 // LaTeX (MathLive) → AST. Resolves letter runs into variables, units, constants (DESIGN.md §4).
 import type { Availability } from './units/packages';
 import { tokenize, type Tok } from './latex';
-import type { Node, ParsedRow, ChipFix } from './ast';
+import type { Node, ParsedRow, ChipFix, Cond, CmpOp } from './ast';
 import { isUnitOnly } from './ast';
 import { parseDecimal, float } from './num';
 import { lookupUnit } from './units/registry';
@@ -25,6 +25,8 @@ export const LETTER_FUNCS = new Set([
 ]);
 /** LaTeX commands that are functions (\sin, \operatorname{abs}, …). */
 const CMD_FUNCS = new Set([...LETTER_FUNCS, 'arcsec', 'arccsc', 'arccot', 'lg', 'sgn', 'operatorname']);
+
+const CMP_OPS = new Set(['<', '>', '≤', '≥', '=', '≠']);
 
 export interface ParseResult {
   row: ParsedRow;
@@ -380,7 +382,7 @@ class Parser {
           this.expectClose(']');
           return { k: 'list', items };
         }
-        if (t.v === '{') return this.group();
+        if (t.v === '{') return this.piecewiseAhead() ? this.parsePiecewise() : this.group();
         if (t.v === '|') {
           this.i++;
           this.inAbs++;
@@ -405,7 +407,12 @@ class Parser {
     const t = this.peek() as Extract<Tok, { t: 'cmd' }>;
     this.i++;
     const name = t.v;
+    if (name === 'int') return this.parseIntegral();
+    if (name === 'lim') return this.parseLimit();
+    if ((name === 'sum' || name === 'prod') && (this.isOp('_') || this.isOp('^'))) return this.parseSeries(name);
     if (name === 'frac' || name === 'dfrac' || name === 'tfrac') {
+      const d = this.tryDerivative();
+      if (d) return d;
       const a = this.group();
       const b = this.group();
       return { k: 'bin', op: '/', a, b };
@@ -452,6 +459,226 @@ class Parser {
       args = [acc];
     }
     return { k: 'call', name, args, base, power };
+  }
+
+
+  // ── calculus & piecewise (D27) ──────────────────────────────────────────────
+
+  /** Tokens inside a {…} group starting at the current '{'; moves past the '}'. */
+  takeGroup(): Tok[] {
+    if (!this.isOpen('{')) {
+      const t = this.peek();
+      if (!t) throw new ParseError('Incomplete expression');
+      this.i++;
+      return [t];
+    }
+    const start = this.i + 1;
+    let depth = 0;
+    for (let j = this.i; j < this.toks.length; j++) {
+      const t = this.toks[j];
+      if (t.t === 'open' && t.v !== '|') depth++;
+      else if (t.t === 'close' && t.v !== '|') {
+        depth--;
+        if (depth === 0) {
+          this.i = j + 1;
+          return this.toks.slice(start, j);
+        }
+      }
+    }
+    throw new ParseError('Expected “}”');
+  }
+
+  /** Parse a token slice as a whole expression, with the same names (plus `bound`). */
+  sub(toks: Tok[], bound?: string): Node {
+    if (!toks.length) throw new ParseError('Incomplete expression');
+    const ctx = bound ? { ...this.ctx, vars: new Set([...this.ctx.vars, bound]) } : this.ctx;
+    return new Parser(toks, ctx, this.chips).parseAll();
+  }
+
+  /** Parse with `v` treated as a variable (so x, t, s… aren't read as units). */
+  withVar<T>(v: string, fn: () => T): T {
+    const saved = this.ctx;
+    this.ctx = { ...saved, vars: new Set([...saved.vars, v]) };
+    try {
+      return fn();
+    } finally {
+      this.ctx = saved;
+    }
+  }
+
+  /** A variable name at the start of a token slice: x, θ, x_1. Returns [name, tokens used]. */
+  static varName(toks: Tok[], at = 0): [string, number] | null {
+    const t = toks[at];
+    if (t?.t !== 'letter') return null;
+    if (toks[at + 1]?.t === 'op' && (toks[at + 1] as { v: string }).v === '_') {
+      const [s, j] = readSub(toks, at + 1);
+      return [t.v + '_' + s, j - at];
+    }
+    return [t.v, 1];
+  }
+
+  /** ∫_a^b f(x) dx */
+  parseIntegral(): Node {
+    let lo: Tok[] | undefined;
+    let hi: Tok[] | undefined;
+    for (let k = 0; k < 2; k++) {
+      if (this.isOp('_')) {
+        this.i++;
+        lo = this.takeGroup();
+      } else if (this.isOp('^')) {
+        this.i++;
+        hi = this.takeGroup();
+      }
+    }
+    if (!lo || !hi) throw new ParseError('Give the integral its limits, like ∫₀¹ f(x) dx');
+    // find the differential "dx" that ends the integrand
+    let depth = 0;
+    for (let j = this.i; j < this.toks.length; j++) {
+      const t = this.toks[j];
+      if (t.t === 'open' && t.v !== '|') depth++;
+      else if (t.t === 'close' && t.v !== '|') {
+        if (depth === 0) break;
+        depth--;
+      } else if (depth === 0 && t.t === 'letter' && t.v === 'd') {
+        const vn = Parser.varName(this.toks, j + 1);
+        if (!vn) continue;
+        const after = this.toks[j + 1 + vn[1]];
+        if (after && (after.t === 'letter' || after.t === 'num' || (after.t === 'open' && after.v !== '|'))) continue;
+        const [v] = vn;
+        const bodyToks = this.toks.slice(this.i, j);
+        const body: Node = bodyToks.length ? this.sub(bodyToks, v) : { k: 'num', v: parseDecimal('1') };
+        this.i = j + 1 + vn[1];
+        return { k: 'integral', v, lo: this.sub(lo), hi: this.sub(hi), body };
+      }
+    }
+    throw new ParseError('End the integral with its variable, like dx');
+  }
+
+  /** d/dx or d²/dx² written as \frac{d}{dx}; returns null if this \frac isn't a derivative. */
+  tryDerivative(): Node | null {
+    const save = this.i;
+    if (!this.isOpen('{')) return null;
+    const num = this.takeGroup();
+    if (!this.isOpen('{')) {
+      this.i = save;
+      return null;
+    }
+    const den = this.takeGroup();
+    const isD = (t?: Tok) => t?.t === 'letter' && t.v === 'd';
+    const power = (toks: Tok[], at: number): number | null => {
+      if (at === toks.length) return 1;
+      if (toks[at]?.t !== 'op' || (toks[at] as { v: string }).v !== '^') return null;
+      const rest = toks.slice(at + 1).filter((t) => !(t.t === 'open' && t.v === '{') && !(t.t === 'close' && t.v === '}'));
+      return rest.length === 1 && rest[0].t === 'num' && rest[0].v === '2' ? 2 : null;
+    };
+    const vn = isD(den[0]) ? Parser.varName(den, 1) : null;
+    const order = isD(num[0]) ? power(num, 1) : null;
+    const dOrder = vn ? power(den, 1 + vn[1]) : null;
+    if (!vn || !order || order !== dOrder) {
+      this.i = save;
+      return null;
+    }
+    const v = vn[0];
+    const body = this.withVar(v, () => this.parseTerm());
+    return { k: 'deriv', v, order: order as 1 | 2, body };
+  }
+
+  /** \lim_{x \to a} f(x), with optional a^+ / a^- */
+  parseLimit(): Node {
+    if (!this.isOp('_')) throw new ParseError('Write the limit like lim_{x→0}');
+    this.i++;
+    const g = this.takeGroup();
+    const vn = Parser.varName(g);
+    if (!vn || g[vn[1]]?.t !== 'op' || (g[vn[1]] as { v: string }).v !== '→') throw new ParseError('Write the limit like lim_{x→0}');
+    let target = g.slice(vn[1] + 1);
+    let dir: '+' | '-' | undefined;
+    const plain = target.filter((t) => !(t.t === 'open' && t.v === '{') && !(t.t === 'close' && t.v === '}'));
+    const n = plain.length;
+    if (n >= 3 && plain[n - 2].t === 'op' && (plain[n - 2] as { v: string }).v === '^' && plain[n - 1].t === 'op' && '+-'.includes((plain[n - 1] as { v: string }).v)) {
+      dir = (plain[n - 1] as { v: string }).v as '+' | '-';
+      const caret = target.findIndex((t) => t === plain[n - 2]);
+      target = target.slice(0, caret);
+    }
+    const to = this.sub(target);
+    const v = vn[0];
+    const body = this.withVar(v, () => this.parseTerm());
+    return { k: 'limit', v, to, dir, body };
+  }
+
+  /** \sum_{n=1}^{10} or \prod_{n=1}^{10} */
+  parseSeries(op: 'sum' | 'prod'): Node {
+    let lo: Tok[] | undefined;
+    let hi: Tok[] | undefined;
+    for (let k = 0; k < 2; k++) {
+      if (this.isOp('_')) {
+        this.i++;
+        lo = this.takeGroup();
+      } else if (this.isOp('^')) {
+        this.i++;
+        hi = this.takeGroup();
+      }
+    }
+    const sym = op === 'sum' ? 'Σ' : 'Π';
+    if (!lo || !hi) throw new ParseError(`Write it like ${sym}_{n=1}^{10}`);
+    const vn = Parser.varName(lo);
+    if (!vn || lo[vn[1]]?.t !== 'op' || (lo[vn[1]] as { v: string }).v !== '=') throw new ParseError(`Write it like ${sym}_{n=1}^{10}`);
+    const v = vn[0];
+    const from = this.sub(lo.slice(vn[1] + 1));
+    const to = this.sub(hi);
+    const body = this.withVar(v, () => this.parseTerm());
+    return { k: 'series', op, v, lo: from, hi: to, body };
+  }
+
+  isCmp(): boolean {
+    const t = this.peek();
+    return t?.t === 'op' && CMP_OPS.has(t.v);
+  }
+
+  /** Is the '{' at the cursor a piecewise { cond: value, … }? */
+  piecewiseAhead(): boolean {
+    let depth = 0;
+    for (let j = this.i; j < this.toks.length; j++) {
+      const t = this.toks[j];
+      if (t.t === 'open' && t.v !== '|') depth++;
+      else if (t.t === 'close' && t.v !== '|') {
+        depth--;
+        if (depth === 0) return false;
+      } else if (depth === 1 && t.t === 'op' && (t.v === ':' || CMP_OPS.has(t.v))) return true;
+    }
+    return false;
+  }
+
+  /** { x < 0: −x, x ≥ 0: x } or { x < 0: −x, x } (last item without a condition is the "else") */
+  parsePiecewise(): Node {
+    this.i++; // '{'
+    const branches: { cond?: Cond; value: Node }[] = [];
+    for (;;) {
+      const first = this.parseExpr();
+      if (this.isCmp()) {
+        const cond: Cond = { items: [first], ops: [] };
+        while (this.isCmp()) {
+          cond.ops.push((this.peek() as { v: string }).v as CmpOp);
+          this.i++;
+          cond.items.push(this.parseExpr());
+        }
+        let value: Node = { k: 'num', v: parseDecimal('1') };
+        if (this.isOp(':')) {
+          this.i++;
+          value = this.parseExpr();
+        }
+        branches.push({ cond, value });
+      } else {
+        if (this.isOp(':')) throw new ParseError('A condition needs a comparison, like x < 3');
+        branches.push({ value: first });
+        if (this.isOp(',')) throw new ParseError('The value without a condition (the “otherwise” value) must come last');
+      }
+      if (this.isOp(',')) {
+        this.i++;
+        continue;
+      }
+      this.expectClose('}');
+      return { k: 'piecewise', branches };
+    }
   }
 
   /** Letter run → variables / units / constants / functions. */

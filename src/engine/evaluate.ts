@@ -1,6 +1,7 @@
 // AST evaluation with units, lists and builtins (DESIGN.md §5.3).
 import * as N from './num';
-import type { Node } from './ast';
+import type { Node, Cond } from './ast';
+import { integrate, derivative, limit, NumericError } from './calculus';
 import { isUnitOnly } from './ast';
 import * as Q from './quantity';
 import { type Quantity, CalcError, scalar, describe } from './quantity';
@@ -163,6 +164,18 @@ export function evaluate(n: Node, env: Env): Value {
         throw e;
       }
     }
+    case 'integral':
+      return qv(evalIntegral(n, env));
+    case 'deriv':
+      return qv(evalDerivative(n, env));
+    case 'limit':
+      return qv(evalLimit(n, env));
+    case 'series':
+      return qv(evalSeries(n, env));
+    case 'piecewise': {
+      for (const b of n.branches) if (!b.cond || condHolds(b.cond, env)) return evaluate(b.value, env);
+      throw new CalcError('No piecewise case applies here, and there is no “otherwise” value');
+    }
     case 'call': {
       let r = callBuiltin(n.name, n.args.map((a) => evaluate(a, env)), env, n.base ? asQ(evaluate(n.base, env)) : undefined, n.args);
       if (n.power) {
@@ -172,6 +185,130 @@ export function evaluate(n: Node, env: Env): Value {
       return r;
     }
   }
+}
+
+// ── Calculus and piecewise (D27) ─────────────────────────────────────────────
+type CalcNode<K extends Node['k']> = Extract<Node, { k: K }>;
+
+/** Env where `v` is bound to the quantity q. */
+function bind(env: Env, v: string, q: Quantity): Env {
+  const locals = new Map(env.locals ?? []);
+  locals.set(v, qv(q));
+  return { ...env, locals };
+}
+
+const isZeroOrInf = (q: Quantity) => {
+  const x = N.toNumber(q.si);
+  return dimEq(q.dim, DIMLESS) && !q.unit.length && (x === 0 || !Number.isFinite(x));
+};
+
+/** Size of one display unit of q, in SI: the natural step for numeric methods. */
+function unitScale(q: Quantity): number {
+  const f = q.unit.length ? Math.abs(N.toNumber(unitFactor(q.unit))) : 1;
+  return Number.isFinite(f) && f > 0 ? f : 1;
+}
+
+/** f(x) as a plain SI number, checking every sample has the same dimension. */
+function sampler(body: Node, env: Env, v: string, like: Quantity, what: string) {
+  let dimRef: Quantity | undefined;
+  const at = (x: number): Quantity => {
+    const r = evaluate(body, bind(env, v, { si: N.float(x), dim: like.dim, unit: like.unit }));
+    const q = asQ(r, `value from the ${what}`);
+    if (dimRef && !dimEq(q.dim, dimRef.dim)) throw new CalcError(`The ${what} changes dimension (${describe(dimRef)} vs ${describe(q)})`);
+    dimRef ??= q;
+    return q;
+  };
+  return { at, num: (x: number) => N.toNumber(at(x).si) };
+}
+
+function numeric<T>(fn: () => T, what: string): T {
+  try {
+    return fn();
+  } catch (e) {
+    if (e instanceof NumericError) throw new CalcError(`${what}: ${e.message}`);
+    throw e;
+  }
+}
+
+function withSi(q: Quantity, si: number): Quantity {
+  return { si: N.float(si), dim: q.dim, unit: q.unit };
+}
+
+function evalIntegral(n: CalcNode<'integral'>, env: Env): Quantity {
+  const lo = asQ(evaluate(n.lo, env), 'lower limit');
+  const hi = asQ(evaluate(n.hi, env), 'upper limit');
+  // the variable takes the units of the limits; 0 and ∞ fit any unit
+  const like = isZeroOrInf(lo) ? hi : lo;
+  for (const b of [lo, hi])
+    if (!isZeroOrInf(b) && !dimEq(b.dim, like.dim)) throw new CalcError(`Integral limits don't match: ${describe(lo)} and ${describe(hi)}`);
+  const a = N.toNumber(lo.si);
+  const b = N.toNumber(hi.si);
+  const s = sampler(n.body, env, n.v, like, 'integrand');
+  const scale = unitScale(like);
+  const mid = Number.isFinite(a) && Number.isFinite(b) ? (a + b) / 2 : Number.isFinite(a) ? a + scale : Number.isFinite(b) ? b - scale : 0;
+  const sample = s.at(mid);
+  const value = numeric(() => integrate(s.num, a, b), 'Integral');
+  const unitOf = Q.mul({ ...sample, si: N.ONE, tempKind: undefined }, { si: N.ONE, dim: like.dim, unit: like.unit });
+  return withSi(unitOf, value);
+}
+
+function evalDerivative(n: CalcNode<'deriv'>, env: Env): Quantity {
+  const cur = env.locals?.get(n.v) ?? env.getVar(n.v);
+  if (!cur)
+    throw new CalcError(`d/d${n.v} is taken at the current value of ${n.v}: define ${n.v}, or use it in a function like g(${n.v}) = d/d${n.v} …`);
+  const x0 = asQ(cur, `value of ${n.v}`);
+  const s = sampler(n.body, env, n.v, x0, 'expression');
+  const sample = s.at(N.toNumber(x0.si));
+  const value = numeric(() => derivative(s.num, N.toNumber(x0.si), unitScale(x0), n.order), 'Derivative');
+  let unitOf: Quantity = { ...sample, si: N.ONE, tempKind: undefined };
+  const per = { si: N.ONE, dim: x0.dim, unit: x0.unit };
+  for (let k = 0; k < n.order; k++) unitOf = Q.div(unitOf, per);
+  return withSi(unitOf, value);
+}
+
+function evalLimit(n: CalcNode<'limit'>, env: Env): Quantity {
+  const to = asQ(evaluate(n.to, env), 'limit point');
+  const a = N.toNumber(to.si);
+  const scale = unitScale(to);
+  const s = sampler(n.body, env, n.v, to, 'expression');
+  const probe = Number.isFinite(a) ? a + (n.dir === '-' ? -1 : 1) * 0.01 * Math.max(Math.abs(a), scale) : a > 0 ? 1e3 * scale : -1e3 * scale;
+  const sample = s.at(probe);
+  const value = numeric(() => limit(s.num, a, scale, n.dir), 'Limit');
+  return withSi({ ...sample, tempKind: undefined }, value);
+}
+
+function evalSeries(n: CalcNode<'series'>, env: Env): Quantity {
+  const int = (node: Node, what: string): bigint => {
+    const q = asQ(evaluate(node, env), what);
+    const x = q.si;
+    if (!Q.isScalar(q) || !N.isExact(x) || x.d !== 1n) {
+      if (Q.isScalar(q) && !Number.isFinite(N.toNumber(x))) throw new CalcError(`${n.op === 'sum' ? 'Σ' : 'Π'} needs a finite upper limit`);
+      throw new CalcError(`The ${what} of ${n.op === 'sum' ? 'Σ' : 'Π'} must be a whole number`);
+    }
+    return x.n;
+  };
+  const lo = int(n.lo, 'lower limit');
+  const hi = int(n.hi, 'upper limit');
+  if (hi - lo > 1_000_000n) throw new CalcError('That’s more than a million terms');
+  let acc: Quantity | undefined;
+  for (let k = lo; k <= hi; k++) {
+    const term = asQ(evaluate(n.body, bind(env, n.v, scalar(N.exact(k)))), 'term');
+    acc = acc ? (n.op === 'sum' ? Q.add(acc, term) : Q.mul(acc, term)) : term;
+  }
+  return acc ?? scalar(n.op === 'sum' ? N.ZERO : N.ONE);
+}
+
+function condHolds(c: Cond, env: Env): boolean {
+  const qs = c.items.map((x) => asQ(evaluate(x, env), 'value in a condition'));
+  for (let i = 0; i < c.ops.length; i++) {
+    const a = qs[i];
+    const b = qs[i + 1];
+    if (!dimEq(a.dim, b.dim) && !isZeroOrInf(a) && !isZeroOrInf(b)) throw new CalcError(`Can't compare ${describe(a)} with ${describe(b)}`);
+    const r = N.cmp(a.si, b.si);
+    const ok = { '<': r < 0, '>': r > 0, '≤': r <= 0, '≥': r >= 0, '=': r === 0, '≠': r !== 0 }[c.ops[i]];
+    if (!ok) return false;
+  }
+  return true;
 }
 
 function absQ(x: Quantity): Quantity {
