@@ -23,10 +23,10 @@ const NAV: Key[] = [
   '[)]',
   fn(',', ',', 'Comma (lists, function inputs)'),
   '[=]',
-  fn('ans', 'ans', 'The answer of the row above'),
+  fn('x₁', '_{#0}', 'Subscript, as in F₁ (on a keyboard, type _)'),
   { label: '⌫', class: 'action dim-backspace', command: 'performWithFeedback(deleteBackward)', width: 1.5, tooltip: 'Delete' },
   { label: '↵', class: 'action dim-return', command: 'performWithFeedback(commit)', width: 1.5, tooltip: 'New row' /* handled by setReturnHandler */ },
-];
+]
 const DIGITS: Key[] = ['[1]', '[2]', '[3]', '[4]', '[5]', '[6]', '[7]', '[8]', '[9]', '[0]'];
 
 /**
@@ -58,23 +58,43 @@ const NUMBERS: VirtualKeyboardLayout = {
   tooltip: 'Numbers',
   rows: [
     ['[7]', '[8]', '[9]', '[/]', { latex: '\\sqrt{#0}', tooltip: 'Square root' }, { latex: '#@^{2}', tooltip: 'Square' }, { latex: '#@^{#?}', tooltip: 'Power' }, { latex: '\\pi', tooltip: 'π' }, { label: 'e', insert: 'e', tooltip: "Euler's number" }, fn('×10ⁿ', '\\cdot10^{#0}', 'Times ten to the power')],
-    ['[4]', '[5]', '[6]', '[*]', fn('%', '\\%', 'Percent'), { latex: '\\left|#0\\right|', tooltip: 'Absolute value' }, fn('°', '\\unit{\\degree}', 'Degrees'), fn('x₁', '_{#0}', 'Subscript, as in F₁'), fn('f(x)', '#@\\left(#0\\right)', 'Brackets after a name: f(x)'), fn('n!', '!', 'Factorial')],
+    ['[4]', '[5]', '[6]', '[*]', fn('%', '\\%', 'Percent'), { latex: '\\left|#0\\right|', tooltip: 'Absolute value' }, fn('°', '\\unit{\\degree}', 'Degrees'), fn('ans', 'ans', 'The answer of the row above'), fn('f(x)', '#@\\left(#0\\right)', 'Brackets after a name: f(x)'), fn('n!', '!', 'Factorial')],
     ['[1]', '[2]', '[3]', '[-]', trig('sin', '\\sin', 'Sine'), trig('cos', '\\cos', 'Cosine'), trig('tan', '\\tan', 'Tangent'), trig('ln', '\\ln', 'Natural log'), trig('log', '\\log', 'Log base 10'), fn('eˣ', 'e^{#0}', 'e to the power')],
     ['[0]', '[.]', '[+]', fn('[ ]', '\\left[#0\\right]', 'List'), fn('∫', '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', 'Definite integral'), fn('d/dx', '\\frac{\\mathrm{d}}{\\mathrm{d}x}#0', 'Derivative at the current x'), fn('lim', '\\lim_{x\\to#0}#?', 'Limit'), fn('Σ', '\\sum_{n=#0}^{#?}#?', 'Sum'), fn('solve', '\\operatorname{solve}\\left(#0=#?,x\\right)', 'Solve an equation for x'), fn('∞', '\\infty', 'Infinity')],
     NAV,
   ],
 };
 
+/** A compound unit key, e.g. m/s or N·m. */
+const cu = (label: string, insert: string, tooltip = label): Key => ({ label, insert, class: 'small', tooltip });
+const page = (label: string, to: string, tooltip: string): Key => ({ label, class: 'small dim-page', command: ['switchKeyboardLayer', to], tooltip });
+
+/** Units has two pages; the last key of the fourth row turns the page (D40). */
 const UNITS: VirtualKeyboardLayout = {
   id: 'dim-units',
   label: 'm kg',
   tooltip: 'Units',
-  rows: [
-    [unit('mm'), unit('cm'), unit('m'), unit('km'), unit('in'), unit('ft'), unit('mm²', 'mm^2'), unit('m²', 'm^2'), unit('L'), unit('m³', 'm^3')],
-    [unit('g'), unit('kg'), unit('lbm'), unit('N'), unit('kN'), unit('lbf'), unit('Pa'), unit('kPa'), unit('MPa'), unit('psi')],
-    [unit('J'), unit('kJ'), unit('W'), unit('kW'), unit('hp'), unit('bar'), unit('gal'), unit('Hz'), unit('rad'), unit('Ω', '\\Omega')],
-    [unit('s'), unit('min'), unit('h'), unit('°C', '\\degree C'), unit('°F', '\\degree F'), unit('K'), unit('Δ°C', '\\Delta\\degree C', 'Temperature difference'), unit('°', '\\degree'), unit('V'), unit('A')],
-    NAV,
+  layers: [
+    {
+      id: 'dim-units-1',
+      rows: [
+        [unit('mm'), unit('cm'), unit('m'), unit('km'), unit('in'), unit('ft'), unit('mm²', 'mm^2'), unit('m²', 'm^2'), unit('L'), unit('m³', 'm^3')],
+        [unit('g'), unit('kg'), unit('lbm'), unit('N'), unit('kN'), unit('lbf'), unit('Pa'), unit('kPa'), unit('MPa'), unit('psi')],
+        [unit('J'), unit('kJ'), unit('W'), unit('kW'), unit('hp'), unit('bar'), unit('gal'), unit('Hz'), unit('rad'), unit('°', '\\degree')],
+        [unit('s'), unit('min'), unit('h'), unit('°C', '\\degree C'), unit('°F', '\\degree F'), unit('K'), unit('Δ°C', '\\Delta\\degree C', 'Temperature difference'), unit('V'), unit('A'), page('more ›', 'dim-units-2', 'More units')],
+        NAV,
+      ],
+    },
+    {
+      id: 'dim-units-2',
+      rows: [
+        [unit('µm', '\\mu m'), unit('nm'), unit('yd'), unit('mi'), unit('mL'), unit('ha'), unit('acre'), unit('cm²', 'cm^2'), unit('in²', 'in^2'), unit('ft²', 'ft^2')],
+        [unit('mg'), unit('t'), unit('oz'), unit('MN'), unit('GPa'), unit('atm'), cu('N·m', '\\unit{N}\\cdot\\unit{m}', 'Newton-metres (torque)'), cu('kN·m', '\\unit{kN}\\cdot\\unit{m}'), cu('W/m²', '\\unit{W}/\\unit{m}^{2}'), cu('kg/m³', '\\unit{kg}/\\unit{m}^{3}', 'Density')],
+        [unit('Wh'), unit('kWh'), unit('cal'), unit('mph'), cu('km/h', '\\unit{km}/\\unit{h}'), cu('m/s', '\\unit{m}/\\unit{s}'), cu('ft/s', '\\unit{ft}/\\unit{s}'), cu('m/s²', '\\unit{m}/\\unit{s}^{2}', 'Acceleration'), cu('rad/s', '\\unit{rad}/\\unit{s}', 'Angular velocity'), unit('Ω', '\\Omega')],
+        [unit('mA'), unit('kV'), unit('mV'), unit('d', 'd', 'day'), unit('wk'), unit('yr'), unit('%', '\\%', 'percent'), unit('ppm'), unit('kHz'), page('‹ back', 'dim-units-1', 'Common units')],
+        NAV,
+      ],
+    },
   ],
 };
 
@@ -98,11 +118,11 @@ const LETTERS: VirtualKeyboardLayout = {
   label: 'abc',
   tooltip: 'Letters (names)',
   rows: [
+    DIGITS,
     [...'qwertyuiop'].map(letter),
-    [...[...'asdfghjkl'].map(letter), fn('x₁', '_{#0}', 'Subscript, as in F₁')],
+    [...[...'asdfghjkl'].map(letter), fn('.', '.', 'Decimal point')],
     // ⇧ is 1.5 keys wide: 1.5 + 7 + 1 + ½ gap = 10, like every other row
     ['[shift]', ...[...'zxcvbnm'].map(letter), fn('%', '\\%', 'Percent'), '[separator-5]'],
-    DIGITS,
     NAV,
   ],
 };
@@ -112,10 +132,10 @@ const GREEK: VirtualKeyboardLayout = {
   label: 'αβγ',
   tooltip: 'Greek letters',
   rows: [
+    DIGITS,
     ['\\alpha', '\\beta', '\\gamma', '\\delta', '\\varepsilon', '\\zeta', '\\eta', '\\theta', '\\lambda', '\\mu'].map((l) => ({ latex: l })),
     ['\\nu', '\\xi', '\\rho', '\\sigma', '\\tau', '\\phi', '\\chi', '\\psi', '\\omega', '\\kappa'].map((l) => ({ latex: l })),
-    [...['\\Gamma', '\\Delta', '\\Theta', '\\Lambda', '\\Sigma', '\\Phi', '\\Psi', '\\Omega', '\\iota'].map((l) => ({ latex: l })), fn('x₁', '_{#0}', 'Subscript')],
-    DIGITS,
+    ['\\Gamma', '\\Delta', '\\Theta', '\\Lambda', '\\Xi', '\\Pi', '\\Sigma', '\\Phi', '\\Psi', '\\Omega'].map((l) => ({ latex: l })),
     NAV,
   ],
 };
