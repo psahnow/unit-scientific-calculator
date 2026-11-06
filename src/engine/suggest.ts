@@ -26,6 +26,12 @@ export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterN
     if (!out.some((o) => o.kind === s.kind && o.label === s.label)) out.push(s);
   };
 
+  // A name the worksheet already defines comes first, even after a number: the variable wins (D21).
+  const varList = [...vars];
+  if (varList.includes(prefix)) add({ kind: 'var', label: prefix, detail: 'variable', insert: varLatex(prefix) });
+  if (!afterNumber)
+    for (const v of varList) if (v !== prefix && v.toLowerCase().startsWith(lp)) add({ kind: 'var', label: v, detail: 'variable', insert: varLatex(v) });
+
   // Ambiguous symbols (lb → lbm / lbf) always prompt (D20).
   const exact = lookupUnit(prefix);
   if (exact?.ambiguous && (prefix === 'lb' || prefix === 'lbs')) {
@@ -37,7 +43,6 @@ export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterN
   if (exact && !exact.ambiguous) add({ kind: 'unit', label: exact.id, detail: exact.name, insert: `\\unit{${symbolToLatex(exact.id)}}` });
 
   if (!afterNumber) {
-    for (const v of vars) if (v.toLowerCase().startsWith(lp) && v !== prefix) add({ kind: 'var', label: v, detail: 'variable', insert: varLatex(v) });
     for (const f of LETTER_FUNCS)
       if (f.startsWith(lp) && f.length > 1)
         add({ kind: 'func', label: f, detail: 'function', insert: `${FUNC_LATEX[f] ?? `\\operatorname{${f}}`}\\left(#0\\right)` });

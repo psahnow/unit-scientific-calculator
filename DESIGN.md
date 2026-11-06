@@ -130,7 +130,7 @@ A unit token is a MathLive *atom*: a custom macro, `\unit{N}`, rendered as an up
 4. **Backspace on a chip** turns it back into its plain letters (identifier), with the cursor at the end.
 5. Ambiguous symbols open the popover even after a number, so the user can choose:
    - `min` (minute) or the `min()` function. `min(` with a parenthesis is always the function.
-   - `m` (metre) or a defined variable `m`. The defined variable wins, even after a number (D21); use the chip from autocomplete to mean the metre.
+   - `m` (metre) or a defined variable `m`. The defined variable wins, even after a number (D21); use the chip from autocomplete to mean the metre. When the typed letters are exactly a defined name, that variable is the **first** suggestion (so Tab keeps it a variable) and the unit comes next.
    - `g` (gram) or `g₀` (standard gravity, a constant).
    - `lb` (lbm or lbf). It always prompts, and falls back to lbm if you don't pick (D20).
    - `Pa` or a variable `P` times `a`. Implicit multiplication of single-letter variables, as in Desmos, happens only for runs that are not unit chips.

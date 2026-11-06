@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateWorksheet, type Row } from '../src/engine/worksheet';
 import { formatQuantity } from '../src/engine/format';
+import { suggestionsFor } from '../src/engine/suggest';
 
 const r = String.raw;
 let n = 0;
@@ -94,5 +95,19 @@ describe('folder scope (D24)', () => {
     const top = expr(r`2F`);
     const withGlobal = [expr(r`F=1\unit{N}`), folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), top];
     expect(evaluateWorksheet(withGlobal, { angle: 'rad' }).notices.size).toBe(0);
+  });
+});
+
+describe('autocomplete ranking', () => {
+  it('a defined variable comes before a unit with the same symbol', () => {
+    const s = suggestionsFor('F', ['F', 'A'], false);
+    expect(s[0]).toMatchObject({ kind: 'var', label: 'F' });
+    expect(s.some((x) => x.kind === 'unit' && x.label === 'F')).toBe(true);
+  });
+  it('also after a number (the variable wins, D21)', () => {
+    expect(suggestionsFor('F', ['F'], true)[0]).toMatchObject({ kind: 'var', label: 'F' });
+  });
+  it('the unit still comes first when no such variable exists', () => {
+    expect(suggestionsFor('F', ['A'], false)[0]).toMatchObject({ kind: 'unit', label: 'F' });
   });
 });
