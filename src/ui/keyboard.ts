@@ -13,7 +13,28 @@ const fn = (label: string, insert: string, tooltip: string, extra: Partial<Virtu
 const op = (name: string, cmd = `\\operatorname{${name}}`) => `${cmd}\\left(#0\\right)`;
 
 /** The same row end on every tab: move, delete, new row. */
-const NAV: Key[] = ['[left]', '[right]', '[backspace]', { ...({} as Partial<VirtualKeyboardKeycap>), label: '↵', class: 'action', command: 'performWithFeedback(commit)', width: 1.5, tooltip: 'New row' }];
+const NAV: Key[] = ['[left]', '[right]', '[backspace]', { label: '↵', class: 'action dim-return', command: 'performWithFeedback(commit)', width: 1.5, tooltip: 'New row' /* handled by setReturnHandler */ }];
+
+/**
+ * The keyboard's ↵ adds a row below the focused one (D40). It acts on its own press, not on MathLive's
+ * "commit", which also fires when you leave an edited field and doesn't fire for an unchanged one.
+ */
+let onReturn: (() => void) | null = null;
+export function setReturnHandler(fn: (() => void) | null) {
+  onReturn = fn;
+}
+if (typeof document !== 'undefined')
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      if ((e.target as Element | null)?.closest?.('.dim-return') && onReturn) {
+        e.preventDefault();
+        e.stopPropagation();
+        onReturn();
+      }
+    },
+    true,
+  );
 
 const NUMBERS: VirtualKeyboardLayout = {
   id: 'dim-numbers',

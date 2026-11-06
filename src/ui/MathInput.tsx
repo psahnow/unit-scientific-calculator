@@ -17,7 +17,7 @@ export function loadMathLive() {
   return mathlive;
 }
 import { suggestionsFor, type Suggestion } from '../engine/suggest';
-import { setUpKeyboard } from './keyboard';
+import { setUpKeyboard, setReturnHandler } from './keyboard';
 import { latexToSymbol } from '../engine/latex';
 
 export const MACROS = {
@@ -251,6 +251,7 @@ export function MathInput(p: Props) {
     };
     const onFocus = () => {
       lastField = mf;
+      setReturnHandler(() => props.current.onEnter());
       props.current.onFocus();
       if (pendingInsert) {
         const l = pendingInsert;
@@ -262,11 +263,6 @@ export function MathInput(p: Props) {
       setTimeout(() => setPop(null), 150);
       props.current.onBlur();
     };
-    // on-screen keyboard ↵ commits the field: while it still has focus, treat it like Enter
-    const onCommit = () => {
-      if (document.activeElement === mf) props.current.onEnter();
-    };
-    mf.addEventListener('change', onCommit);
     mf.addEventListener('input', onInput);
     mf.addEventListener('keydown', onKey, { capture: true });
     mf.addEventListener('move-out', onMoveOut);
@@ -276,7 +272,6 @@ export function MathInput(p: Props) {
     if (p.autoFocus) requestAnimationFrame(() => mf.focus());
     setReady(true);
     cleanup = () => {
-      mf.removeEventListener('change', onCommit);
       mf.removeEventListener('input', onInput);
       mf.removeEventListener('keydown', onKey, { capture: true });
       mf.removeEventListener('move-out', onMoveOut);

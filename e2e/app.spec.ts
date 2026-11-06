@@ -132,3 +132,24 @@ test('nothing moves after the first paint (no layout shift)', async ({ page }) =
   await page.waitForTimeout(2000);
   expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBe(0);
 });
+
+test.describe('phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('the on-screen keyboard ↵ adds one row; leaving an edited field adds none', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    const rows = page.locator('.row');
+    const before = await rows.count();
+    // edit a row with the on-screen keyboard, then leave it by tapping the title: no new row
+    await page.locator('.row math-field').nth(2).tap();
+    await expect(page.locator('.ML__keyboard.is-visible')).toBeVisible();
+    await page.locator('.MLK__layer.is-visible div[tabindex="-1"]').filter({ has: page.locator('span.ML__cmr', { hasText: /^7$/ }) }).last().tap();
+    await page.locator('.title-input').tap();
+    await expect(rows).toHaveCount(before);
+    // ↵ on the keyboard: exactly one new row
+    await page.locator('.row math-field').nth(2).tap();
+    await page.locator('.MLK__layer.is-visible .dim-return').first().tap();
+    await expect(rows).toHaveCount(before + 1);
+  });
+});
