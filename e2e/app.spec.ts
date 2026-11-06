@@ -71,6 +71,7 @@ test('a kelvin value can be shown in °C, with a note on why that can mislead', 
   // a warning badge; its text shows on hover
   const tip = page.locator('.unit-note-tip');
   await expect(page.locator('.unit-note')).toBeVisible();
+  await page.mouse.move(5, 400); // away from the badge (the dropdown closes right over it)
   await expect(tip).toBeHidden();
   await page.locator('.unit-note').hover();
   await expect(tip).toBeVisible();
@@ -214,11 +215,17 @@ test.describe('phone ÷', () => {
     const key = (sel: string, text?: RegExp) =>
       (text ? page.locator(`.MLK__layer.is-visible ${sel}`).filter({ hasText: text }) : page.locator(`.MLK__layer.is-visible ${sel}`)).first();
     await page.locator('.MLK__layer.is-visible div[tabindex="-1"]').filter({ has: page.locator('span.ML__cmr', { hasText: /^5$/ }) }).last().tap();
-    await page.locator('.ML__keyboard [data-layer]').filter({ hasText: /^m kg$/ }).locator('visible=true').first().tap();
+    // switch keyboard page, retrying until it shows (a tab tap is sometimes lost under load)
+    const tab = async (label: RegExp, shows: () => ReturnType<typeof key>) =>
+      expect(async () => {
+        await page.locator('.ML__keyboard [data-layer]').filter({ hasText: label }).locator('visible=true').first().tap();
+        await expect(shows()).toBeVisible({ timeout: 1000 });
+      }).toPass({ timeout: 10_000 });
+    await tab(/^m kg$/, () => key('div[tabindex="-1"]', /^m$/));
     await key('div[tabindex="-1"]', /^m$/).tap();
-    await page.locator('.ML__keyboard [data-layer]').filter({ hasText: /^123$/ }).locator('visible=true').first().tap();
+    await tab(/^123$/, () => key('.dim-divide'));
     await key('.dim-divide').tap();
-    await page.locator('.ML__keyboard [data-layer]').filter({ hasText: /^m kg$/ }).locator('visible=true').first().tap();
+    await tab(/^m kg$/, () => key('div[tabindex="-1"]', /^s$/));
     await key('div[tabindex="-1"]', /^s$/).tap();
     await expect(page.locator('.row math-field').first()).toHaveJSProperty('value', String.raw`5\frac{\unit{m}}{\unit{s}}`);
   });
