@@ -41,6 +41,7 @@ export function Welcome() {
         <li className="kbd-only">
           <kbd>Ctrl</kbd> <kbd>/</kbd> lists keyboard shortcuts.
         </li>
+        <li>Worksheets are saved in this browser only; use Export to keep a copy.</li>
       </ul>
       <button className="text-btn strong" onClick={dismiss}>
         Got it

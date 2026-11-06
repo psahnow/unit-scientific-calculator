@@ -11,7 +11,7 @@ You are manually testing a web app: a **unit-aware scientific calculator**, laid
 1. In the project folder (`D:\Claude\Unit Scientific Calculator`), run `npm install` if `node_modules` is missing, then `npm run dev`. The app is at **http://localhost:5173**.
 2. Use a **fresh browser profile or a private window**, so saved worksheets and settings from earlier testing don't affect you. The app saves to localStorage; you can also start clean from ☰ (top left) → New worksheet.
 3. Type with real key presses. Automation that inserts text without key events can skip the editor's behaviour (for example `*` turning into `·`, `/` making a fraction). If your tool only "pastes" text, say so in your report.
-4. Read `DESIGN.md` only if you need to check intended behaviour; it is the spec. The decision log at the top (D1–D28) summarises every rule.
+4. Read `DESIGN.md` only if you need to check intended behaviour; it is the spec. The decision log at the top (D1–D43) summarises every rule.
 
 ## How the app is meant to work (short version)
 

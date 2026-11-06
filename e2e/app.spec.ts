@@ -120,6 +120,18 @@ test('phone width has no sideways scroll', async ({ page }) => {
   expect(sw).toBeLessThanOrEqual(w);
 });
 
+test('the production build loads with no console errors and works through the sample', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  await page.waitForSelector('.row math-field');
+  // the sample worksheet evaluates without errors: σ = F / A shown in MPa
+  await expect(page.locator('.row-result .result').filter({ hasText: 'MPa' }).first()).toContainText('300');
+  await expect(page.locator('.result.error, .col-error')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('nothing moves after the first paint (no layout shift)', async ({ page }) => {
   await page.addInitScript(() => {
     (window as unknown as { __cls: number }).__cls = 0;
