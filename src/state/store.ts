@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { create } from 'zustand';
+import { renumberRefs } from '../engine/rowrefs';
 import type { Row, TableColumn } from '../engine/worksheet';
 import type { Notation } from '../engine/format';
 
@@ -252,6 +253,8 @@ export const useStore = create<State>((set, get) => {
   /** Apply a row change with an undo snapshot (merged when mergeKey repeats). */
   const commit = (rows: Row[], mergeKey: string | null = null) => {
     const s = get();
+    // rows added, removed or moved: keep every #n pointing at the same row (D56)
+    rows = renumberRefs(s.ws.rows, rows);
     const merge = mergeKey !== null && s.mergeKey === mergeKey;
     set({
       ws: { ...s.ws, rows, updated: Date.now() },

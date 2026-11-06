@@ -306,7 +306,7 @@ class Parser {
   startsPrimary(): boolean {
     const t = this.peek();
     if (!t) return false;
-    if (t.t === 'num' || t.t === 'letter' || t.t === 'unit' || t.t === 'const') return true;
+    if (t.t === 'num' || t.t === 'letter' || t.t === 'unit' || t.t === 'const' || t.t === 'rowref') return true;
     if (t.t === 'open') return t.v !== '|' || true;
     if (t.t === 'cmd') return true;
     return false;
@@ -481,6 +481,12 @@ class Parser {
         const u = lookupUnit(t.v);
         if (!u) throw new ParseError(`“${t.v}” isn't a unit this calculator knows`);
         return { k: 'unit', id: u.id };
+      }
+      case 'rowref': {
+        // #3: row 3's value, looked up by the worksheet as the name "#3" (D56)
+        this.i++;
+        if (!t.v) throw new ParseError('Put a row number after #, like #3 for the answer of row 3');
+        return { k: 'var', name: '#' + Number(t.v) };
       }
       case 'const': {
         this.i++;

@@ -271,6 +271,27 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     }
   }
 
+  /**
+   * #n (D56): the answer of row n (numbered over every row, as in the margin). Only a plain
+   * calculation row has one; a row that defines a name is used by that name instead.
+   */
+  function rowRef(n: number): Value {
+    const r = rows[n - 1];
+    if (!r) throw new CalcError(n === 0 ? 'The row this referred to (#) was deleted' : `There’s no row ${n}`);
+    if (r.type !== 'expr') throw new CalcError(`Row ${n} is a ${r.type === 'note' ? 'note' : r.type === 'folder' ? 'folder' : 'table'}, so #${n} has no value`);
+    const p = parsed.get(r.id);
+    if (!p || p instanceof Error) throw new CalcError(`Row ${n} has an error`);
+    if (p.kind === 'def') throw new CalcError(`Row ${n} defines ${p.name}: use ${p.name} rather than #${n}`);
+    if (p.kind === 'fdef') throw new CalcError(`Row ${n} defines the function ${p.name}`);
+    if (p.kind === 'empty') throw new CalcError(`Row ${n} is empty`);
+    try {
+      return valueOf('#' + n, { kind: 'row', rowId: r.id });
+    } catch (e) {
+      if (e instanceof CycleError) throw e;
+      throw new CalcError(`Row ${n} has an error`);
+    }
+  }
+
   const envCache = new Map<Scope, Env>();
   function envFor(scope: Scope): Env {
     const hit = envCache.get(scope);
@@ -278,6 +299,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     const env: Env = {
       angle: settings.angle,
       getVar(name) {
+        if (name.startsWith('#')) return rowRef(Number(name.slice(1)));
         const lv = levelOf(scope, name);
         const srcs = lv.vars.get(name);
         if (!srcs) return undefined;

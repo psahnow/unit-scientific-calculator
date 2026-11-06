@@ -174,6 +174,25 @@ test('hovering the ⚠ in the margin shows the error', async ({ page }) => {
   await expect(tip).toContainText(/length.*time|add/i);
 });
 
+test('#n is the answer of row n, and follows the row when rows move', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, '6m');
+  await page.keyboard.press('Tab');
+  await nextRow(page, 2);
+  await page.keyboard.type('2m', { delay: 25 });
+  await page.keyboard.press('Tab');
+  await nextRow(page, 3);
+  await page.keyboard.type('#1*#2', { delay: 25 });
+  await expect(field(page, 3)).toHaveJSProperty('value', String.raw`\#1\cdot\#2`);
+  await expect(result(page, 3)).toContainText('12');
+  await expect(result(page, 3)).toContainText('m²');
+  // move the product to the top (Alt+↑ twice): its references now read #2 · #3
+  await page.keyboard.press('Alt+ArrowUp');
+  await page.keyboard.press('Alt+ArrowUp');
+  await expect(field(page, 1)).toHaveJSProperty('value', String.raw`\#2\cdot\#3`);
+  await expect(result(page, 1)).toContainText('12');
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

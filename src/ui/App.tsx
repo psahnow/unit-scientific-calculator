@@ -89,6 +89,7 @@ export function App() {
   };
 
   const visible = visibleRows(rows);
+  const rowNumber = new Map(rows.map((r, k) => [r.id, k + 1]));
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
   const dragFromHandle = useRef(false);
@@ -142,8 +143,10 @@ export function App() {
       <div className="sheet-wrap">
       <VarPanel rows={calcRows} result={result} fmt={fmt} />
       <main className="list" aria-label="Expressions">
-        {visible.map((row, i) => {
-          n++;
+        {visible.map((row) => {
+          // every row keeps its number, as in a spreadsheet (folded rows too): #n means this row (D56)
+          const num = rowNumber.get(row.id)!;
+          n = num;
           const res = result.rows.get(row.id);
           const isErr = res?.kind === 'error';
           const childCount = row.type === 'folder' ? rows.filter((r) => r.parent === row.id).length : 0;
@@ -186,7 +189,9 @@ export function App() {
                     <span className="num">⚠</span>
                   </HoverTip>
                 ) : (
-                  <span className="num">{i + 1}</span>
+                  <span className="num" title={res?.kind === 'value' && !res.defName ? `Row ${num}: use #${num} to refer to its answer` : undefined}>
+                    {num}
+                  </span>
                 )}
                 <span
                   className="handle"

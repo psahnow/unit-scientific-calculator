@@ -8,7 +8,8 @@ export type Tok =
   | { t: 'close'; v: ')' | ']' | '|' | '}'; s: number; e: number }
   | { t: 'cmd'; v: string; s: number; e: number; arg?: string }
   | { t: 'unit'; v: string; s: number; e: number }
-  | { t: 'const'; v: string; s: number; e: number };
+  | { t: 'const'; v: string; s: number; e: number }
+  | { t: 'rowref'; v: string; s: number; e: number }; // #3: the value of row 3 (D56)
 
 export const GREEK: Record<string, string> = {
   alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ϵ', varepsilon: 'ε', zeta: 'ζ', eta: 'η', theta: 'θ',
@@ -129,6 +130,15 @@ export function tokenize(src: string): Tok[] {
         continue;
       }
       i = j;
+      if (name === '#') {
+        // #3 or #{12}: a row reference (D56)
+        const m2 = /^{?s*([0-9]+)s*}?/.exec(src.slice(i));
+        if (m2) {
+          toks.push({ t: 'rowref', v: m2[1], s, e: i + m2[0].length });
+          i += m2[0].length;
+        } else toks.push({ t: 'rowref', v: '', s, e: i });
+        continue;
+      }
       if (/^(left|right|mleft|mright)$/.test(name) && src[i] === '.') i++; // null delimiter
       if (SKIP.has(name)) continue;
       if (TIMES.has(name)) toks.push({ t: 'op', v: '*', s, e: i });
