@@ -210,7 +210,7 @@ export function App() {
       <footer className="footer">
         <span>Type units after numbers (6N, 2 mm^2) · Tab inserts a suggestion · Backspace on a unit chip turns it back into letters</span>
         <span>
-          Dimensional · by <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">Perry Sahnow</a>
+          Dimensional · nothing leaves your browser · by <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">Perry Sahnow</a>
         </span>
       </footer>
       {toolbox && <Toolbox onClose={() => toggleToolbox(false)} />}

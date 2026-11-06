@@ -39,7 +39,7 @@ export function About({ onClose }: { onClose(): void }) {
           <li>Turn on unit packages per worksheet in ⚙ Settings.</li>
         </ul>
         <p>
-          Worksheets are saved in this browser. Made by{' '}
+          <b>Private by design:</b> no account, no tracking; your worksheets stay in this browser and it works offline. Made by{' '}
           <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">
             Perry Sahnow
           </a>
