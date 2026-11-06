@@ -46,6 +46,12 @@ describe('typed function inputs', () => {
     expect(show(r`H\left(l:3\right)=l`)).toMatch(/^error: After “l:” put a unit/);
     expect(show(r`H\left(l:\right)=l`)).toMatch(/^error: Put a unit after “l:”/);
   });
+  it('real: a plain number, without units (D54)', () => {
+    const R = r`R\left(k:real,L:\unit{m}\right)=k\cdot L`;
+    expect(show(R, r`R\left(3,2\right)`)).toBe('6 m');
+    expect(show(R, r`R\left(50\unit{\%},2\right)`)).toBe('1 m');
+    expect(show(R, r`R\left(3\unit{m},2\right)`)).toMatch(/^error: R needs k as a plain number \(real\)/);
+  });
   it('untyped functions are unchanged', () => {
     expect(show(r`f\left(x\right)=2x`, r`f\left(3\unit{in}\right)`)).toBe('6 in');
   });

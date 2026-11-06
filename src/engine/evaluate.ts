@@ -55,11 +55,20 @@ function constQuantity(key: string): Quantity {
  * An input to f(l: m) (D52): a quantity of the declared dimension, shown in the declared unit
  * (3 in → 0.0762 m); a plain number is read in that unit (3 → 3 m).
  */
+/** The unit an input declares: f(l: m) → m; f(k: real) → none, a plain number (D54). */
+export function declaredUnit(un: Node, env: Env): UnitExpr {
+  return un.k === 'num' ? [] : combine(evalUnitNode(un, env));
+}
+
 function typedInput(q: Quantity, u: UnitExpr, fn: string, param: string): Quantity {
   const want = unitDim(u);
   if (!q.unit.length && dimEq(q.dim, DIMLESS) && !dimEq(want, DIMLESS)) return Q.fromUnit(q.si, u);
   if (!dimEq(q.dim, want))
-    throw new CalcError(`${fn} needs ${param} in ${formatUnit(u)} (${describe({ dim: want, unit: u })}); got ${describe(q)}`);
+    throw new CalcError(
+      u.length
+        ? `${fn} needs ${param} in ${formatUnit(u)} (${describe({ dim: want, unit: u })}); got ${describe(q)}`
+        : `${fn} needs ${param} as a plain number (real), without units; got ${describe(q)}`,
+    );
   return Q.convertTo(q, u);
 }
 
@@ -175,7 +184,7 @@ export function evaluate(n: Node, env: Env): Value {
       fd.params.forEach((p, i) => {
         const arg = evaluate(n.args[i], env);
         const un = fd.paramUnits?.[i];
-        locals.set(p, un ? broadcast1(arg, (q) => typedInput(q, combine(evalUnitNode(un, fd.env ?? env)), n.name, p)) : arg);
+        locals.set(p, un ? broadcast1(arg, (q) => typedInput(q, declaredUnit(un, fd.env ?? env), n.name, p)) : arg);
       });
       try {
         return evaluate(fd.body, { ...(fd.env ?? env), locals, depth: (env.depth ?? 0) + 1 });
@@ -965,7 +974,7 @@ export function inferUnit(n: Node, env: Env, known: Map<string, Quantity>, depth
         const fd = env.getFunc(n.name);
         if (!fd || !fd.paramUnits || fd.params.some((_, i) => !fd.paramUnits?.[i])) return null;
         const inner = new Map<string, Quantity>();
-        fd.params.forEach((p, i) => inner.set(p, unitQuantity(combine(evalUnitNode(fd.paramUnits![i]!, fd.env ?? env)))));
+        fd.params.forEach((p, i) => inner.set(p, unitQuantity(declaredUnit(fd.paramUnits![i]!, fd.env ?? env))));
         return inferUnit(fd.body, fd.env ?? env, inner, depth + 1);
       }
       case 'integral': {

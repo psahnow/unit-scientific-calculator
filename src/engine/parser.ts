@@ -4,7 +4,7 @@ import { packagesOf, PACKAGE_BY_ID } from './units/packages';
 import { tokenize, type Tok } from './latex';
 import type { Node, ParsedRow, ChipFix, Cond, CmpOp } from './ast';
 import { isUnitOnly } from './ast';
-import { parseDecimal, float, ZERO } from './num';
+import { parseDecimal, float, ZERO, ONE } from './num';
 import { lookupUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
 
@@ -218,9 +218,11 @@ function parseRowInner(latex: string, ctx: ParseContext, blocked: string[]): Par
       const tt = lhs.paramTypes?.[k];
       if (!tt) return undefined;
       if (!tt.length) throw new ParseError(`Put a unit after “${name}:”, like ${name}: m`);
+      // real: a plain number, no units (D54)
+      if (tt.every((t) => t.t === 'letter') && tt.map((t) => t.v).join('') === 'real') return { k: 'num', v: ONE } as Node;
       const unitCtx: ParseContext = { ...ctx, vars: new Set(), bound: new Set() };
       const node = new Parser(tt, unitCtx, chips, blocked, refs).parseAll();
-      if (!isUnitOnly(node)) throw new ParseError(`After “${name}:” put a unit, like ${name}: m or ${name}: N/mm²`);
+      if (!isUnitOnly(node)) throw new ParseError(`After “${name}:” put a unit, like ${name}: m or ${name}: N/mm², or real for a plain number`);
       return node;
     }) : [];
     // the defined name: its first letter, plus a subscript if it has one

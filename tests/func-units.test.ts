@@ -31,8 +31,14 @@ describe('function output units', () => {
   });
   it('untyped inputs: nothing shown (it depends on what is passed in)', () => {
     expect(outUnit(r`f\left(x\right)=2x`)).toBeUndefined();
-    expect(outUnit(r`g\left(x\right)=5\unit{N}\cdot\sin\left(x\right)`)).toBeUndefined();
     expect(outUnit(r`k\left(x:\unit{m},y\right)=x\cdot y`)).toBeUndefined();
+    // x + 1 m only works if x is a length: type it to see the unit
+    expect(outUnit(r`h\left(x\right)=x+1\unit{m}`)).toBeUndefined();
+  });
+  it('untyped inputs that cannot change the unit are not needed (D54)', () => {
+    expect(outUnit(r`f\left(x\right)=\frac{x}{x}\cdot1\unit{m}`)).toBe('m');
+    expect(outUnit(r`g\left(x\right)=5\unit{N}\cdot\sin\left(x\right)`)).toBe('N');
+    expect(outUnit(r`q\left(a:\unit{kN},b\right)=a\cdot\frac{b}{b}`)).toBe('kN');
   });
   it('a body whose units don’t add up shows nothing', () => {
     expect(outUnit(r`b\left(x:\unit{m}\right)=x+1\unit{s}`)).toBeUndefined();

@@ -3,9 +3,9 @@ import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContex
 import type { ChipFix, ParsedRow, Node } from './ast';
 import { isUnitOnly } from './ast';
 import * as N from './num';
-import { evaluate, inferUnit, unitQuantity, evalUnitNode, type Value, type Env, unifyList } from './evaluate';
+import { evaluate, inferUnit, unitQuantity, declaredUnit, type Value, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, kelvinAsAbsolute, kelvinNote, type Quantity } from './quantity';
-import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, formatUnit, combine, type UnitExpr, type CustomUnitInput } from './units/registry';
+import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, formatUnit, type UnitExpr, type CustomUnitInput } from './units/registry';
 import { availability, packagesOf } from './units/packages';
 import { dimEq, DIMLESS } from './dim';
 import { symbolToLatex, latexToSymbol } from './latex';
@@ -324,17 +324,33 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   /**
-   * The unit a function gives (D53), by dimensional analysis of its body: only when every input
-   * has a declared unit (f(l: m)), since otherwise the answer depends on what is passed in.
+   * The unit a function gives (D53), by dimensional analysis of its body. Inputs with a declared
+   * unit use it. An untyped input only matters if its unit reaches the result: the analysis is run
+   * with two unrelated stand-in dimensions for the untyped inputs, and if both agree (x/x·1 m → m)
+   * they don't matter. If they disagree, or one fails (x + 1 m needs x to be a length), there's
+   * nothing to show until the input is typed (D54).
    */
   function outputUnit(p: Extract<ParsedRow, { kind: 'fdef' }>, rowId: string): string | undefined {
-    if (!p.params.length || p.params.some((_, k) => !p.paramUnits?.[k])) return undefined;
+    if (!p.params.length) return undefined;
     try {
       const env = rowEnv(rowId);
-      const known = new Map<string, Quantity>();
-      p.params.forEach((name, k) => known.set(name, unitQuantity(combine(evalUnitNode(p.paramUnits![k]!, env)))));
-      const q = inferUnit(p.expr, env, known);
-      return q ? formatUnit(q.unit) : undefined;
+      const typed = new Map<string, Quantity>();
+      p.params.forEach((name, k) => {
+        const un = p.paramUnits?.[k];
+        if (un) typed.set(name, unitQuantity(declaredUnit(un, env)));
+      });
+      const untyped = p.params.filter((name) => !typed.has(name));
+      const STAND_INS: UnitExpr[] = [
+        [{ id: 'A', power: 1 }, { id: 'cd', power: 2 }],
+        [{ id: 'mol', power: 1 }, { id: 'cd', power: -3 }],
+      ];
+      const runs = (untyped.length ? STAND_INS : [[]]).map((stand) => {
+        const known = new Map(typed);
+        for (const name of untyped) known.set(name, unitQuantity(stand));
+        return inferUnit(p.expr, env, known);
+      });
+      if (runs.some((q) => !q) || runs.some((q) => !dimEq(q!.dim, runs[0]!.dim) || formatUnit(q!.unit) !== formatUnit(runs[0]!.unit))) return undefined;
+      return formatUnit(runs[0]!.unit);
     } catch {
       return undefined;
     }
