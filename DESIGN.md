@@ -48,7 +48,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D19 | Default significant figures | 10, trailing zeros trimmed |
 | D20 | Typing `lb` | Always opens the autocomplete prompt (lbm or lbf), even after a number. If you don't pick (e.g. focus leaves the row), it falls back to lbm (D14) |
 | D21 | Defined variable vs. unit symbol after a number | **The variable wins**: with `F` defined, `2F` is 2×F, not 2 farads. Chips, and runs that aren't defined variables (`6N`), still mean the unit. A run of several letters made only of defined variables (`Pa` with `P` and `a` defined) means the unit after a number |
-| D22 | Where results appear | **On their own line below the input**, right-aligned and typeset like printed math, so the sheet reads like a scientific worksheet. A row counts as a plain typed value only when it is a number (optionally ×10ⁿ) with units; `3·10⁵ MPa/7` is computed and gets a result line |
+| D22 | Where results appear | **On their own line below the input**, right-aligned and typeset like printed math, so the sheet reads like a scientific worksheet. Every row with a value gets the result box, plain typed values included (`L = 1.5 m` → `= 1.5 m`), for consistency. A row counts as a plain typed value (and can become a slider) only when it is a number (optionally ×10ⁿ) with units |
 | D23 | `MPa·mm²` and similar products of named units | **Collapse to the named unit** (`N`), prefixed to keep the value. Stresses (`N/mm²`), torque (`N·m`) and `kW·h` stay as written |
 
 ---
@@ -80,7 +80,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-- **One full-width expression list.** It is the Desmos graphing calculator's left panel with the graph taken away. Each computed result sits on its own line below its input, right-aligned in a tinted display box, at every window width (D22). A plain typed value (`L = 1.5 m`) shows only its unit chip at the end of the input line. Results are typeset: serif digits, `×10⁻³⁴` exponents as superscripts, exact fractions stacked, units upright.
+- **One full-width expression list.** It is the Desmos graphing calculator's left panel with the graph taken away. Every result sits on its own line below its input, right-aligned in a tinted display box, at every window width (D22). Plain typed values get the box too (`L = 1.5 m` → `= 1.5 m`). Results are typeset: serif digits, `×10⁻³⁴` exponents as superscripts, exact fractions stacked, units upright.
 - **Row gutter:** row number, a drag handle (on hover), and an icon for the row type. A row with an error shows ⚠ in the gutter.
 - **Row hover actions:** duplicate, delete, "move to folder", and "set display unit…".
 - **Top bar:** worksheet title, undo/redo, RAD/DEG toggle, settings (⚙), export, import. ☰ opens a worksheet list (several worksheets in localStorage).
@@ -288,7 +288,7 @@ It appears on every result chip, every slider value, and every table column head
   4. units in the same system as the inputs (US customary if any input was imperial);
   5. everything else.
 - **Free-form entry:** the search box accepts any unit expression (`kip/in²`, `N·mm`, `lbf·ft`). The entry is checked against the dimension as you type, and a red hint shows when it doesn't match.
-- **Changing the unit** only changes how the row is displayed (`unit`, `unitSource = 'user'`). Source text is never rewritten (D3). On an input row such as `G = 3 m` → yd, the row keeps showing the typed `G = 3 m` and adds `= 3.280839895 yd` on the right (D18). When no unit is chosen, an input row shows only a muted unit chip, since the value would just repeat what was typed. Dependent rows that inherited the unit update their display unit, but never their value.
+- **Changing the unit** only changes how the row is displayed (`unit`, `unitSource = 'user'`). Source text is never rewritten (D3). On an input row such as `G = 3 m` → yd, the row keeps showing the typed `G = 3 m` and shows `= 3.280839895 yd` below it (D18). When no unit is chosen, an input row still shows its result box (`= 3 m`) for consistency (D22). Dependent rows that inherited the unit update their display unit, but never their value.
 - For a dimensionless result the dropdown offers `(none)`, `%`, `‰`, `ppm`, plus angle units if the value came from an angle.
 
 ---

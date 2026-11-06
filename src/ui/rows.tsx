@@ -54,13 +54,10 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         autoUnit={r.autoUnit}
         current={unitText}
         userChosen={!!row.displayUnit}
-        muted={r.literal && !row.displayUnit}
         onPick={(u) => s.updateRow(row.id, { displayUnit: u })}
       />
     );
-    if (r.literal && !row.displayUnit) {
-      resultEl = <div className="result literal">{unitText ? unitBtn : null}</div>;
-    } else {
+    {
       const val =
         r.value.t === 'q'
           ? formatQuantity(r.value.q, fmt).value
@@ -76,7 +73,6 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
     }
   }
 
-  const literalChip = r?.kind === 'value' && r.literal && !row.displayUnit;
   const actions = (
     <div className="row-actions">
       {fracAvail && (
@@ -126,11 +122,10 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
             onFocus={() => s.setFocus(row.id)}
             onBlur={onBlur}
           />
-          {literalChip && resultEl}
         </div>
         {actions}
       </div>
-      {!literalChip && resultEl && <div className="row-result">{resultEl}</div>}
+      {resultEl && <div className="row-result">{resultEl}</div>}
       {row.slider && sliderMatch && (
         <Slider row={row} match={sliderMatch} unit={r?.kind === 'value' ? formatUnit(r.autoUnit) : ''} />
       )}
