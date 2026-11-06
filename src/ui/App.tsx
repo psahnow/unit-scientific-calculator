@@ -79,6 +79,8 @@ export function App() {
   let n = 0;
   return (
     <div className={`app ${toolbox ? 'with-toolbox' : ''}`}>
+      {/* top bar and toolbar stay pinned together while the list scrolls */}
+      <header className="app-head">
       <TopBar />
       <div className="toolbar">
         <AddMenu />
@@ -87,6 +89,7 @@ export function App() {
         </button>
         <ToolboxButton open={toolbox} onToggle={() => toggleToolbox(!toolbox)} />
       </div>
+      </header>
       <main className="list" aria-label="Expressions">
         {visible.map((row, i) => {
           n++;

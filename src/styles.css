@@ -107,10 +107,12 @@ textarea {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
+  flex-wrap: wrap;
+}
+.app-head {
   position: sticky;
   top: 0;
   z-index: 20;
-  flex-wrap: wrap;
 }
 .title-input {
   border: 1px solid transparent;

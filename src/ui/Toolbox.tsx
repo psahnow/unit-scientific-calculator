@@ -1,5 +1,5 @@
 // The function toolbox (DESIGN.md §3.5): a keypad-style drawer that inserts functions at the caret.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { insertIntoMath } from './MathInput';
 import { useStore } from '../state/store';
 import { GROUPS } from './toolbox.data';
@@ -30,6 +30,21 @@ export function Toolbox({ onClose }: { onClose(): void }) {
   };
   const group = GROUPS.find((g) => g.id === tab) ?? GROUPS[0];
 
+  // keep the page's bottom padding equal to the drawer, so it never hides the last rows
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty('--toolbox-h', `${el.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty('--toolbox-h');
+    };
+  }, []);
+
   const insert = (latex: string) => {
     if (insertIntoMath(latex)) return;
     // no expression has been edited yet: start a new one at the end and insert there
@@ -39,7 +54,7 @@ export function Toolbox({ onClose }: { onClose(): void }) {
   };
 
   return (
-    <section id="toolbox" className="toolbox" aria-label="Functions">
+    <section id="toolbox" className="toolbox" aria-label="Functions" ref={ref}>
       <div className="tb-tabs" role="tablist">
         {GROUPS.map((g) => (
           <button
