@@ -2117,3 +2117,15 @@ math-field {
   font-size: 12px;
   text-align: right;
 }
+
+/* dark paper: the chosen RAD / DEG in the accent colour, so it stands out from the other (D59) */
+:root[data-theme='dark'] .seg button.on {
+  background: var(--accent);
+  color: #10151f;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] .seg button.on {
+    background: var(--accent);
+    color: #10151f;
+  }
+}

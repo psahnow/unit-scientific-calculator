@@ -256,6 +256,68 @@ test('drag from anywhere in the margin, but not from a switch', async ({ page })
   await expect(value(3)).toHaveJSProperty('value', String.raw`L=1.5\unit{m}`);
 });
 
+test('keys typed straight after Enter go into the new row (review #23)', async ({ page }) => {
+  await freshSheet(page);
+  await field(page, 1).click();
+  await expect(field(page, 1)).toBeFocused();
+  for (let k = 1; k <= 6; k++) {
+    await page.keyboard.type(String(k)); // no delay between keys
+    await page.keyboard.press('Enter');
+  }
+  await page.keyboard.type('7');
+  await expect
+    .poll(() => page.evaluate(() => [...document.querySelectorAll('.row math-field')].map((x) => (x as unknown as { value: string }).value)), { timeout: 10_000 })
+    .toEqual(['1', '2', '3', '4', '5', '6', '7']);
+});
+
+test('text inserted in one go (dictation, IME) reaches the field (review #24)', async ({ page }) => {
+  await freshSheet(page);
+  await field(page, 1).click();
+  await expect(field(page, 1)).toBeFocused();
+  await page.keyboard.insertText('6m+2');
+  await expect(field(page, 1)).toHaveJSProperty('value', '6m+2');
+});
+
+test('a second table gets its own names, x₂ and y₂ (review #1)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  // the sample sheet already has a table with x₁ / y₁
+  await page.getByRole('button', { name: /Add/ }).first().click();
+  await page.getByRole('button', { name: /Table/ }).click();
+  const headers = page.locator('.row.type-table').last().locator('math-field');
+  await expect(headers.first()).toHaveJSProperty('value', 'x_{2}');
+  await expect(page.locator('.result.error, .col-error')).toHaveCount(0);
+});
+
+test('a value typed past the slider’s range widens it (review #12)', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  // sample row 4: L = 1.5 m, slider 0 to 3
+  const row = page.locator('.row').nth(3);
+  const f = row.locator('math-field');
+  await f.click();
+  await expect(f).toBeFocused();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('L=5m', { delay: 25 });
+  await page.locator('.title-input').click();
+  await expect(row.getByLabel('Slider maximum')).toHaveValue('10');
+  await expect(row.getByLabel('Slider value')).toHaveValue('5');
+});
+
+test('unit, Tab, Enter typed fast leaves clean unit chips', async ({ page }) => {
+  await freshSheet(page);
+  await field(page, 1).click();
+  await expect(field(page, 1)).toBeFocused();
+  for (const v of ['6m', '2m']) {
+    await page.keyboard.type(v);
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+  }
+  await expect
+    .poll(() => page.evaluate(() => [...document.querySelectorAll('.row math-field')].map((x) => (x as unknown as { value: string }).value)))
+    .toEqual([String.raw`6\unit{m}`, String.raw`2\unit{m}`, '']);
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import type { Row, RowResult } from '../engine/worksheet';
 import { applyChips } from '../engine/worksheet';
 import type { ChipFix } from '../engine/ast';
@@ -112,7 +113,8 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         <div className="result">
           <span className="eq">=</span>
           <span className="val">{typesetNumber(val)}</span>
-          {unitText || r.value.t === 'list' || row.displayUnit ? unitBtn : <UnitButton {...{ q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
+          {/* no unit: the same quiet chip for single values and lists (D59) */}
+          {unitText ? unitBtn : <UnitButton {...{ q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
           {r.unitError && (
             <HoverTip text={r.unitError} kind="warn">
               <span className="warn">⚠</span>
@@ -170,7 +172,14 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
             onChange={(latex) => {
               if (latex !== row.latex) s.updateRow(row.id, { latex }, `edit-${row.id}-${session.current}`);
             }}
-            onEnter={() => s.addRow('expr', row.id)}
+            onEnter={() => {
+              // the new row exists and has the caret before the next key arrives (D59)
+              let id = '';
+              flushSync(() => {
+                id = s.addRow('expr', row.id);
+              });
+              (document.querySelector(`[data-row-id="${id}"] math-field`) as HTMLElement | null)?.focus();
+            }}
             onMoveRow={(d) => s.moveRowBy(row.id, d)}
             onMoveOut={(d) => s.focusRelative(row.id, d === 'up' ? -1 : 1)}
             onDeleteEmpty={() => s.deleteRow(row.id)}
@@ -349,11 +358,12 @@ function RenameButton({ name, onRename }: { name: string; onRename(n: string): s
             }}
             aria-label="New name"
           />
-          {err && <span className="err">{err}</span>}
           <span className="muted">Every row that uses this {name} changes too. Use F_1 for a subscript.</span>
           <button className="text-btn strong" onClick={submit}>
             Rename
           </button>
+          {/* under the button, so the button doesn't move when a message appears (D59) */}
+          {err && <span className="err">{err}</span>}
         </div>
       )}
     </>
@@ -413,8 +423,8 @@ function Slider({ row, match, unit }: { row: ExprRow; match: RegExpExecArray; un
   useEffect(() => {
     const [lo, hi] = [Number(cfg.min), Number(cfg.max)];
     if (!Number.isFinite(val) || !Number.isFinite(lo) || !Number.isFinite(hi)) return;
-    if (val > hi) s.updateRow(row.id, { slider: { ...cfg, max: String(tidyBound(val)) } }, `slider-range-${row.id}`);
-    else if (val < lo) s.updateRow(row.id, { slider: { ...cfg, min: String(-tidyBound(-val)) } }, `slider-range-${row.id}`);
+    if (val > hi) s.updateRow(row.id, { slider: { ...cfg, max: String(tidyBound(val * 1.5)) } }, `slider-range-${row.id}`);
+    else if (val < lo) s.updateRow(row.id, { slider: { ...cfg, min: String(-tidyBound(-val * 1.5)) } }, `slider-range-${row.id}`);
   }, [val, cfg.min, cfg.max]);
   return (
     <div className="slider">

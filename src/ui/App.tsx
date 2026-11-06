@@ -122,9 +122,11 @@ export function App() {
       <TopBar />
       <div className="toolbar">
         <AddMenu />
+        {rows.some((r) => r.type === 'folder') && (
         <button className="text-btn" onClick={() => s.setAllCollapsed(!rows.some((r) => r.type === 'folder' && r.collapsed))}>
           ⊟ {rows.some((r) => r.type === 'folder' && r.collapsed) ? 'Expand' : 'Collapse'} folders
         </button>
+        )}
         <ToolboxButton open={toolbox} onToggle={() => toggleToolbox(!toolbox)} />
       </div>
       </header>
@@ -137,7 +139,7 @@ export function App() {
       <div className="print-head" aria-hidden>
         <span className="print-brand">Dimensional</span>
         <span className="print-title">{s.ws.title}</span>
-        <span className="print-date">{new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        <span className="print-date">{new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
       </div>
       <Welcome />
       <div className="sheet-wrap">

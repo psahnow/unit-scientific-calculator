@@ -629,6 +629,9 @@ export function isLiteral(n: Node): boolean {
 export function applyChips(latex: string, chips: ChipFix[]): string {
   let out = latex;
   for (const c of [...chips].sort((a, b) => b.s - a.s)) {
+    // chips come from the last calculation, which can be a keystroke behind (6m, Tab, Enter typed
+    // fast): only apply one where the text still says what it said then (D59)
+    if (c.text !== undefined && latexToSymbol(out.slice(c.s, c.e)) !== c.text.replace(/μ/g, 'µ')) continue;
     const inner = symbolToLatex(c.id);
     out = out.slice(0, c.s) + (c.kind === 'unit' ? `\\unit{${inner}}` : `\\const{${constLatex(c.id)}}`) + out.slice(c.e);
   }

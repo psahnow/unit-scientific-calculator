@@ -102,7 +102,7 @@ export function TopBar() {
               <div key={w.id} className={`menu-ws ${w.id === s.ws.id ? 'current' : ''}`}>
                 <button className="menu-item" onClick={() => (s.openWorksheet(w.id), menu.setOpen(false))}>
                   {w.id === s.ws.id ? s.ws.title : w.title}
-                  <span className="menu-date">{new Date(w.updated).toLocaleDateString()}</span>
+                  <span className="menu-date">{new Date(w.updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </button>
                 <button
                   className="icon-btn danger small"
@@ -142,11 +142,12 @@ export function TopBar() {
       <div className="pop-wrap" ref={settings.ref}>
         <button
           className="icon-btn"
-          title={s.theme === 'dark' ? 'Light paper' : 'Dark (graphite) paper'}
-          aria-label="Switch light or dark"
-          onClick={() => s.setTheme(s.theme === 'dark' ? 'light' : 'dark')}
+          // light → dark → system (follow the device) → light (D59)
+          title={`Paper: ${s.theme === 'system' ? 'follows your device' : s.theme}. Click for ${s.theme === 'light' ? 'dark' : s.theme === 'dark' ? 'following your device' : 'light'}`}
+          aria-label={`Theme: ${s.theme === 'system' ? 'system' : s.theme}. Switch`}
+          onClick={() => s.setTheme(s.theme === 'light' ? 'dark' : s.theme === 'dark' ? 'system' : 'light')}
         >
-          {s.theme === 'dark' ? '☀' : '☾'}
+          {s.theme === 'light' ? '☀' : s.theme === 'dark' ? '☾' : '◐'}
         </button>
         <button className="icon-btn" title="Settings" aria-label="Settings" onClick={() => settings.setOpen(!settings.open)}>
           ⚙

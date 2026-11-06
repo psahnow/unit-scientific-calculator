@@ -44,6 +44,35 @@ export const INLINE_SHORTCUTS: Record<string, string> = {
 
 // ── Toolbox insertion: the most recently focused field receives function keys ──
 let lastField: MathfieldElement | null = null;
+
+/**
+ * Keys typed right after Enter, before the new row has the caret (D59). They used to land in the
+ * row Enter was pressed in. Enter takes the caret out of that row; keys (and further Enters)
+ * typed in between are held here and typed into the new row once it has the caret.
+ */
+const ENTER = 'Enter';
+let pendingKeys: string[] | null = null;
+let pendingTimer = 0;
+function holdKeys(initial: string[] = []) {
+  pendingKeys = initial;
+  clearTimeout(pendingTimer);
+  // a new field can take a moment to be ready; give up only after a long wait, or on a click
+  pendingTimer = window.setTimeout(() => (pendingKeys = null), 8000);
+}
+if (typeof document !== 'undefined') document.addEventListener('pointerdown', () => (pendingKeys = null), true);
+if (typeof document !== 'undefined')
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (!pendingKeys || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length === 1 || ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey) || e.key === 'Backspace') {
+        e.preventDefault();
+        e.stopPropagation();
+        pendingKeys.push(e.key.length === 1 ? e.key : e.key === 'Enter' ? ENTER : e.key);
+      }
+    },
+    true,
+  );
 let pendingInsert: string | null = null;
 
 function insertInto(mf: MathfieldElement, latex: string) {
@@ -304,6 +333,11 @@ export function MathInput(p: Props) {
         e.stopPropagation();
         setPop(null);
         props.current.onEnter();
+        // normally the new row already has the caret; if not, hold what is typed until it does
+        if (document.activeElement === mf) {
+          holdKeys();
+          mf.blur();
+        }
         return;
       }
       if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey) {
@@ -346,6 +380,28 @@ export function MathInput(p: Props) {
     };
     const onFocus = () => {
       lastField = mf;
+      if (pendingKeys) {
+        // replayed at once, in order: nothing typed meanwhile can slip in between
+        const keys = pendingKeys;
+        pendingKeys = null;
+        clearTimeout(pendingTimer);
+        const nlAt = keys.indexOf(ENTER);
+        for (const ch of nlAt < 0 ? keys : keys.slice(0, nlAt)) {
+          if (ch === 'Tab') accept(); // complete the unit or name typed so far, as Tab does
+          else if (ch === 'Backspace') mf.executeCommand('deleteBackward');
+          else if (ch === '*') mf.executeCommand(['insert', String.raw`\cdot`, { format: 'latex' }]);
+          else mf.executeCommand(['typedText', ch]);
+        }
+        if (nlAt > 0) props.current.onChange(mf.getValue('latex'));
+        else if (nlAt < 0 && keys.length) props.current.onChange(mf.getValue('latex'));
+        if (nlAt >= 0) {
+          // another Enter was typed: the rest goes to the row after this one
+          holdKeys(keys.slice(nlAt + 1));
+          props.current.onEnter();
+          mf.blur();
+          return;
+        }
+      }
       setReturnHandler(() => props.current.onEnter());
       setBeforeKeyHandler(() => leaveDigitSubscript(mf));
       setDivideHandler(() => {

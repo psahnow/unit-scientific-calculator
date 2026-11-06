@@ -72,8 +72,10 @@ function usePlacement(anchor: RefObject<HTMLElement | null>, menu: RefObject<HTM
       const width = Math.min(290, vw - 2 * MARGIN);
       // right-align with the button, then clamp to the window
       const left = Math.max(MARGIN, Math.min(a.right - width, vw - width - MARGIN));
+      // the sticky header is the top of the usable window: the menu never runs up under it (D59)
+      const head = document.querySelector('.app-head')?.getBoundingClientRect().bottom ?? 0;
       const below = vh - a.bottom - GAP - MARGIN;
-      const above = a.top - GAP - MARGIN;
+      const above = a.top - GAP - MARGIN - head;
       const want = Math.min(420, m.scrollHeight);
       const down = below >= want || below >= above;
       const maxHeight = Math.max(160, Math.min(420, down ? below : above));
@@ -82,7 +84,8 @@ function usePlacement(anchor: RefObject<HTMLElement | null>, menu: RefObject<HTM
         left,
         width,
         maxHeight,
-        ...(down ? { top: a.bottom + GAP } : { bottom: vh - a.top + GAP }),
+        // opened upward, its height is fixed: filtering the list doesn't pull its top edge down
+        ...(down ? { top: a.bottom + GAP } : { bottom: vh - a.top + GAP, height: Math.min(want, maxHeight) }),
       });
     };
     place();
