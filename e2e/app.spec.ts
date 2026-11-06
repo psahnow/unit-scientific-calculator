@@ -119,3 +119,16 @@ test('phone width has no sideways scroll', async ({ page }) => {
   const [sw, w] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
   expect(sw).toBeLessThanOrEqual(w);
 });
+
+test('nothing moves after the first paint (no layout shift)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as { __cls: number }).__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) (window as unknown as { __cls: number }).__cls += (e as unknown as { value: number }).value;
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+  await page.goto('/');
+  await page.waitForSelector('.row math-field');
+  await page.waitForTimeout(2000);
+  expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBe(0);
+});

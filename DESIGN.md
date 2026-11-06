@@ -64,6 +64,7 @@
 | D35 | Toolbox: Constants and Units | Constants tab (value and unit in each tooltip); Units tab: searchable list of every unit by kind, package units shown dimmed when off; clicking inserts a chip |
 | D36 | Print / PDF | ☰ → Print / save as PDF: white paper, heading with title and date, boxed answers, no controls or empty rows, rows kept whole |
 | D37 | Usability | Quick fix "+ Add q =" on undefined names; focusing a definition highlights its uses; ✎ renames a definition everywhere it means that definition; Alt+↑/↓ move rows, Ctrl+. Functions, Ctrl+/ shortcuts panel; first-run welcome; DEG-mode notes; on-screen maths keyboard on touch devices |
+| D39 | Stable first paint | Nothing moves after the first frame: the page renders once MathLive and the fonts are ready (capped at 2.5 s), fields are created in the same frame they mount, and the maths fonts are declared and preloaded by the app. A browser test checks the layout shift is 0 |
 | D38 | Release engineering | Deferred recalculation keeps typing responsive on big sheets; MathLive in its own lazily loaded chunk (main bundle 122 kB gzipped); IBM Plex self-hosted; installable offline web app (manifest, icons, service worker with a build-stamped precache); share image; Playwright browser tests in Edge |
 
 ---

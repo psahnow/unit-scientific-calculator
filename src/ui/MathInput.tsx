@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { MathfieldElement } from 'mathlive';
 
 // MathLive is most of the app's code: load it in its own chunk so the page shows first (D38)
 let mathlive: Promise<typeof import('mathlive')> | null = null;
+/** Set once loaded, so fields can be created in the same frame they mount (no placeholder flash). */
+let mathliveModule: typeof import('mathlive') | null = null;
 export function loadMathLive() {
   mathlive ??= import('mathlive').then((m) => {
     m.MathfieldElement.fontsDirectory = '/mathlive-fonts';
     m.MathfieldElement.soundsDirectory = null;
+    mathliveModule = m;
     return m;
   });
   return mathlive;
@@ -104,10 +107,12 @@ export function MathInput(p: Props) {
   popRef.current = pop;
 
   const [ready, setReady] = useState(false);
-  useEffect(() => {
+  // a layout effect, and synchronously when MathLive is already loaded: the field exists before the
+  // browser paints, so rows never change height after they appear (D39)
+  useLayoutEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
-    void loadMathLive().then(({ MathfieldElement }) => {
+    const create = ({ MathfieldElement }: typeof import('mathlive')) => {
     if (cancelled || !host.current) return;
     const mf = new MathfieldElement();
     host.current!.appendChild(mf);
@@ -272,7 +277,9 @@ export function MathInput(p: Props) {
       if (lastField === mf) lastField = null;
       mf.remove();
     };
-    });
+    };
+    if (mathliveModule) create(mathliveModule);
+    else void loadMathLive().then(create);
     return () => {
       cancelled = true;
       cleanup?.();
