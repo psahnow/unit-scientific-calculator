@@ -25,6 +25,8 @@ function example(ins: string): string | null {
   if (ins.includes('#@') && !ins.startsWith('#@')) return ins.replace('#@', '6').replace(/#\?/g, '3'); // ÷: a fraction of what's before the caret
   if (ins.startsWith('#@')) return '3' + ins.slice(2).replace('#0', '2').replace(/#\?/g, '2'); // acts on the value before the caret
   if (ins.includes('solve')) return ins.replace('#0', 'x^2').replace('#?', '2');
+  // d/d□ □: the variable, then the expression
+  if (ins.includes(r`\mathrm{d}#?`)) return ins.replace('#?', 'x').replace('#0', 'x^3');
   let first = '0.5';
   if (/\\(sum|prod)_/.test(ins)) first = '1';
   else if (/mean|min|max/.test(ins)) first = r`\left[1,2,3\right]`;

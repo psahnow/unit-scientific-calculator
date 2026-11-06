@@ -4,6 +4,38 @@ import { PACKAGES } from '../engine/units/packages';
 import { setCustomUnits } from '../engine/units/registry';
 import { BrandMark, About } from './Brand';
 
+/**
+ * Significant figures, 1–16 (D59): a valid whole number applies at once; anything else is shown as
+ * invalid with the range, and goes back to the current value when you leave the box — never
+ * silently changed to something else.
+ */
+function SigFigsInput({ value, onChange }: { value: number; onChange(n: number): void }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const n = Number(draft);
+  const valid = draft.trim() !== '' && Number.isInteger(n) && n >= 1 && n <= 16;
+  return (
+    <label className={`sigfigs ${valid ? '' : 'invalid'}`}>
+      Significant figures
+      <input
+        type="number"
+        min={1}
+        max={16}
+        step={1}
+        value={draft}
+        aria-invalid={!valid}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          const v = Number(e.target.value);
+          if (e.target.value.trim() !== '' && Number.isInteger(v) && v >= 1 && v <= 16) onChange(v);
+        }}
+        onBlur={() => setDraft(String(value))}
+      />
+      {!valid && <span className="field-hint">A whole number from 1 to 16</span>}
+    </label>
+  );
+}
+
 function usePopover() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -121,10 +153,7 @@ export function TopBar() {
         </button>
         {settings.open && (
           <div className="popover right settings">
-            <label>
-              Significant figures
-              <input type="number" min={1} max={16} value={st.sigFigs} onChange={(e) => set({ sigFigs: Math.min(16, Math.max(1, Number(e.target.value) || 10)) })} />
-            </label>
+            <SigFigsInput value={st.sigFigs} onChange={(n) => set({ sigFigs: n })} />
             <label>
               Notation
               <select value={st.notation} onChange={(e) => set({ notation: e.target.value as Settings['notation'] })}>

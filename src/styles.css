@@ -2102,3 +2102,18 @@ math-field {
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* the significant figures box: invalid input is flagged, not silently changed (D59) */
+.sigfigs {
+  flex-wrap: wrap;
+}
+.sigfigs.invalid input {
+  border-color: var(--error);
+  outline-color: var(--error);
+}
+.sigfigs .field-hint {
+  flex-basis: 100%;
+  color: var(--error);
+  font-size: 12px;
+  text-align: right;
+}

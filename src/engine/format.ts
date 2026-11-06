@@ -3,6 +3,7 @@ import * as N from './num';
 import type { Num } from './num';
 import { type Quantity, displayValue } from './quantity';
 import { formatUnit, superscript } from './units/registry';
+import { dimEq, DIMLESS } from './dim';
 
 export type Notation = 'auto' | 'scientific' | 'engineering';
 export type DisplayMode = 'auto' | 'decimal' | 'fraction';
@@ -36,7 +37,8 @@ export function formatNum(n: Num, o: FormatOptions = DEFAULT_FORMAT): string {
     if (n.d === 1n) {
       const s = (n.n < 0n ? -n.n : n.n).toString();
       const above = o.sciAbove ?? 12;
-      if (o.notation === 'auto' && s.length <= above)
+      // a whole number with more digits than the significant figures is rounded like any other (D59)
+      if (o.notation === 'auto' && s.length <= above && s.replace(/0+$/, '').length <= o.sigFigs)
         return (n.n < 0n ? '−' : '') + s;
     }
   }
@@ -70,5 +72,8 @@ function trimZeros(s: string, expand: boolean): string {
 
 export function formatQuantity(q: Quantity, o: FormatOptions = DEFAULT_FORMAT): { value: string; unit: string; raw: Num } {
   const raw = displayValue(q);
-  return { value: formatNum(raw, o), unit: formatUnit(q.unit), raw };
+  // automatic fractions only for plain numbers (1/3); with units, decimals read better
+  // (3 ft + 1 m = 6.28 ft, not 2393/381 ft). The a/b switch still offers the fraction (D59).
+  const mode = o.mode === 'auto' && (q.unit.length > 0 || !dimEq(q.dim, DIMLESS)) ? 'decimal' : o.mode;
+  return { value: formatNum(raw, { ...o, mode }), unit: formatUnit(q.unit), raw };
 }

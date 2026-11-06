@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Row, RowResult } from '../engine/worksheet';
 import { applyChips } from '../engine/worksheet';
 import type { ChipFix } from '../engine/ast';
@@ -69,7 +69,9 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         {r.outUnit ? <span className="func-unit">{r.outUnit}</span> : <span className="func-none">plain number</span>}
       </div>
     );
-  if (r?.kind === 'error')
+  // a unit whose package is off: the note under the row says so, with a button to turn it on, so the
+  // same message isn't shown twice (D59)
+  if (r?.kind === 'error' && !ctx.packageHint?.typed)
     resultEl = (
       <div className="result error" title={r.message}>
         ⚠ {r.message}
@@ -387,6 +389,14 @@ function niceStep(max: number) {
   return [1, 2, 5, 10].map((m) => m * p).find((x) => x >= raw) ?? raw;
 }
 
+/** The smallest of 1, 2, 5 × 10ⁿ at or above |v| (and above 0). */
+function tidyBound(v: number): number {
+  if (v <= 0) return 0;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 2, 5, 10]) if (m * p >= v) return Number((m * p).toPrecision(12));
+  return 10 * p;
+}
+
 function Slider({ row, match, unit }: { row: ExprRow; match: RegExpExecArray; unit: string }) {
   const s = useStore();
   const cfg = row.slider!;
@@ -398,6 +408,14 @@ function Slider({ row, match, unit }: { row: ExprRow; match: RegExpExecArray; un
     s.updateRow(row.id, { latex: match[1] + txt + match[3] }, `slider-${row.id}-${drag.current}`);
   };
   const bound = (k: 'min' | 'max' | 'step', v: string) => s.updateRow(row.id, { slider: { ...cfg, [k]: v } });
+  // a value typed outside the range widens it, to a tidy bound, rather than pinning the handle at
+  // the end (and snapping the value back on the next drag) (D59)
+  useEffect(() => {
+    const [lo, hi] = [Number(cfg.min), Number(cfg.max)];
+    if (!Number.isFinite(val) || !Number.isFinite(lo) || !Number.isFinite(hi)) return;
+    if (val > hi) s.updateRow(row.id, { slider: { ...cfg, max: String(tidyBound(val)) } }, `slider-range-${row.id}`);
+    else if (val < lo) s.updateRow(row.id, { slider: { ...cfg, min: String(-tidyBound(-val)) } }, `slider-range-${row.id}`);
+  }, [val, cfg.min, cfg.max]);
   return (
     <div className="slider">
       <input className="bound" value={cfg.min} onChange={(e) => bound('min', e.target.value)} aria-label="Slider minimum" />

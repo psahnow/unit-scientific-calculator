@@ -42,6 +42,28 @@ describe('review fixes', () => {
     expect(res.infos.get('a')).toMatch(/there is another: −2\. roots\( \) lists them all/);
     expect(evalRows([e('a', r`\operatorname{solve}\left(2x=4,x\right)`)]).infos.get('a')).toBeUndefined();
   });
+  it('#8 automatic fractions only for plain numbers; quantities with units show decimals', () => {
+    expect(show(evalRows([e('a', r`3\unit{ft}+1\unit{m}`)]), 'a')).toBe('6.280839895 ft');
+    expect(show(evalRows([e('a', r`1\unit{ft}\cdot1\unit{in}`)]), 'a')).toBe('0.08333333333 ft²');
+    expect(show(evalRows([e('a', r`\frac{1}{3}`)]), 'a')).toBe('1/3');
+    // the fraction is still there on request
+    const v = evalRows([e('a', r`3\unit{ft}+1\unit{m}`)]).rows.get('a')!;
+    if (v.kind !== 'value' || v.value.t !== 'q') throw new Error();
+    expect(formatQuantity(v.value.q, { sigFigs: 10, notation: 'auto', mode: 'fraction' }).value).toBe('2393/381');
+  });
+  it('#10 whole numbers follow the significant figures', () => {
+    const v = evalRows([e('a', r`123456\unit{m}`)]).rows.get('a')!;
+    if (v.kind !== 'value' || v.value.t !== 'q') throw new Error();
+    expect(formatQuantity(v.value.q, { sigFigs: 3, notation: 'auto', mode: 'auto' }).value).toBe('123000');
+    expect(formatQuantity(v.value.q, { sigFigs: 10, notation: 'auto', mode: 'auto' }).value).toBe('123456');
+    expect(formatQuantity(v.value.q, { sigFigs: 6, notation: 'auto', mode: 'auto' }).value).toBe('123456');
+  });
+  it('#13 a typo that only reads as three or more units is an error', () => {
+    expect(show(evalRows([e('a', '1mplus1s')]), 'a')).toMatch(/^error: “mplus” isn't a unit or a name/);
+    // two-unit compounds still work
+    expect(show(evalRows([e('a', '5kNm')]), 'a')).toBe('5 kN·m');
+    expect(show(evalRows([e('a', '2Nmm')]), 'a')).toBe('2 N·mm');
+  });
   it('#7 rounding is symmetric: half away from zero', () => {
     for (const [x, want] of [['2.5', '3'], ['-2.5', '−3'], ['-0.5', '−1'], ['1.49', '1'], ['-1.49', '−1']])
       expect(show(evalRows([e('a', r`\operatorname{round}\left(${x}\right)`)]), 'a'), x).toBe(want);

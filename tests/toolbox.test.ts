@@ -20,6 +20,8 @@ function example(insert: string): string {
   if (['<', '>', r`\le`, r`\ge`].includes(insert)) return r`\left\{1` + insert + r`2:1,0\right\}`;
   if (insert === r`\infty`) return r`\int_{0}^{\infty}e^{-x}\,\mathrm{d}x`;
   if (insert.includes('solve')) return insert.replace('#0', 'x^2').replace('#?', '2');
+  // d/d□ □: the variable, then the expression (x = 1 is defined above)
+  if (insert.includes(String.raw`\mathrm{d}#?`)) return insert.replace('#?', 'x').replace('#0', 'x^3');
   if (insert.includes('roots')) return insert.replace('#0', 'x^2-1');
   let first = '0.5';
   if (insert.includes('infty')) first = 'e^{-x}';

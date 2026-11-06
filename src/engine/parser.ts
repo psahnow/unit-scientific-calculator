@@ -972,6 +972,10 @@ class Parser {
       else nodes.push({ k: 'var', name: nm });
       i++;
     }
+    // a word that only reads as three or more units run together (mplus → m·pL·µs) is a typo,
+    // not a quantity (D59); two-unit compounds like kNm or Nmm still read as N·m and N·mm
+    if (nodes.length >= 3 && run.length >= 4 && nodes.every((x) => x.k === 'unit'))
+      throw new ParseError(`“${letters}” isn't a unit or a name. Put a · or space between units (N·m), or define the name first`);
     let acc = nodes[0];
     for (let k = 1; k < nodes.length; k++) acc = bindImplicit(acc, nodes[k]);
     if (nextParen && acc.k === 'var' && this.ctx.funcs.has(acc.name)) return { k: 'ucall', name: acc.name, args: this.parseArgs() };
