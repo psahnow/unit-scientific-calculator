@@ -1,13 +1,13 @@
 // Dimensional brand mark and About card (DESIGN.md D30).
 import { useEffect } from 'react';
 
-/** Square brackets, as in dimensional analysis ([F] = M·L·T⁻²), around an italic d. */
+/** Square brackets, as in dimensional analysis ([F] = M·L·T⁻²), around a bold italic d, all in paper colour. */
 export function BrandMark({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 32 32" aria-hidden focusable="false">
       <rect x="1" y="1" width="30" height="30" rx="5" fill="var(--fg)" />
       <path d="M11 7.5H7.5v17H11M21 7.5h3.5v17H21" fill="none" stroke="var(--bg)" strokeWidth="2.2" strokeLinecap="square" />
-      <text x="16" y="21.5" textAnchor="middle" fontFamily="KaTeX_Math, 'Times New Roman', serif" fontStyle="italic" fontSize="15" fill="var(--brand)">
+      <text x="16" y="22" textAnchor="middle" fontFamily="Georgia, 'Times New Roman', serif" fontStyle="italic" fontWeight="700" fontSize="17" fill="var(--bg)">
         d
       </text>
     </svg>

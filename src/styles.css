@@ -12,7 +12,6 @@
   /* pens */
   --accent: #2b5ca8; /* blue pen: focus, selected and active states */
   --accent-soft: #e3ebf7;
-  --brand: #c4502a; /* red pen: the d in the mark only; red otherwise means an error */
   --unit: #0f7168; /* units */
   --unit-soft: #e1efec;
   --const: #6a47b3; /* constants */
@@ -43,7 +42,6 @@
   --margin: #414a56;
   --accent: #86aef0;
   --accent-soft: #1f2c42;
-  --brand: #f08a5d;
   --unit: #5ec7ba;
   --unit-soft: #173330;
   --const: #b9a3ff;
@@ -69,8 +67,7 @@
     --margin: #414a56;
     --accent: #86aef0;
     --accent-soft: #1f2c42;
-    --brand: #f08a5d;
-    --unit: #5ec7ba;
+      --unit: #5ec7ba;
     --unit-soft: #173330;
     --const: #b9a3ff;
     --error: #ff8f7a;
