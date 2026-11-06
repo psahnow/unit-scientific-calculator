@@ -10,8 +10,9 @@
   --border-strong: #c9c0ab;
   --margin: #e3a091; /* red margin rule */
   /* pens */
-  --accent: #c4502a; /* red pen: focus, active tab, brand */
-  --accent-soft: #f7e4dc;
+  --accent: #2b5ca8; /* blue pen: focus, selected and active states */
+  --accent-soft: #e3ebf7;
+  --brand: #c4502a; /* red pen: the d in the mark only; red otherwise means an error */
   --unit: #0f7168; /* units */
   --unit-soft: #e1efec;
   --const: #6a47b3; /* constants */
@@ -19,7 +20,7 @@
   --error-soft: #fdebe8;
   --warn: #8a5a00;
   --warn-soft: #fbf1d6;
-  --focus: #c4502a;
+  --focus: #2b5ca8;
   /* answers are boxed, as in a notebook */
   --result-bg: #fffdf8;
   --result-border: #1f2a44;
@@ -40,8 +41,9 @@
   --border: #2f333a;
   --border-strong: #4a4f57;
   --margin: #7c3d33;
-  --accent: #f08a5d;
-  --accent-soft: #3b2a22;
+  --accent: #86aef0;
+  --accent-soft: #1f2c42;
+  --brand: #f08a5d;
   --unit: #5ec7ba;
   --unit-soft: #173330;
   --const: #b9a3ff;
@@ -49,7 +51,7 @@
   --error-soft: #3b211c;
   --warn: #f2c35b;
   --warn-soft: #332a14;
-  --focus: #f08a5d;
+  --focus: #86aef0;
   --result-bg: #202327;
   --result-border: #cfc8b8;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
@@ -65,8 +67,9 @@
     --border: #2f333a;
     --border-strong: #4a4f57;
     --margin: #7c3d33;
-    --accent: #f08a5d;
-    --accent-soft: #3b2a22;
+    --accent: #86aef0;
+    --accent-soft: #1f2c42;
+    --brand: #f08a5d;
     --unit: #5ec7ba;
     --unit-soft: #173330;
     --const: #b9a3ff;
@@ -74,7 +77,7 @@
     --error-soft: #3b211c;
     --warn: #f2c35b;
     --warn-soft: #332a14;
-    --focus: #f08a5d;
+    --focus: #86aef0;
     --result-bg: #202327;
     --result-border: #cfc8b8;
     --shadow: 0 8px 28px rgba(0, 0, 0, 0.55);

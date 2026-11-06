@@ -134,7 +134,7 @@ A key inserts at the caret of the expression being edited (the last one focused)
 ### 3.6 Brand and look (D30)
 - **Name:** Dimensional. Tagline: *Every number knows its units.* The header shows the mark, the wordmark (hidden on phones) and the worksheet title; ☰ → About Dimensional explains the tool and credits Perry Sahnow.
 - **Mark:** square brackets around an italic *d*, after dimensional-analysis notation (`[F] = M·L·T⁻²`). Ink square, paper brackets, red-pen *d*. Same drawing as the favicon.
-- **Engineering notebook, light first:** warm paper (`#FBF9F4`), ink navy text (`#1F2A44`), faint blue ruled lines between rows, a double red margin rule beside the row numbers, and answers **boxed in ink** the way you box a final answer by hand. One accent, a red pen (`#C4502A`), for focus, the active tab and the slider. Units stay teal, constants violet.
+- **Engineering notebook, light first:** warm paper (`#FBF9F4`), ink navy text (`#1F2A44`), faint blue ruled lines between rows, a double red margin rule beside the row numbers, and answers **boxed in ink** the way you box a final answer by hand. One accent, a blue pen (`#2B5CA8`), for focus and selected or active states (tabs, toggles, the slider); red is kept for errors and the *d* in the mark, so the two never look alike. Units stay teal, constants violet.
 - **Dark (graphite) paper** is an option: the ☾/☀ button in the top bar, or ⚙ Theme (Light, Dark, System). New worksheets start in light.
 - **Type:** the KaTeX serif for maths and results; IBM Plex Sans for the interface and Plex Mono for row numbers and labels (Google Fonts).
 - Colours are CSS variables, including unit and constant chips inside the maths editor, so both themes stay consistent.
