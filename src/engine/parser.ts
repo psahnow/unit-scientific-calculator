@@ -7,7 +7,10 @@ import { parseDecimal, float } from './num';
 import { lookupUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
 
-export class ParseError extends Error {}
+export class ParseError extends Error {
+  /** Package units recognised before the error (see ParseResult.blocked). */
+  blocked?: string[];
+}
 
 export interface ParseContext {
   vars: Set<string>;
@@ -67,12 +70,14 @@ function unexpected(t: Tok): string {
   return `“${'v' in t ? t.v : '?'}” can't go here`;
 }
 
-const INCOMPLETE = "Something's missing: finish the expression or delete the empty box";
+const INCOMPLETE = "Something's missing: finish the expression";
 
 
 export interface ParseResult {
   row: ParsedRow;
   chips: ChipFix[];
+  /** Units typed as letters that exist but are in a package that is off (longest first). */
+  blocked: string[];
 }
 
 /** Extract the defined name (variable or function) from a row without full parsing. */
@@ -153,9 +158,19 @@ function parseLhs(toks: Tok[]): { name: string; kind: 'var' | 'func'; params: st
 }
 
 export function parseRow(latex: string, ctx: ParseContext): ParseResult {
+  const blockedOut: string[] = [];
+  try {
+    return parseRowInner(latex, ctx, blockedOut);
+  } catch (e) {
+    if (e instanceof ParseError) e.blocked = blockedOut;
+    throw e;
+  }
+}
+
+function parseRowInner(latex: string, ctx: ParseContext, blocked: string[]): ParseResult {
   const toks = tokenize(latex);
   const chips: ChipFix[] = [];
-  if (!toks.length) return { row: { kind: 'empty' }, chips };
+  if (!toks.length) return { row: { kind: 'empty' }, chips, blocked };
   const eq = topLevelEq(toks);
   if (eq >= 0) {
     const lhs = parseLhs(toks.slice(0, eq));
@@ -164,15 +179,16 @@ export function parseRow(latex: string, ctx: ParseContext): ParseResult {
     if (!rhsToks.length) throw new ParseError('Nothing after “=” yet');
     const local: ParseContext =
       lhs.kind === 'func' ? { ...ctx, vars: new Set([...ctx.vars, ...lhs.params]) } : ctx;
-    const p = new Parser(rhsToks, local, chips);
+    const p = new Parser(rhsToks, local, chips, blocked);
     const expr = p.parseAll();
     return {
       row: lhs.kind === 'func' ? { kind: 'fdef', name: lhs.name, params: lhs.params, expr } : { kind: 'def', name: lhs.name, expr },
       chips,
+      blocked,
     };
   }
-  const p = new Parser(toks, ctx, chips);
-  return { row: { kind: 'expr', expr: p.parseAll() }, chips };
+  const p = new Parser(toks, ctx, chips, blocked);
+  return { row: { kind: 'expr', expr: p.parseAll() }, chips, blocked };
 }
 
 /** Parse a standalone expression (table cells, slider bounds). */
@@ -188,6 +204,7 @@ class Parser {
     private toks: Tok[],
     private ctx: ParseContext,
     private chips: ChipFix[],
+    private blocked: string[] = [],
   ) {}
 
   peek(o = 0): Tok | undefined {
@@ -561,7 +578,7 @@ class Parser {
   sub(toks: Tok[], bound?: string): Node {
     if (!toks.length) throw new ParseError(INCOMPLETE);
     const ctx = bound ? { ...this.ctx, vars: new Set([...this.ctx.vars, bound]) } : this.ctx;
-    return new Parser(toks, ctx, this.chips).parseAll();
+    return new Parser(toks, ctx, this.chips, this.blocked).parseAll();
   }
 
   /** Parse with `v` treated as a variable (so x, t, s… aren't read as units). */
@@ -812,6 +829,7 @@ class Parser {
           const allVars = seg.every((r, idx) => isVar(r.v + (idx === seg.length - 1 ? subOf(r) : '')));
           const found = lookupUnit(segName);
           const u = found && (!this.ctx.units || this.ctx.units(found)) ? found : undefined;
+          if (found && !u && !this.blocked.includes(found.id)) this.blocked.push(found.id);
           const prevVal = prevIsValue || nodes.length > 0;
           if (u && (!allVars || (prevVal && seg.length > 1))) {
             nodes.push({ k: 'unit', id: u.id });

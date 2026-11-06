@@ -79,7 +79,11 @@ export function unitCandidates(
 
   // only units from the worksheet's enabled packages (D26); the current and automatic units always show
   const on = (e: UnitExpr) => e.every((t) => isUnitOn(getUnit(t.id)));
-  const singles = expandedUnits().filter((u) => isUnitOn(u) && dimEq(u.dim, q.dim) && (u.category !== 'Ratio' || isDimless(q.dim)));
+  // data sizes (bit, MB) are dimensionless too, but only make sense for values already in data units
+  const isData = q.unit.some((t) => getUnit(t.id).category === 'Data');
+  const singles = expandedUnits().filter(
+    (u) => isUnitOn(u) && dimEq(u.dim, q.dim) && (u.category !== 'Ratio' || isDimless(q.dim)) && (u.category !== 'Data' || isData),
+  );
   const pool: UnitExpr[] = [...singles.map((u) => [{ id: u.id, power: 1 }]), ...compounds().filter((c) => on(c) && !checkConvertible(q, c))];
 
   // nicest SI choices: value in [1, 1000)

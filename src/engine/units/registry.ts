@@ -17,6 +17,33 @@ for (const u of UNITS) {
 }
 const synth = new Map<string, UnitDef | null>();
 
+// Spelled-out names (newton, metres, kilonewtons) for bare letters (D29). Single-word names only.
+const nameMap = new Map<string, UnitDef>();
+for (const u of UNITS) {
+  const n = u.name.toLowerCase();
+  if (!/^[a-zå]+$/.test(n) || n.length < 4) continue;
+  for (const v of [n, n.replace(/metre$/, 'meter'), n.replace(/litre$/, 'liter')]) if (!nameMap.has(v)) nameMap.set(v, u);
+}
+for (const [k, id] of [['feet', 'ft'], ['inches', 'in'], ['inch', 'in'], ['foot', 'ft'], ['pounds', 'lbm'], ['pound', 'lbm'], ['hours', 'h'], ['hour', 'h'], ['minutes', 'min'], ['seconds', 's'], ['degrees', '°']] as const) {
+  const u = UNIT_BY_ID.get(id);
+  if (u) nameMap.set(k, u);
+}
+const PREFIX_WORDS: Record<string, string> = { kilo: 'k', mega: 'M', giga: 'G', milli: 'm', micro: 'µ', nano: 'n', centi: 'c', pico: 'p' };
+
+function lookupName(s: string): UnitDef | undefined {
+  if (s.length < 4 || !/^[a-zA-Z]+$/.test(s)) return undefined;
+  const w = s.toLowerCase();
+  const one = (x: string) => nameMap.get(x) ?? (x.endsWith('s') ? nameMap.get(x.slice(0, -1)) : undefined) ?? (x.endsWith('es') ? nameMap.get(x.slice(0, -2)) : undefined);
+  const direct = one(w);
+  if (direct) return direct;
+  for (const [word, p] of Object.entries(PREFIX_WORDS)) {
+    if (!w.startsWith(word)) continue;
+    const base = one(w.slice(word.length));
+    if (base?.prefixable) return lookupUnit(p + base.id);
+  }
+  return undefined;
+}
+
 /** Normalise micro/omega variants and ASCII spellings. */
 export function normalizeSymbol(s: string): string {
   return s
@@ -42,7 +69,7 @@ export function lookupUnit(raw: string): UnitDef | undefined {
     }
     return undefined;
   };
-  found = tryPrefixes(SI_PREFIXES, s) ?? tryPrefixes(BINARY_PREFIXES, s);
+  found = tryPrefixes(SI_PREFIXES, s) ?? tryPrefixes(BINARY_PREFIXES, s) ?? lookupName(s);
   // ASCII 'u' for micro: um, uF, us…
   if (!found && s.startsWith('u') && s.length > 1) found = tryPrefixes(SI_PREFIXES, 'µ' + s.slice(1));
   synth.set(s, found ?? null);

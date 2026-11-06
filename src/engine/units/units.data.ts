@@ -61,7 +61,7 @@ u({ id: 'mol', name: 'mole', dim: dim({ N: 1 }), factor: D('1'), system: 'SI', p
 u({ id: 'cd', name: 'candela', dim: dim({ J: 1 }), factor: D('1'), system: 'SI', prefixable: true, category: 'Light', base: true });
 u({ id: 'rad', name: 'radian', dim: ANG, factor: D('1'), system: 'SI', prefixable: true, category: 'Angle', base: true, commonPrefixes: ['m'] });
 
-u({ id: 'N', name: 'newton', dim: FORCE, factor: D('1'), system: 'SI', prefixable: true, category: 'Force', coherentNamed: true, commonPrefixes: ['k', 'M', 'm'] });
+u({ id: 'N', name: 'newton', dim: FORCE, factor: D('1'), system: 'SI', prefixable: true, category: 'Force', coherentNamed: true, commonPrefixes: ['k', 'M', 'm', 'µ'] });
 u({ id: 'Pa', name: 'pascal', dim: PRESS, factor: D('1'), system: 'SI', prefixable: true, category: 'Pressure', coherentNamed: true, commonPrefixes: ['k', 'M', 'G'] });
 u({ id: 'J', name: 'joule', dim: ENERGY, factor: D('1'), system: 'SI', prefixable: true, category: 'Energy', coherentNamed: true, commonPrefixes: ['k', 'M', 'G', 'm'] });
 u({ id: 'W', name: 'watt', dim: POWER, factor: D('1'), system: 'SI', prefixable: true, category: 'Power', coherentNamed: true, commonPrefixes: ['k', 'M', 'G', 'm'] });

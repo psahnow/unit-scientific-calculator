@@ -6,7 +6,7 @@ import { GROUPS } from './toolbox.data';
 
 export function ToolboxButton({ open, onToggle }: { open: boolean; onToggle(): void }) {
   return (
-    <button className={`text-btn ${open ? 'on' : ''}`} onClick={onToggle} aria-expanded={open} aria-controls="toolbox" aria-label="Functions toolbox" title="Functions toolbox">
+    <button className={`text-btn ${open ? 'on' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={onToggle} aria-expanded={open} aria-controls="toolbox" aria-label="Functions toolbox" title="Functions toolbox">
       <span className="tb-f">ƒ</span>(x) Functions
     </button>
   );

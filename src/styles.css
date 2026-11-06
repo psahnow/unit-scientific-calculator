@@ -1063,3 +1063,23 @@ td.computed {
   cursor: pointer;
   font-size: inherit;
 }
+
+/* phone width: nothing may push the page sideways */
+.table-scroll,
+.row-body.table-body {
+  min-width: 0;
+}
+.table-scroll {
+  max-width: 100%;
+}
+.slider {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.slider input[type='range'] {
+  min-width: 0;
+}
+html,
+body {
+  overflow-x: clip; /* clip, not hidden: hidden would break the sticky header */
+}

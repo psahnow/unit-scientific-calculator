@@ -100,6 +100,7 @@ export function MathInput(p: Props) {
     mf.inlineShortcuts = INLINE_SHORTCUTS;
     mf.mathVirtualKeyboardPolicy = 'manual';
     mf.smartFence = true;
+    mf.smartSuperscript = false; // 10^23: keep typing digits in the exponent
     mf.popoverPolicy = 'off';
     mf.menuItems = [];
     if (p.ariaLabel) mf.setAttribute('aria-label', p.ariaLabel);
@@ -184,8 +185,9 @@ export function MathInput(p: Props) {
         const pos = mf.position;
         const sel = mf.selection;
         if (pos > 0 && sel.ranges.length === 1 && sel.ranges[0][0] === sel.ranges[0][1]) {
-          const prev = mf.getValue(pos - 1, pos, 'latex');
-          const m = /^\\(unit|const)\{(.*)\}$/.exec(prev);
+          // a chip counts as several caret positions, so look at the text before the caret
+          const before = mf.getValue(0, pos, 'latex');
+          const m = /\\(unit|const)\{((?:[^{}]|\{[^{}]*\})*)\}$/.exec(before);
           if (m) {
             e.preventDefault();
             e.stopPropagation();

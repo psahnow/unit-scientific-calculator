@@ -67,6 +67,7 @@ export function TableRow({ row, cols, fmt, vars }: { row: TableRowT; cols: Map<s
                         userChosen={!!c.unit}
                         label="unit"
                         muted={!c.unit}
+                        anyUnit={!!cols.get(c.id)?.isInput}
                         onPick={(u) => setCols(row.columns.map((x) => (x.id === c.id ? { ...x, unit: u } : x)))}
                       />
                       {row.columns.length > 1 && (

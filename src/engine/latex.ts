@@ -112,7 +112,9 @@ export function tokenize(src: string): Tok[] {
         }
         if (name === 'unit') toks.push({ t: 'unit', v: latexToSymbol(content), s, e: j });
         else if (name === 'const') toks.push({ t: 'const', v: latexToSymbol(content), s, e: j });
-        else if (name === 'operatorname') toks.push({ t: 'cmd', v: content.replace(/[{}\s]/g, ''), s, e: j });
+        else if (name === 'operatorname')
+          // MathLive writes \operatorname{\mathrm{erf}}: keep just the letters
+          toks.push({ t: 'cmd', v: content.replace(/\\(mathrm|text|mathit|mathbf|operatorname)\s*/g, '').replace(/[{}\s]/g, ''), s, e: j });
         else if (name === 'placeholder') {
           /* empty slot */
         } else {

@@ -21,7 +21,7 @@ export interface RowCtx {
   /** A warning to show under the row (D24 scope hints). */
   notice?: string;
   /** A unit chip on this row comes from packages that are off (D26). */
-  packageHint?: { unit: string; packages: string[] };
+  packageHint?: { unit: string; packages: string[]; typed?: boolean };
 }
 
 type ExprRow = Extract<Row, { type: 'expr' }>;
@@ -154,9 +154,9 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       {resultEl && <div className="row-result">{resultEl}</div>}
       {ctx.packageHint && (
         <div className="row-notice" role="note">
-          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is from{' '}
-          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')}, which is off for this worksheet. It
-          still calculates, but isn’t offered when typing.{' '}
+          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is a unit from{' '}
+          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')}, which is off for this worksheet.{' '}
+          {ctx.packageHint.typed ? 'Turn it on to use it here.' : 'This chip still calculates, but the unit isn’t offered when typing.'}{' '}
           {ctx.packageHint.packages.map((id) => (
             <button
               key={id}

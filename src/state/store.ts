@@ -92,7 +92,10 @@ function sampleWorksheet(): Worksheet {
 }
 
 function blankWorksheet(): Worksheet {
-  return { schema: 1, id: uid(), title: 'Untitled worksheet', updated: Date.now(), settings: { ...DEFAULT_SETTINGS }, rows: [{ id: uid(), type: 'expr', latex: '' }] };
+  const taken = new Set(loadIndex().map((w) => w.title));
+  let title = 'Untitled worksheet';
+  for (let n = 2; taken.has(title); n++) title = `Untitled worksheet ${n}`;
+  return { schema: 1, id: uid(), title, updated: Date.now(), settings: { ...DEFAULT_SETTINGS }, rows: [{ id: uid(), type: 'expr', latex: '' }] };
 }
 
 // ── Persistence ──────────────────────────────────────────────────────────────
@@ -220,7 +223,10 @@ export const useStore = create<State>((set, get) => {
         else if (after?.type === 'folder') idx += descendants(rows, after.id).length;
         else if (after?.parent && type !== 'folder') row.parent = after.parent;
       }
-      if (opts.parent !== undefined && type !== 'folder') row.parent = opts.parent;
+      if ('parent' in opts && type !== 'folder') {
+        if (opts.parent) row.parent = opts.parent;
+        else delete row.parent;
+      }
       if (type === 'folder') delete row.parent;
       rows.splice(idx, 0, row);
       commit(rows);

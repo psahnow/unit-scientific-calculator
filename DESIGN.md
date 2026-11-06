@@ -55,6 +55,7 @@ A web-based, unit-aware scientific calculator. The UI takes the expression list 
 | D26 | Unit packages | **Base set always on; per-worksheet packages** (Mechanical, Electrical, Physics, Chemistry, Cooking, UK imperial) in ⚙ Settings. Packages overlap; chips from an off package still work and offer to turn it on |
 | D27 | Solvers | **Numeric, unit-aware** definite integrals (±∞ limits), derivatives (1st/2nd, at the current value), limits (one/two-sided, ∞), exact Σ/Π, and Desmos-style piecewise `{cond: value, …, otherwise}` |
 | D28 | Error wording | **Plain language about the screen**, never LaTeX tokens; empty leftover power/subscript boxes are ignored |
+| D29 | Fixes from manual testing | Spelled-out unit names work as bare letters (`5 newton`, `3 metres`, `2 kilonewtons`, `4 feet`). A unit typed from a package that is off says so (with a turn-on link) instead of "T isn't defined"; a name only defined in another folder says which folder. Exponents keep digits (`10^23`). A table input column of plain numbers accepts any unit (it says what the numbers mean). |
 
 ---
 

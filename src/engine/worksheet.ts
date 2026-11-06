@@ -68,7 +68,7 @@ export interface WorksheetResult {
   /** Per-row warnings, e.g. a bare “F” read as farad because F is only defined in another folder. */
   notices: Map<string, string>;
   /** Rows using a unit chip from a package that is off: the packages that would provide it. */
-  packageHints: Map<string, { unit: string; packages: string[] }>;
+  packageHints: Map<string, { unit: string; packages: string[]; typed?: boolean }>;
 }
 
 export interface EvalSettings {
@@ -155,6 +155,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   };
 
   // 2. Parse each row with the names visible from its folder.
+  const blockedUnits = new Map<string, string[]>();
   const parsed = new Map<string, ParsedRow | Error>();
   for (const r of rows) {
     if (r.type !== 'expr') continue;
@@ -162,8 +163,11 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       const p = parseRow(r.latex, ctxFor(r.parent ?? null));
       parsed.set(r.id, p.row);
       if (p.chips.length) chips.set(r.id, p.chips);
+      if (p.blocked.length) blockedUnits.set(r.id, p.blocked);
     } catch (e) {
       parsed.set(r.id, e as Error);
+      const b = (e as ParseError).blocked;
+      if (b?.length) blockedUnits.set(r.id, b);
     }
   }
 
@@ -173,8 +177,13 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   const notices = new Map<string, string>();
   const folderTitle = (id: string) => {
     const f = rowById.get(id);
-    return f?.type === 'folder' ? f.title || 'Untitled folder' : 'another folder';
+    if (f?.type !== 'folder') return 'another folder';
+    const title = f.title || 'Untitled folder';
+    // two folders with the same name: say which one by its row number
+    const same = rows.filter((x) => x.type === 'folder' && (x.title || 'Untitled folder') === title);
+    return same.length > 1 ? `${title} (row ${rows.indexOf(f) + 1})` : title;
   };
+  const folderList = (ids: string[]) => [...new Set(ids.map((h) => `“${folderTitle(h)}”`))].join(', ');
   for (const r of rows) {
     const fixes = chips.get(r.id);
     if (r.type !== 'expr' || !fixes) continue;
@@ -187,7 +196,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         continue;
       }
       const meaning = c.kind === 'unit' ? `the unit ${getUnit(c.id).name} (${c.id})` : `the constant ${c.text}`;
-      const where = homes.map((h) => `“${folderTitle(h)}”`).join(', ');
+      const where = folderList(homes);
       notices.set(
         r.id,
         `“${c.text}” here means ${meaning}. The variable ${c.text} is only defined inside ${where}. ` +
@@ -199,7 +208,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   // 2c. Unit chips from a package that is off still work, but say which package they need.
-  const packageHints = new Map<string, { unit: string; packages: string[] }>();
+  const packageHints = new Map<string, { unit: string; packages: string[]; typed?: boolean }>();
   if (settings.packages)
     for (const r of rows) {
       if (r.type !== 'expr') continue;
@@ -369,6 +378,30 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
           colResults.set(c.id, { error: friendly(e as Error), isInput });
         }
       }
+    }
+  }
+
+  // 5. Explain the two most confusing "isn't defined" cases (D29).
+  for (const r of rows) {
+    if (r.type !== 'expr') continue;
+    const res = results.get(r.id);
+    // a name that exists, but only inside another folder
+    const m = res?.kind === 'error' ? /^“(.+)” isn't defined yet/.exec(res.message) : null;
+    if (m && res?.kind === 'error') {
+      const homes = [...locals.entries()].filter(([fid, lv]) => fid !== (r.parent ?? null) && lv.vars.has(m[1])).map(([fid]) => fid);
+      if (homes.length) {
+        results.set(r.id, { ...res, message: `“${m[1]}” is only defined inside ${folderList(homes)}: make it global, or move this row into that folder` });
+        continue;
+      }
+    }
+    // a unit typed as letters whose package is off
+    const blocked = blockedUnits.get(r.id);
+    if (blocked && !packageHints.has(r.id)) {
+      const u = getUnit(blocked[0]);
+      packageHints.set(r.id, { unit: u.id, packages: packagesOf(u), typed: true });
+      // "2Torr" fails as T·o·r·r: say it's a unit that is switched off instead
+      if (res?.kind === 'error' && u.id.length > 1 && /isn't defined yet/.test(res.message))
+        results.set(r.id, { ...res, message: `“${u.id}” is a unit from a package that is off for this worksheet` });
     }
   }
 

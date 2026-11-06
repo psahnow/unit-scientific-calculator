@@ -39,7 +39,7 @@ Work through every section. For each check, note **Pass / Fail / Unclear**, and 
 - `MPa·mm²` case: `3MPa * 2mm^2` → `6 N`. `2N * 3m` stays `6 N·m`; `6N / 2mm^2` stays `3 N/mm²`.
 
 ### 2. Unit chips, autocomplete, variables
-- Type `5 newton` or `5 N` → chip appears; Backspace right after a chip turns it back into plain letters.
+- Type `5 newton` (spelled out) or `5 N` → both mean newtons; Tab inserts a chip; Backspace right after a chip turns it back into plain letters.
 - Type `lb` → autocomplete asks **lbm or lbf**.
 - Define `F = 10N`, then in a new row type `F` → the **variable F** is the first suggestion, the farad is not forced on you. `2F` → `20 N`.
 - Undefined name: `q + 1` → a message like "“q” isn't defined yet: add a row like q = 5".
@@ -51,7 +51,7 @@ Work through every section. For each check, note **Pass / Fail / Unclear**, and 
 - Undo/redo (top bar arrows, Ctrl+Z / Ctrl+Shift+Z) for typing, deleting rows and changing a unit.
 - Drag a row by its handle (gutter, on hover) into and out of a folder. Collapse/expand a folder; "Collapse folders" in the toolbar.
 - **Scroll a long worksheet**: the bar with + Add / Collapse folders / Functions must stay visible under the top bar.
-- Table: header `x_1` with values 10, 20, 30 and unit mm; a second column `y_1 = f(x_1)` with `f(x) = x^2 · 4 N/m^2` defined → 400, 1600, 3600 µN (or equivalent). Open a **column unit dropdown**: it must be fully visible on screen, not clipped or hanging off the edge (try the left column and the right column, and near the bottom of the window).
+- Table: header `x_1` with values 10, 20, 30, then set the column's unit (its unit button) to mm — plain numbers in an input column take that unit; a second column `y_1 = f(x_1)` with `f(x) = x^2 · 4 N/m^2` defined → 400, 1600, 3600 µN (or equivalent). Open a **column unit dropdown**: it must be fully visible on screen, not clipped or hanging off the edge (try the left column and the right column, and near the bottom of the window).
 - Slider: on a plain row like `L = 1.5m`, click ⟷ → a slider appears; dragging changes L and dependent rows; min/max/step boxes work.
 
 ### 4. Folder scope
@@ -75,7 +75,7 @@ Work through every section. For each check, note **Pass / Fail / Unclear**, and 
 - Raise something to a power, then delete the power's contents (leaving an empty power box) → should be ignored, not an error.
 
 ### 7. Unit packages (⚙ → Unit packages)
-- With all packages off: `2Torr` and `3kip` are not recognised as units; `5 kPa` dropdown does **not** list torr or ksi but does list psi.
+- With all packages off: typing `2Torr` or `3kip` is not recognised as a unit (the row should say the unit is from a package that is off, with a link to turn it on); the `5 kPa` dropdown does **not** list torr or ksi but does list psi. Typing a unit into the dropdown's search box accepts any unit, package or not — that is by design.
 - Turn on **Chemistry** → `2Torr` works, torr appears in suggestions. Turn on **Mechanical** → `3kip`, ksi in dropdowns.
 - A row that already has a torr **chip** while Chemistry/Physics are off: it still calculates and shows an ⓘ note with a "Turn on …" link that works.
 - Settings are per worksheet: make a new worksheet (☰) and check its packages start off.

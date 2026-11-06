@@ -15,6 +15,8 @@ interface Props {
   onPick(unit: string | undefined): void;
   label?: string;
   muted?: boolean;
+  /** Accept any unit (a table input column of plain numbers: the unit says what they mean). */
+  anyUnit?: boolean;
 }
 
 export function UnitButton(p: Props) {
@@ -101,22 +103,28 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
   const groups = useMemo(() => (p.q ? unitCandidates(p.q, p.autoUnit, fmt) : []), [p.q, p.autoUnit]);
 
   // free-form entry
-  let custom: { text: string; ok: boolean; msg?: string; preview?: string } | null = null;
+  let custom: { text: string; ok: boolean; parsed: boolean; msg?: string; preview?: string } | null = null;
   const qtrim = query.trim();
   if (qtrim) {
     try {
       const e = parseUnitExpr(qtrim);
-      const err = p.q ? checkConvertible(p.q, e) : null;
+      const err = p.q && !p.anyUnit ? checkConvertible(p.q, e) : null;
       custom = {
         text: formatUnit(e),
         ok: !err,
+        parsed: true,
         msg: err ?? undefined,
-        preview: p.q && !err ? fmt(toNumber(displayValue({ ...p.q, unit: e }))) : undefined,
+        preview: p.q && !err && !p.anyUnit ? fmt(toNumber(displayValue({ ...p.q, unit: e }))) : undefined,
       };
     } catch (e) {
-      custom = { text: qtrim, ok: false, msg: (e as Error).message };
+      custom = { text: qtrim, ok: false, parsed: false, msg: (e as Error).message };
     }
   }
+  const searchRef = useRef<HTMLInputElement>(null);
+  // the menu is hidden until it is placed, so focus the search box once it is visible
+  useEffect(() => {
+    if (style.visibility !== 'hidden') searchRef.current?.focus();
+  }, [style.visibility]);
   const lq = qtrim.toLowerCase();
   const filtered = groups
     .map((g) => ({ ...g, items: g.items.filter((c) => !lq || c.text.toLowerCase().includes(lq)) }))
@@ -130,7 +138,7 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
   return (
     <div className="unit-menu" role="listbox" ref={p.menuRef} style={style}>
       <input
-        autoFocus
+        ref={searchRef}
         className="unit-search"
         placeholder="type a unit… (e.g. kip/in^2)"
         value={query}
@@ -147,6 +155,8 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
           if (e.key === 'ArrowUp') setHi(Math.max(hi - 1, 0));
           if (e.key === 'Enter') {
             if (custom?.ok && !flat.includes(custom.text)) pick(custom.text);
+            // a real unit that doesn't fit: don't silently pick something else
+            else if (custom?.parsed && !custom.ok) return;
             else if (flat[hi]) pick(flat[hi]);
           }
         }}
