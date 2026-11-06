@@ -101,7 +101,7 @@ Lists (`[1, 2, 3] m`, `[1 m, 20 mm]`) are expression values, not a separate row 
 
 - `= value [unit ▾]`. The unit is a chip button that opens the unit dropdown (§6).
 - Exact results show as fractions or integers. A per-row toggle (`a/b ⇄ 0.33`) switches between the exact and decimal forms, as in Desmos scientific.
-- Decimal display follows the global settings: significant figures (default 10, trailing zeros trimmed); scientific notation either automatic (|x| ≥ 10¹² or < 10⁻⁶) or always on; an option for engineering notation (exponent a multiple of 3). Rows can override these.
+- Decimal display follows the global settings: significant figures (default 10, trailing zeros trimmed); scientific notation either automatic or always on. Automatic switches below 10⁻⁶ and at a large-value threshold the user picks in Settings (10³, 10⁴, 10⁵, 10⁶, 10⁹, 10¹² by default, or never), e.g. `6.43 × 10⁶` with the threshold at 10⁶; an option for engineering notation (exponent a multiple of 3). Rows can override these.
 - Rows whose display unit was chosen by hand show a small dot on the chip. The dropdown's "Reset to automatic" clears the choice.
 - Dimensionless results show no chip, unless they came from cancelled units, such as strain `mm/mm`; see §5.4.
 

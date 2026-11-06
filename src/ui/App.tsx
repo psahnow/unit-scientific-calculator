@@ -10,7 +10,7 @@ export function App() {
   const s = useStore();
   const { rows, settings } = s.ws;
   const result = useMemo(() => evaluateWorksheet(rows, { angle: settings.angle }), [rows, settings.angle]);
-  const fmt: FormatOptions = { sigFigs: settings.sigFigs, notation: settings.notation, mode: settings.exactDefault ? 'auto' : 'decimal' };
+  const fmt: FormatOptions = { sigFigs: settings.sigFigs, notation: settings.notation, sciAbove: settings.sciAbove, mode: settings.exactDefault ? 'auto' : 'decimal' };
   const vars = useMemo(() => [...result.defined], [result]);
 
   // theme

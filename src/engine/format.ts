@@ -11,6 +11,8 @@ export interface FormatOptions {
   sigFigs: number;
   notation: Notation;
   mode: DisplayMode;
+  /** Auto notation switches to ×10ⁿ at |x| ≥ 10^sciAbove (default 12; 21 = effectively never). */
+  sciAbove?: number;
 }
 
 export const DEFAULT_FORMAT: FormatOptions = { sigFigs: 10, notation: 'auto', mode: 'auto' };
@@ -33,7 +35,8 @@ export function formatNum(n: Num, o: FormatOptions = DEFAULT_FORMAT): string {
     if (wantFraction) return `${n.n < 0n ? '−' : ''}${n.n < 0n ? -n.n : n.n}/${n.d}`;
     if (n.d === 1n) {
       const s = (n.n < 0n ? -n.n : n.n).toString();
-      if (s.length <= Math.max(o.sigFigs, 12) && o.notation !== 'scientific' && o.notation !== 'engineering')
+      const above = o.sciAbove ?? 12;
+      if (o.notation === 'auto' && s.length <= above)
         return (n.n < 0n ? '−' : '') + s;
     }
   }
@@ -50,7 +53,7 @@ export function formatFloat(x: number, o: FormatOptions): string {
   // guard against rounding pushing to the next decade
   const rounded = Number(ax.toPrecision(o.sigFigs));
   exp = Math.floor(Math.log10(rounded));
-  const useSci = o.notation !== 'auto' || ax >= 1e12 || ax < 1e-6;
+  const useSci = o.notation !== 'auto' || rounded >= Math.pow(10, o.sciAbove ?? 12) || ax < 1e-6;
   if (!useSci) return sign + trimZeros(rounded.toPrecision(o.sigFigs), true);
   if (o.notation === 'engineering') exp = Math.floor(exp / 3) * 3;
   const mant = rounded / Math.pow(10, exp);

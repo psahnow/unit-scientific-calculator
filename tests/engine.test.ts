@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateWorksheet, type Row } from '../src/engine/worksheet';
-import { formatQuantity, DEFAULT_FORMAT } from '../src/engine/format';
+import { formatQuantity, formatNum, DEFAULT_FORMAT } from '../src/engine/format';
 import { parseUnitExpr, formatUnit, unitFactor } from '../src/engine/units/registry';
 import * as N from '../src/engine/num';
 import { UNITS } from '../src/engine/units/units.data';
@@ -198,5 +198,23 @@ describe('named-unit collapse (D23)', () => {
     expect(calc(r`6\unit{N}/2\unit{mm}^{2}`)).toBe('3 N/mm²');
     expect(calc(r`2\unit{N}\cdot3\unit{m}`)).toBe('6 N·m');
     expect(calc(r`2\unit{kW}\cdot3\unit{h}`)).toBe('6 kW·h');
+  });
+});
+
+describe('scientific notation threshold', () => {
+  const f = (x: number | bigint, sciAbove?: number) =>
+    formatNum(typeof x === 'bigint' ? N.exact(x) : N.float(x), { ...DEFAULT_FORMAT, sciAbove });
+  it('defaults to switching at 10^12', () => {
+    expect(f(6430000n)).toBe('6430000');
+    expect(f(1.5e12)).toBe('1.5×10¹²');
+  });
+  it('can switch earlier', () => {
+    expect(f(6430000n, 6)).toBe('6.43×10⁶');
+    expect(f(999999n, 6)).toBe('999999');
+    expect(f(6430000.5, 6)).toBe('6.4300005×10⁶');
+    expect(f(1234.5, 3)).toBe('1.2345×10³');
+  });
+  it('can be turned off', () => {
+    expect(f(1.5e15, 21)).toBe('1500000000000000');
   });
 });

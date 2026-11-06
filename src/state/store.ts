@@ -6,11 +6,13 @@ export interface Settings {
   angle: 'rad' | 'deg';
   sigFigs: number;
   notation: Notation;
+  /** Exponent at which Auto notation switches large values to ×10ⁿ. */
+  sciAbove: number;
   exactDefault: boolean; // show non-terminating exact results as fractions
   theme: 'system' | 'light' | 'dark';
 }
 
-export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', exactDefault: true, theme: 'system' };
+export const DEFAULT_SETTINGS: Settings = { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, exactDefault: true, theme: 'system' };
 
 export interface Worksheet {
   schema: 1;

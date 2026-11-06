@@ -99,6 +99,18 @@ export function TopBar() {
                 <option value="engineering">Engineering</option>
               </select>
             </label>
+            <label title="With Auto notation, large values switch to scientific notation (6.43×10⁶) from this size up">
+              Scientific notation from
+              <select value={st.sciAbove} disabled={st.notation !== 'auto'} onChange={(e) => set({ sciAbove: Number(e.target.value) })}>
+                <option value={3}>10³</option>
+                <option value={4}>10⁴</option>
+                <option value={5}>10⁵</option>
+                <option value={6}>10⁶</option>
+                <option value={9}>10⁹</option>
+                <option value={12}>10¹² (default)</option>
+                <option value={21}>Never</option>
+              </select>
+            </label>
             <label className="check">
               <input type="checkbox" checked={st.exactDefault} onChange={(e) => set({ exactDefault: e.target.checked })} />
               Show exact fractions (1/3)
