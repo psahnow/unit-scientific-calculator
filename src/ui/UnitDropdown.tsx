@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import type { Quantity } from '../engine/quantity';
 import { checkConvertible, displayValue } from '../engine/quantity';
 import { unitCandidates } from '../engine/units/candidates';
@@ -19,10 +20,13 @@ interface Props {
 export function UnitButton(p: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !menu.current?.contains(t)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -30,6 +34,7 @@ export function UnitButton(p: Props) {
   return (
     <div className="unit-wrap" ref={ref}>
       <button
+        ref={btn}
         className={`unit-chip ${p.muted ? 'muted' : ''} ${p.userChosen ? 'chosen' : ''}`}
         onClick={() => setOpen(!open)}
         aria-haspopup="listbox"
@@ -43,12 +48,53 @@ export function UnitButton(p: Props) {
         {p.current || p.label || '—'}
         <span className="caret">▾</span>
       </button>
-      {open && <UnitMenu {...p} close={() => setOpen(false)} />}
+      {open && createPortal(<UnitMenu {...p} anchor={btn} menuRef={menu} close={() => setOpen(false)} />, document.body)}
     </div>
   );
 }
 
-function UnitMenu(p: Props & { close(): void }) {
+const GAP = 4;
+const MARGIN = 8;
+
+/** Fixed-position the menu under (or above) its button, kept inside the window. */
+function usePlacement(anchor: RefObject<HTMLElement | null>, menu: RefObject<HTMLDivElement | null>) {
+  const [style, setStyle] = useState<React.CSSProperties>({ visibility: 'hidden' });
+  useLayoutEffect(() => {
+    const place = () => {
+      const a = anchor.current?.getBoundingClientRect();
+      const m = menu.current;
+      if (!a || !m) return;
+      const vw = document.documentElement.clientWidth;
+      const vh = window.innerHeight;
+      const width = Math.min(290, vw - 2 * MARGIN);
+      // right-align with the button, then clamp to the window
+      const left = Math.max(MARGIN, Math.min(a.right - width, vw - width - MARGIN));
+      const below = vh - a.bottom - GAP - MARGIN;
+      const above = a.top - GAP - MARGIN;
+      const want = Math.min(420, m.scrollHeight);
+      const down = below >= want || below >= above;
+      const maxHeight = Math.max(160, Math.min(420, down ? below : above));
+      setStyle({
+        position: 'fixed',
+        left,
+        width,
+        maxHeight,
+        ...(down ? { top: a.bottom + GAP } : { bottom: vh - a.top + GAP }),
+      });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [anchor, menu]);
+  return style;
+}
+
+function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElement | null>; menuRef: RefObject<HTMLDivElement | null> }) {
+  const style = usePlacement(p.anchor, p.menuRef);
   const [query, setQuery] = useState('');
   const [hi, setHi] = useState(0);
   const fmt = (v: number) => formatFloat(v, { sigFigs: 6, notation: 'auto', mode: 'decimal' });
@@ -82,7 +128,7 @@ function UnitMenu(p: Props & { close(): void }) {
   };
 
   return (
-    <div className="unit-menu" role="listbox">
+    <div className="unit-menu" role="listbox" ref={p.menuRef} style={style}>
       <input
         autoFocus
         className="unit-search"
@@ -93,7 +139,10 @@ function UnitMenu(p: Props & { close(): void }) {
           setHi(0);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') p.close();
+          if (e.key === 'Escape') {
+            p.close();
+            p.anchor.current?.focus();
+          }
           if (e.key === 'ArrowDown') setHi(Math.min(hi + 1, flat.length - 1));
           if (e.key === 'ArrowUp') setHi(Math.max(hi - 1, 0));
           if (e.key === 'Enter') {
