@@ -183,7 +183,20 @@ export function App() {
                 dragFromHandle.current = false;
               }}
             >
-              <div className={`gutter ${isErr ? 'err' : ''}`}>
+              {/* the whole margin moves the row (D58), apart from its switches */}
+              <div
+                className={`gutter ${isErr ? 'err' : ''}`}
+                title="Drag to move this row"
+                onMouseDown={(e) => {
+                  if ((e.target as Element).closest('.gutter-btn')) return;
+                  dragFromHandle.current = true;
+                  setDragId(row.id);
+                }}
+                onMouseUp={() => {
+                  dragFromHandle.current = false;
+                  setDragId(null);
+                }}
+              >
                 {isErr ? (
                   <HoverTip text={res.message} kind="error" align="left">
                     <span className="num">⚠</span>
@@ -203,20 +216,6 @@ export function App() {
                     })()}
                   />
                 )}
-                <span
-                  className="handle"
-                  title="Drag to reorder"
-                  onMouseDown={() => {
-                    dragFromHandle.current = true;
-                    setDragId(row.id);
-                  }}
-                  onMouseUp={() => {
-                    dragFromHandle.current = false;
-                    setDragId(null);
-                  }}
-                >
-                  ⋮⋮
-                </span>
               </div>
               <RowBoundary resetKey={JSON.stringify(row)}>
               {row.type === 'expr' && (

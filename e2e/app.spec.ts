@@ -239,6 +239,23 @@ test('margin switches: folder scope and fraction', async ({ page }) => {
   await expect(l.locator('.row-result .result')).toContainText('1.5');
 });
 
+test('drag from anywhere in the margin, but not from a switch', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  const value = (n: number) => page.locator('.row').nth(n).locator('math-field');
+  // the bottom of row 3's margin (no switch there) onto row 2: A moves above F
+  const g = page.locator('.row').nth(2).locator('.gutter');
+  const box = (await g.boundingBox())!;
+  await g.hover({ position: { x: box.width / 2, y: box.height - 6 } });
+  await g.dragTo(page.locator('.row').nth(1), { sourcePosition: { x: box.width / 2, y: box.height - 6 } });
+  await expect(value(1)).toHaveJSProperty('value', String.raw`A=20\unit{mm}^2`);
+  // from the scope switch: nothing moves
+  const row = page.locator('.row').nth(3);
+  await row.hover();
+  await row.locator('.gutter-btn.scope').dragTo(page.locator('.row').nth(1));
+  await expect(value(3)).toHaveJSProperty('value', String.raw`L=1.5\unit{m}`);
+});
+
 test('function toolbox inserts at the caret', async ({ page }) => {
   await freshSheet(page);
   await field(page, 1).click();
@@ -257,8 +274,8 @@ test('dragging a row keeps its unit chips', async ({ page }) => {
   await page.keyboard.press('Escape');
   await page.locator('.title-input').click(); // leave the field so chips are applied
   await expect(field(page, 2)).toHaveJSProperty('value', 'B=6\\unit{kN}');
-  // drag row 2 by its handle onto row 1
-  const handle = page.locator('.row').nth(1).locator('.handle');
+  // drag row 2 by its number (the margin) onto row 1
+  const handle = page.locator('.row').nth(1).locator('.gutter .num');
   await handle.hover();
   await handle.dragTo(page.locator('.row').nth(0));
   await expect(field(page, 1)).toHaveJSProperty('value', 'B=6\\unit{kN}');

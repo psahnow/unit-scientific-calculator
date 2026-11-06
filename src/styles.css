@@ -402,14 +402,16 @@ textarea {
   color: var(--error);
   font-size: 13px;
 }
-.handle {
+/* the margin is the row's drag handle (D58); its switches stay clickable */
+.gutter {
   cursor: grab;
-  opacity: 0;
-  letter-spacing: -2px;
-  padding: 2px 4px;
 }
-.row:hover .handle {
-  opacity: 0.7;
+.gutter:active {
+  cursor: grabbing;
+}
+.gutter .gutter-btn,
+.gutter .hover-tip {
+  cursor: pointer;
 }
 .row-body {
   flex: 1;
@@ -1435,7 +1437,6 @@ html {
   .add-bottom,
   .row-actions,
   .gutter-btn:not(.on),
-  .handle,
   .storage-banner,
   .footer-tips,
   .footer-mark,
