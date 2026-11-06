@@ -2028,3 +2028,20 @@ math-field {
 .sheet-wrap {
   flex: 1 0 auto;
 }
+
+/* a function row: the unit it gives (D53) */
+.row-result .result.func-out {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: transparent;
+  color: var(--fg-muted);
+}
+.result.func-out .func-unit {
+  color: var(--unit);
+  font-family: var(--serif);
+}
+.result.func-out .func-none {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-style: italic;
+}

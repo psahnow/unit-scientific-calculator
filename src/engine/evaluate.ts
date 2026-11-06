@@ -3,7 +3,7 @@ import * as N from './num';
 import type { Node, Cond } from './ast';
 import { integrate, derivative, limit, findRoot, findAllRoots, NumericError } from './calculus';
 import { polyOf, coefficients, realRoots, termSize } from './algebra';
-import { isUnitOnly } from './ast';
+import { isUnitOnly, collectRefs } from './ast';
 import * as Q from './quantity';
 import { type Quantity, CalcError, scalar, describe } from './quantity';
 import { dim, dimEq, dimDiv, dimPow, isDimlessLoose, isAngle, DIMLESS, type Dim } from './dim';
@@ -883,4 +883,143 @@ function elementwise(name: string, x: Quantity, env: Env, base?: Quantity): Quan
       return scalar(N.exact(BigInt(N.cmp(x.si, N.ZERO))));
   }
   throw new CalcError(`Unknown function ${name}`);
+}
+
+// ── Dimensional analysis of a function body (D53) ────────────────────────────
+/**
+ * The unit an expression gives, worked out from the units alone (no input values): typed inputs
+ * have their declared units, worksheet names their values' units, and each operation combines
+ * units the way the evaluator does (N·m, kN/mm², √(m²) = m; sin, ln … give plain numbers). The
+ * result is a unit quantity (SI value 1) or null when it can't be told without values.
+ */
+export function inferUnit(n: Node, env: Env, known: Map<string, Quantity>, depth = 0): Quantity | null {
+  if (depth > 40) return null;
+  const one = (q: Quantity): Quantity => ({ si: N.ONE, dim: q.dim, unit: q.unit, ...(q.tempKind ? { tempKind: q.tempKind } : {}) });
+  const plain = scalar(N.ONE);
+  const sub = (m: Node, k = known) => inferUnit(m, env, k, depth + 1);
+  const constant = (m: Node): Quantity | null => {
+    try {
+      const v = evaluate(m, env);
+      return v.t === 'q' ? v.q : (v.items[0] ?? null);
+    } catch {
+      return null;
+    }
+  };
+  const uses = (m: Node) => [...known.keys()].some((k) => collectRefs(m).has(k));
+  try {
+    switch (n.k) {
+      case 'num':
+      case 'pi':
+      case 'euler':
+      case 'fact':
+        return plain;
+      case 'var': {
+        const k = known.get(n.name);
+        if (k) return k;
+        const c = constant(n);
+        return c && one(c);
+      }
+      case 'unit':
+      case 'const': {
+        const c = constant(n);
+        return c && one(c);
+      }
+      case 'qty': {
+        const [a, b] = [sub(n.v), sub(n.u)];
+        return a && b ? Q.mul(a, b) : null;
+      }
+      case 'neg':
+      case 'abs':
+        return sub(n.a);
+      case 'list':
+        return n.items.length ? sub(n.items[0]) : null;
+      case 'piecewise':
+        return n.branches.length ? sub(n.branches[0].value) : null;
+      case 'root': {
+        const [a, k] = [sub(n.a), uses(n.n) ? null : constant(n.n)];
+        return a && k ? Q.root(a, N.toNumber(k.si)) : null;
+      }
+      case 'bin': {
+        const [a, b] = [sub(n.a), n.op === '^' ? null : sub(n.b)];
+        if (n.op === '^') {
+          if (!a) return null;
+          if (dimEq(a.dim, DIMLESS)) return plain;
+          const e = uses(n.b) ? null : constant(n.b);
+          return e ? Q.pow(a, e) : null;
+        }
+        if (!a || !b) return null;
+        if (n.op === '*') return Q.mul(a, b);
+        if (n.op === '/') return Q.div(a, b);
+        // + and −: the dimensions must match; the first operand's unit wins
+        return dimEq(a.dim, b.dim) ? a : null;
+      }
+      case 'call': {
+        let r = inferCall(n.name, n.args.map((a) => sub(a)), n.args, env, known, constant, uses);
+        if (r && n.power) {
+          const e = uses(n.power) ? null : constant(n.power);
+          r = e ? Q.pow(r, e) : null;
+        }
+        return r;
+      }
+      case 'ucall': {
+        const fd = env.getFunc(n.name);
+        if (!fd || !fd.paramUnits || fd.params.some((_, i) => !fd.paramUnits?.[i])) return null;
+        const inner = new Map<string, Quantity>();
+        fd.params.forEach((p, i) => inner.set(p, unitQuantity(combine(evalUnitNode(fd.paramUnits![i]!, fd.env ?? env)))));
+        return inferUnit(fd.body, fd.env ?? env, inner, depth + 1);
+      }
+      case 'integral': {
+        const v = sub(n.hi) ?? sub(n.lo);
+        if (!v) return null;
+        const body = sub(n.body, new Map(known).set(n.v, one(v)));
+        return body ? Q.mul(body, one(v)) : null;
+      }
+      case 'deriv': {
+        const v = known.get(n.v) ?? (() => {
+          const c = constant({ k: 'var', name: n.v });
+          return c && one(c);
+        })();
+        if (!v) return null;
+        let r = sub(n.body, new Map(known).set(n.v, v));
+        for (let k = 0; k < n.order && r; k++) r = Q.div(r, v);
+        return r;
+      }
+      case 'limit': {
+        const v = sub(n.to);
+        return v ? sub(n.body, new Map(known).set(n.v, one(v))) : null;
+      }
+      case 'series':
+        return n.op === 'sum' ? sub(n.body, new Map(known).set(n.v, plain)) : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+const PLAIN_FUNCS = new Set([
+  'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'exp', 'ln', 'log',
+  'sign', 'gamma', 'erf', 'erfc', 'nCr', 'nPr', 'gcd', 'lcm', 'count',
+]);
+const SAME_FUNCS = new Set(['abs', 'floor', 'ceil', 'round', 'min', 'max', 'sum', 'mean', 'median', 'stdev', 'hypot', 'mod']);
+
+function inferCall(
+  name: string,
+  args: (Quantity | null)[],
+  argNodes: Node[],
+  env: Env,
+  _known: Map<string, Quantity>,
+  constant: (m: Node) => Quantity | null,
+  uses: (m: Node) => boolean,
+): Quantity | null {
+  if (PLAIN_FUNCS.has(name)) return scalar(N.ONE);
+  if (['asin', 'acos', 'atan', 'arcsec', 'arccsc', 'arccot', 'atan2'].includes(name)) return unitQuantity(env.angle === 'deg' ? DEG : RAD);
+  if (SAME_FUNCS.has(name)) return args[0] ?? null;
+  if (name === 'sqrt') return args[0] ? Q.root(args[0], 2) : null;
+  if (name === 'var') return args[0] ? Q.mul(args[0], args[0]) : null;
+  if (name === 'nthroot') {
+    const k = argNodes[1] && !uses(argNodes[1]) ? constant(argNodes[1]) : null;
+    return args[0] && k ? Q.root(args[0], N.toNumber(k.si)) : null;
+  }
+  return null;
 }

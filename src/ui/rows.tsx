@@ -62,6 +62,14 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
   let resultEl: ReactNode = null;
   let copyText = '';
   const missing = r?.kind === 'error' ? /^“(.+)” isn't defined yet/.exec(r.message)?.[1] : undefined;
+  if (r?.kind === 'func' && r.outUnit !== undefined)
+    // what the function gives, when its unit doesn't depend on the inputs (D53)
+    resultEl = (
+      <div className="result func-out" title={`${r.name}( ) gives ${r.outUnit ? r.outUnit : 'a plain number'}`}>
+        <span className="eq">→</span>
+        {r.outUnit ? <span className="func-unit">{r.outUnit}</span> : <span className="func-none">plain number</span>}
+      </div>
+    );
   if (r?.kind === 'error')
     resultEl = (
       <div className="result error" title={r.message}>

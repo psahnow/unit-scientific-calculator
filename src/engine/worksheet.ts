@@ -3,9 +3,9 @@ import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContex
 import type { ChipFix, ParsedRow, Node } from './ast';
 import { isUnitOnly } from './ast';
 import * as N from './num';
-import { evaluate, type Value, type Env, unifyList } from './evaluate';
+import { evaluate, inferUnit, unitQuantity, evalUnitNode, type Value, type Env, unifyList } from './evaluate';
 import { CalcError, convertTo, fromUnit, checkConvertible, kelvinAsAbsolute, kelvinNote, type Quantity } from './quantity';
-import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, type UnitExpr, type CustomUnitInput } from './units/registry';
+import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, formatUnit, combine, type UnitExpr, type CustomUnitInput } from './units/registry';
 import { availability, packagesOf } from './units/packages';
 import { dimEq, DIMLESS } from './dim';
 import { symbolToLatex, latexToSymbol } from './latex';
@@ -45,7 +45,8 @@ export type Row =
 
 export type RowResult =
   | { kind: 'none' }
-  | { kind: 'func'; name: string }
+  // outUnit (D53): the unit the function gives, when it doesn't depend on the inputs ('' = a plain number)
+  | { kind: 'func'; name: string; outUnit?: string }
   | { kind: 'value'; value: Value; defName?: string; unitError?: string; unitNote?: string; autoUnit: UnitExpr; literal: boolean }
   | { kind: 'error'; message: string; defName?: string };
 
@@ -322,6 +323,23 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     };
   }
 
+  /**
+   * The unit a function gives (D53), by dimensional analysis of its body: only when every input
+   * has a declared unit (f(l: m)), since otherwise the answer depends on what is passed in.
+   */
+  function outputUnit(p: Extract<ParsedRow, { kind: 'fdef' }>, rowId: string): string | undefined {
+    if (!p.params.length || p.params.some((_, k) => !p.paramUnits?.[k])) return undefined;
+    try {
+      const env = rowEnv(rowId);
+      const known = new Map<string, Quantity>();
+      p.params.forEach((name, k) => known.set(name, unitQuantity(combine(evalUnitNode(p.paramUnits![k]!, env)))));
+      const q = inferUnit(p.expr, env, known);
+      return q ? formatUnit(q.unit) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /** Evaluate an expr row's value with its display unit applied (what dependents inherit). */
   const rowValueCache = new Map<string, { value: Value; auto: UnitExpr; unitError?: string; unitNote?: string }>();
   function evalRowFull(rowId: string) {
@@ -402,7 +420,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       const own = levelFor(definitionScope(r));
       if (p.kind === 'fdef') {
         if (own !== global && isGlobalName(p.name)) shadows.add(r.id);
-        results.set(r.id, duplicateIn(own, p.name) ? { kind: 'error', message: dupMessage(own, p.name), defName: p.name } : { kind: 'func', name: p.name });
+        results.set(r.id, duplicateIn(own, p.name) ? { kind: 'error', message: dupMessage(own, p.name), defName: p.name } : { kind: 'func', name: p.name, outUnit: outputUnit(p, r.id) });
         continue;
       }
       const defName = p.kind === 'def' ? p.name : undefined;

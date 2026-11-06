@@ -149,6 +149,8 @@ test('typed function input: F(l:m) converts inches to metres', async ({ page }) 
   await freshSheet(page);
   await typeRow(page, 1, 'F(l:m)=2l');
   await page.keyboard.press('Escape');
+  // the definition shows the unit it gives (D53)
+  await expect(result(page, 1)).toHaveText(/→s*m$/);
   await nextRow(page, 2);
   await page.keyboard.type('F(3in)', { delay: 25 });
   await page.keyboard.press('Escape');

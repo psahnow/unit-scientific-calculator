@@ -11,6 +11,7 @@ interface Item {
   value?: string;
   unit?: string;
   kind: 'value' | 'func' | 'error';
+  outUnit?: string;
 }
 
 /** T_1 → T with a subscript 1; α stays α. */
@@ -56,7 +57,7 @@ export function VarPanel({ rows, result, fmt }: { rows: Row[]; result: Worksheet
         unit = r.value.items[0] ? formatQuantity(r.value.items[0], fmt).unit : '';
       }
       group(row.parent).items.push({ id: row.id, name: r.defName, value, unit, kind: 'value' });
-    } else if (r.kind === 'func') group(row.parent).items.push({ id: row.id, name: r.name, kind: 'func' });
+    } else if (r.kind === 'func') group(row.parent).items.push({ id: row.id, name: r.name, kind: 'func', outUnit: r.outUnit });
     else if (r.kind === 'error' && r.defName) group(row.parent).items.push({ id: row.id, name: r.defName, kind: 'error' });
   }
   const shown = groups.filter((g) => g.items.length);
@@ -86,7 +87,15 @@ export function VarPanel({ rows, result, fmt }: { rows: Row[]; result: Worksheet
                       {it.unit && <span className="var-unit"> {it.unit}</span>}
                     </span>
                   )}
-                  {it.kind === 'func' && <span className="var-value var-muted">function</span>}
+                  {it.kind === 'func' &&
+                    (it.outUnit ? (
+                      <span className="var-value">
+                        <span className="var-muted">→ </span>
+                        <span className="var-unit">{it.outUnit}</span>
+                      </span>
+                    ) : (
+                      <span className="var-value var-muted">function</span>
+                    ))}
                   {it.kind === 'error' && <span className="var-value var-err">⚠</span>}
                 </button>
               </li>
