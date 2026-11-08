@@ -60,6 +60,20 @@ test('a period after a letter dots it: m. is ṁ, x.. is ẍ, and 2.5 m stays a 
   await page.keyboard.press('Escape');
   await expect(result(page, 3)).toContainText('4');
   expect(await value(3)).not.toMatch(/dot/);
+  // after a number: 6m. is 6 · ṁ
+  await nextRow(page, 4);
+  await page.keyboard.type('6m.', { delay: 25 });
+  await expect(field(page, 4)).toHaveJSProperty('value', String.raw`6\cdot\dot{m}`);
+  await expect(result(page, 4)).toContainText('12');
+  // m's suggestions: metre first, ṁ second
+  await nextRow(page, 5);
+  await page.keyboard.type('3m', { delay: 25 });
+  const items = page.locator('.ac-pop [role="option"]');
+  await expect(items.nth(1)).toContainText('ṁ'); // ṁ as a letter and a combining dot
+  await expect(items.nth(0)).toContainText('metre');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Tab');
+  await expect(field(page, 5)).toHaveJSProperty('value', String.raw`3\cdot\dot{m}`);
 });
 
 test('the unit dropdown changes only the display', async ({ page }) => {

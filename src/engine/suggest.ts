@@ -37,8 +37,11 @@ export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterN
   // A name the worksheet already defines comes first, even after a number: the variable wins (D21).
   const varList = [...vars];
   if (varList.includes(prefix)) add({ kind: 'var', label: prefix, detail: 'variable', insert: varLatex(prefix) });
+  // dotted names (ṁ) come after the unit of the same letter, below (D61)
+  const dotted = /^\p{L}$/u.test(prefix) ? [prefix + '̇', prefix + '̈'] : [];
   if (!afterNumber)
-    for (const v of varList) if (v !== prefix && v.toLowerCase().startsWith(lp)) add({ kind: 'var', label: v, detail: 'variable', insert: varLatex(v) });
+    for (const v of varList)
+      if (v !== prefix && v.toLowerCase().startsWith(lp) && !dotted.some((d) => v.startsWith(d))) add({ kind: 'var', label: v, detail: 'variable', insert: varLatex(v) });
 
   // Ambiguous symbols (lb → lbm / lbf) always prompt (D20).
   const exact = lookupUnit(prefix);
@@ -49,6 +52,19 @@ export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterN
     }
   }
   if (exact && !exact.ambiguous) add({ kind: 'unit', label: exact.id, detail: exact.name, insert: `\\unit{${symbolToLatex(exact.id)}}` });
+
+  // ṁ under m, and any defined ṁ₁, m̈ … after it. After a number it multiplies: 6 · ṁ, never a
+  // unit-like 6ṁ. Added at the end, once we know the letter has other suggestions: a lone x with
+  // nothing else to offer gets no list (Tab would otherwise turn x into ẋ)
+  const dotAt = out.length;
+  const dotSugs: Suggestion[] = [];
+  if (dotted.length) {
+    const times = afterNumber ? '\\cdot' : '';
+    const dot = dotted[0];
+    dotSugs.push({ kind: 'var', label: dot, detail: varList.includes(dot) ? 'variable' : `${prefix} dot (or type ${prefix}.)`, insert: times + varLatex(dot) });
+    for (const v of varList) if (v !== dot && dotted.some((d) => v.startsWith(d))) dotSugs.push({ kind: 'var', label: v, detail: 'variable', insert: times + varLatex(v) });
+  }
+  const dotDefined = dotSugs.some((s) => s.detail === 'variable');
 
   if (!afterNumber) {
     for (const f of LETTER_FUNCS)
@@ -63,6 +79,7 @@ export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterN
   for (const c of CONSTANTS)
     if (c.key.toLowerCase().startsWith(lp) || (lp.length >= 3 && c.name.toLowerCase().includes(lp)))
       add({ kind: 'const', label: c.key, detail: c.name, insert: `\\const{${c.latex}}` });
+  if (dotSugs.length && (out.length || dotDefined)) out.splice(dotAt, 0, ...dotSugs.filter((s) => !out.some((o) => o.label === s.label)));
   return out.slice(0, 12);
 }
 

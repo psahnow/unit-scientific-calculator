@@ -140,8 +140,8 @@ export function leaveDigitSubscript(mf: MathfieldElement): boolean {
 
 /**
  * "." typed right after a lone letter puts a dot over it: m. → ṁ, and a second "." makes it ẍ-style
- * (D61). A letter after a digit or another letter (5m, mm) is left alone: there "." can't mean a
- * dot, but it isn't a name either. Returns whether it changed anything.
+ * (D61). After a number it multiplies: 6m. is 6 · ṁ. A letter inside a word (mm.) is left alone.
+ * Returns whether it changed anything.
  */
 export function dotLetter(mf: MathfieldElement): boolean {
   const p = mf.position;
@@ -161,9 +161,10 @@ export function dotLetter(mf: MathfieldElement): boolean {
   } else {
     const letter = at(mf, p - 1);
     const prev = at(mf, p - 2);
-    if (!LETTER.test(letter) || LETTER.test(prev) || DIGIT.test(prev) || prev === '.') return false;
+    if (!LETTER.test(letter) || LETTER.test(prev) || prev === '.') return false;
     start = p - 1;
-    insert = `\\dot{${letter}}`;
+    // after a number it multiplies: 6m. is 6 · ṁ
+    insert = `${DIGIT.test(prev) ? '\\cdot' : ''}\\dot{${letter}}`;
   }
   if (start < 0) return false;
   mf.selection = { ranges: [[start, p]], direction: 'forward' };

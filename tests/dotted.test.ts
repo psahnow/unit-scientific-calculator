@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { evaluateWorksheet, renameDefinition, type Row } from '../src/engine/worksheet';
 import { formatQuantity } from '../src/engine/format';
 import { latexToSymbol, symbolToLatex } from '../src/engine/latex';
-import { varLatex } from '../src/engine/suggest';
+import { varLatex, suggestionsFor } from '../src/engine/suggest';
 
 const r = String.raw;
 const e = (id: string, latex: string): Row => ({ id, type: 'expr', latex });
@@ -15,6 +15,31 @@ function show(res: ReturnType<typeof ev>, id: string) {
   const f = formatQuantity(v.value.q);
   return f.unit ? `${f.value} ${f.unit}` : f.value;
 }
+
+describe('dotted names in suggestions', () => {
+  const labels = (p: string, vars: string[], afterNumber: boolean) => suggestionsFor(p, vars, afterNumber).map((s) => s.label);
+  it('m offers metre first, then ṁ', () => {
+    expect(labels('m', [], false).slice(0, 2)).toEqual(['m', 'ṁ']);
+    expect(labels('m', [], true).slice(0, 2)).toEqual(['m', 'ṁ']);
+  });
+  it('after a number, ṁ is multiplied: 6 · ṁ', () => {
+    expect(suggestionsFor('m', [], true).find((s) => s.label === 'ṁ')!.insert).toBe(r`\cdot\dot{m}`);
+    expect(suggestionsFor('m', [], false).find((s) => s.label === 'ṁ')!.insert).toBe(r`\dot{m}`);
+  });
+  it('a defined ṁ is "variable" and still after the unit; defined ṁ₁ and m̈ follow', () => {
+    const s = suggestionsFor('m', ['ṁ', 'ṁ_1', 'm̈'], false);
+    expect(s.slice(0, 4).map((x) => [x.label, x.detail])).toEqual([
+      ['m', 'metre'],
+      ['ṁ', 'variable'],
+      ['ṁ_1', 'variable'],
+      ['m̈', 'variable'],
+    ]);
+  });
+  it('a letter with nothing else to offer gets no list (x then Tab stays x)', () => {
+    expect(labels('x', [], false)).toEqual([]);
+    expect(labels('x', ['ẋ'], false)).toEqual(['ẋ']);
+  });
+});
 
 describe('dotted names', () => {
   it('ṁ is its own name, apart from m (the unit) and m (a variable)', () => {
