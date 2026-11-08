@@ -42,6 +42,26 @@ test('typing a value with units, then a formula', async ({ page }) => {
   await expect(field(page, 3)).toHaveJSProperty('value', '2\\cdot10^{23}');
 });
 
+test('a period after a letter dots it: m. is ṁ, x.. is ẍ, and 2.5 m stays a number', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, 'm.=2kg');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('/s', { delay: 25 });
+  await page.keyboard.press('Tab');
+  const value = (n: number) => field(page, n).evaluate((f) => (f as HTMLInputElement).value);
+  expect(await value(1)).toMatch(/^\\dot\{m\}=2/);
+  await expect(result(page, 1)).toContainText('kg/s');
+  await nextRow(page, 2);
+  await page.keyboard.type('x..=3*m.', { delay: 25 });
+  await expect(field(page, 2)).toHaveJSProperty('value', String.raw`\ddot{x}=3\cdot\dot{m}`);
+  await expect(result(page, 2)).toContainText('6');
+  await nextRow(page, 3);
+  await page.keyboard.type('2.5m+1.5m', { delay: 25 });
+  await page.keyboard.press('Escape');
+  await expect(result(page, 3)).toContainText('4');
+  expect(await value(3)).not.toMatch(/dot/);
+});
+
 test('the unit dropdown changes only the display', async ({ page }) => {
   await freshSheet(page);
   await typeRow(page, 1, 'X=6N');
@@ -591,6 +611,15 @@ test.describe('phone keyboards', () => {
     await tab(/^123$/, '+');
     await key('+').tap();
     await expect(f).toHaveJSProperty('value', 'x_{12}+');
+    // on-screen ".": m then . is ṁ; 2 then . is a decimal point
+    await tab(/^abc$/, 'm');
+    await key('m').tap();
+    await tab(/^123$/, '.');
+    await key('.').tap();
+    await key('2').tap();
+    await key('.').tap();
+    await key('5').tap();
+    await expect(f).toHaveJSProperty('value', String.raw`x_{12}+\dot{m}2.5`);
   });
   test('the row being edited stays visible above the on-screen keyboard', async ({ page }) => {
     await openSample(page);

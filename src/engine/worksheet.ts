@@ -659,8 +659,13 @@ export function renameDefinition(rows: Row[], result: WorksheetResult, defRowId:
   const span = result.defSpans.get(defRowId);
   if (!def || def.type !== 'expr' || !span) return 'Only a row that defines a name can be renamed';
   const oldName = latexToSymbol(def.latex.slice(span.s, span.e)).replace(/_\{?([^}]*)\}?/, '_$1');
-  const name = newName.trim().replace(/\s+/g, '');
-  if (!/^[A-Za-zα-ωΑ-Ω](_[A-Za-z0-9]+)?$/.test(name)) return 'A name is one letter, optionally with a subscript, like F, σ or F_1';
+  // m. or m.. typed in the box: ṁ, m̈ (D61)
+  const name = newName
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/^([^_.])\.\./, '$1̈')
+    .replace(/^([^_.])\./, '$1̇');
+  if (!/^[A-Za-zα-ωΑ-Ω][̇̈]?(_[A-Za-z0-9]+)?$/.test(name)) return 'A name is one letter, optionally dotted or with a subscript, like F, σ, ṁ or F_1';
   if (name === oldName) return 'That is already its name';
   if (result.defined.has(name)) return `“${name}” is already defined in this worksheet`;
   const level = definitionScope(def) ?? 'global';

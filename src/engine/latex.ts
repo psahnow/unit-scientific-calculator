@@ -45,6 +45,7 @@ export function matchBrace(src: string, i: number): number {
 /** Convert chip content LaTeX (e.g. "\\mu m", "\\degree C", "gal_{UK}") to a unit symbol. */
 export function latexToSymbol(latex: string): string {
   return latex
+    .replace(/\\(dot|ddot)\s*\{([^{}]*)\}/g, (_, d: string, x: string) => x + DOTS[d])
     .replace(/\\(degree|circ)\s*/g, '°')
     .replace(/\\operatorname\{([^}]*)\}/g, '$1')
     .replace(/\\(mathrm|text|mathit)\{([^}]*)\}/g, '$2')
@@ -54,10 +55,20 @@ export function latexToSymbol(latex: string): string {
     .replace(/μ/g, 'µ');
 }
 
+/** Combining marks for dotted names (D61): ṁ is m + U+0307, ẍ is x + U+0308. */
+export const DOTS: Record<string, string> = { dot: '̇', ddot: '̈' };
+const DOT_CMD: Record<string, string> = { '̇': 'dot', '̈': 'ddot' };
+
 /** Convert a unit/const symbol back to chip-content LaTeX. */
 export function symbolToLatex(sym: string): string {
   let out = '';
+  let last = 0; // where the previous character's LaTeX starts, so a combining dot can wrap it
   for (const ch of sym) {
+    if (DOT_CMD[ch]) {
+      out = `${out.slice(0, last)}\\${DOT_CMD[ch]}{${out.slice(last).trim()}}`;
+      continue;
+    }
+    last = out.length;
     if (ch === '°') out += '\\degree ';
     else if (ch === 'µ') out += '\\mu ';
     else if (ch === '%') out += '\\%';
@@ -126,6 +137,21 @@ export function tokenize(src: string): Tok[] {
           const inner = tokenize(content);
           for (const t of inner) toks.push({ ...t, s: -1, e: -1 } as Tok);
         }
+        i = j;
+        continue;
+      }
+      if (name === 'dot' || name === 'ddot') {
+        // ṁ, ẍ (D61): a dotted letter is a letter of its own, written with a combining dot
+        while (src[j] === ' ') j++;
+        let content = src[j] ?? '';
+        if (src[j] === '{') {
+          const end = matchBrace(src, j);
+          content = src.slice(j + 1, end);
+          j = end + 1;
+        } else j++;
+        const inner = tokenize(content);
+        if (inner.length === 1 && inner[0].t === 'letter') toks.push({ t: 'letter', v: inner[0].v + DOTS[name], s, e: j });
+        else for (const t of inner) toks.push({ ...t, s: -1, e: -1 } as Tok);
         i = j;
         continue;
       }

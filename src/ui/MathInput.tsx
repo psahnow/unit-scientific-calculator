@@ -138,6 +138,39 @@ export function leaveDigitSubscript(mf: MathfieldElement): boolean {
   return true;
 }
 
+/**
+ * "." typed right after a lone letter puts a dot over it: m. → ṁ, and a second "." makes it ẍ-style
+ * (D61). A letter after a digit or another letter (5m, mm) is left alone: there "." can't mean a
+ * dot, but it isn't a name either. Returns whether it changed anything.
+ */
+export function dotLetter(mf: MathfieldElement): boolean {
+  const p = mf.position;
+  if (p < 1) return false;
+  const before = mf.getValue(0, p, 'latex');
+  const dotted = /\\dot\{((?:[A-Za-z]|\\[A-Za-z]+))\}$/.exec(before);
+  let start = -1;
+  let insert = '';
+  if (dotted) {
+    // the accent spans several offsets: find where it starts
+    for (let k = p - 1; k >= 0; k--)
+      if (mf.getValue(k, p, 'latex') === dotted[0]) {
+        start = k;
+        break;
+      }
+    insert = `\\ddot{${dotted[1]}}`;
+  } else {
+    const letter = at(mf, p - 1);
+    const prev = at(mf, p - 2);
+    if (!LETTER.test(letter) || LETTER.test(prev) || DIGIT.test(prev) || prev === '.') return false;
+    start = p - 1;
+    insert = `\\dot{${letter}}`;
+  }
+  if (start < 0) return false;
+  mf.selection = { ranges: [[start, p]], direction: 'forward' };
+  mf.executeCommand(['insert', insert, { format: 'latex', insertionMode: 'replaceSelection', selectionMode: 'after' }]);
+  return true;
+}
+
 export function divideAfterChips(mf: MathfieldElement): boolean {
   const pos = mf.position;
   if (pos <= 0) return false;
@@ -268,6 +301,11 @@ export function MathInput(p: Props) {
     const onInput = (e: Event) => {
       const ie = e as InputEvent;
       if (ie.inputType === 'insertText' && ie.data && DIGIT.test(ie.data)) autoSubscript(mf);
+      // the on-screen "." (a physical "." is handled before it goes in): m. → ṁ (D61)
+      if (ie.inputType === 'insertText' && ie.data === '.' && at(mf, mf.position - 1) === '.') {
+        mf.executeCommand('deleteBackward');
+        if (!dotLetter(mf)) mf.executeCommand(['insert', '.', { format: 'latex' }]);
+      }
       props.current.onChange(mf.getValue('latex'));
       refreshPopover();
     };
@@ -308,6 +346,13 @@ export function MathInput(p: Props) {
       }
       // typing on after T₁₂: leave the subscript first (D47)
       if (e.key.length === 1 && !DIGIT.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) leaveDigitSubscript(mf);
+      if (e.key === '.' && !e.ctrlKey && !e.metaKey && !e.altKey && dotLetter(mf)) {
+        e.preventDefault();
+        e.stopPropagation();
+        props.current.onChange(mf.getValue('latex'));
+        refreshPopover();
+        return;
+      }
       if (e.key === '/' && !e.ctrlKey && !e.metaKey && divideAfterChips(mf)) {
         e.preventDefault();
         e.stopPropagation();

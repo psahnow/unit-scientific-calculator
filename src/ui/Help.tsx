@@ -15,6 +15,7 @@ const ROWS: [string[], string][] = [
   [['/'], 'Start a fraction'],
   [['^'], 'Power (type the exponent, then → to leave it)'],
   [['_'], 'Subscript, as in F_1'],
+  [['.'], 'After a letter: a dot over it, as in ṁ (m then .). Twice: ẍ'],
   [['*'], 'Multiply (shown as ·)'],
 ];
 
