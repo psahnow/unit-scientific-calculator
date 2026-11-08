@@ -65,7 +65,7 @@ test('a period after a letter dots it: m. is ṁ, x.. is ẍ, and 2.5 m stays a 
   await page.keyboard.type('6m.', { delay: 25 });
   await expect(field(page, 4)).toHaveJSProperty('value', String.raw`6\cdot\dot{m}`);
   await expect(result(page, 4)).toContainText('12');
-  // m's suggestions: metre first, ṁ second
+  // m’s suggestions: metre first, then the ṁ defined in row 1
   await nextRow(page, 5);
   await page.keyboard.type('3m', { delay: 25 });
   const items = page.locator('.ac-pop [role="option"]');

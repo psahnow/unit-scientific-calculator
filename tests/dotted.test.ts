@@ -18,13 +18,15 @@ function show(res: ReturnType<typeof ev>, id: string) {
 
 describe('dotted names in suggestions', () => {
   const labels = (p: string, vars: string[], afterNumber: boolean) => suggestionsFor(p, vars, afterNumber).map((s) => s.label);
-  it('m offers metre first, then ṁ', () => {
-    expect(labels('m', [], false).slice(0, 2)).toEqual(['m', 'ṁ']);
-    expect(labels('m', [], true).slice(0, 2)).toEqual(['m', 'ṁ']);
+  it('only a dotted name defined in scope is offered, right after the unit', () => {
+    expect(labels('m', [], false)).not.toContain('ṁ');
+    expect(labels('g', ['ṁ'], false)).not.toContain('ġ');
+    expect(labels('m', ['ṁ'], false).slice(0, 2)).toEqual(['m', 'ṁ']);
+    expect(labels('m', ['ṁ'], true).slice(0, 2)).toEqual(['m', 'ṁ']);
   });
   it('after a number, ṁ is multiplied: 6 · ṁ', () => {
-    expect(suggestionsFor('m', [], true).find((s) => s.label === 'ṁ')!.insert).toBe(r`\cdot\dot{m}`);
-    expect(suggestionsFor('m', [], false).find((s) => s.label === 'ṁ')!.insert).toBe(r`\dot{m}`);
+    expect(suggestionsFor('m', ['ṁ'], true).find((s) => s.label === 'ṁ')!.insert).toBe(r`\cdot\dot{m}`);
+    expect(suggestionsFor('m', ['ṁ'], false).find((s) => s.label === 'ṁ')!.insert).toBe(r`\dot{m}`);
   });
   it('a defined ṁ is "variable" and still after the unit; defined ṁ₁ and m̈ follow', () => {
     const s = suggestionsFor('m', ['ṁ', 'ṁ_1', 'm̈'], false);
@@ -35,7 +37,7 @@ describe('dotted names in suggestions', () => {
       ['m̈', 'variable'],
     ]);
   });
-  it('a letter with nothing else to offer gets no list (x then Tab stays x)', () => {
+  it('a letter with nothing defined gets no list (x then Tab stays x)', () => {
     expect(labels('x', [], false)).toEqual([]);
     expect(labels('x', ['ẋ'], false)).toEqual(['ẋ']);
   });
