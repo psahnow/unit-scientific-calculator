@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Row, ColumnResult, TableColumn } from '../engine/worksheet';
 import { formatQuantity, type FormatOptions } from '../engine/format';
 import { formatUnit, parseUnitExpr } from '../engine/units/registry';
@@ -8,7 +9,7 @@ import { RowMenu } from './rows';
 
 type TableRowT = Extract<Row, { type: 'table' }>;
 
-export function TableRow({ row, cols, fmt, vars }: { row: TableRowT; cols: Map<string, ColumnResult>; fmt: FormatOptions; vars: string[] }) {
+export function TableRow({ row, cols, fmt, vars, tip }: { row: TableRowT; cols: Map<string, ColumnResult>; fmt: FormatOptions; vars: string[]; tip?: ReactNode }) {
   const s = useStore();
   const setCols = (columns: TableColumn[], merge?: string) => s.updateRow(row.id, { columns }, merge);
   const nRows = Math.max(
@@ -154,6 +155,7 @@ export function TableRow({ row, cols, fmt, vars }: { row: TableRowT; cols: Map<s
           </tbody>
         </table>
       </div>
+      {tip}
       <div className="row-actions">
         <RowMenu id={row.id} />
       </div>

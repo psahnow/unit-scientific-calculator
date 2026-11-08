@@ -1,54 +1,5 @@
-// First-run welcome and the keyboard shortcuts panel (D37).
-import { useEffect, useState } from 'react';
-
-const LS_WELCOMED = 'dimensional:welcomed';
-
-/** A short welcome shown until dismissed (per browser). */
-export function Welcome() {
-  const [show, setShow] = useState(() => {
-    try {
-      return localStorage.getItem(LS_WELCOMED) !== '1';
-    } catch {
-      return false;
-    }
-  });
-  if (!show) return null;
-  const dismiss = () => {
-    setShow(false);
-    try {
-      localStorage.setItem(LS_WELCOMED, '1');
-    } catch {
-      /* per-browser convenience only */
-    }
-  };
-  // a floating card over the corner of the page: it never pushes the worksheet down, so nothing
-  // jumps when it's dismissed (D42)
-  return (
-    <section className="welcome" role="dialog" aria-label="Welcome to Dimensional">
-      <button className="icon-btn about-close" aria-label="Dismiss welcome" onClick={dismiss}>
-        ✕
-      </button>
-      <h2>Welcome to Dimensional</h2>
-      <p className="welcome-eg">
-        <span className="eg">F = 6 N</span>, then <span className="eg">F / 2 mm²</span> → <span className="eg">3 MPa</span>
-      </p>
-      <ul>
-        <li>Type units after numbers; suggestions appear as you type.</li>
-        <li>Tap a result’s unit to see it in another unit.</li>
-        <li>
-          <b>ƒ(x) Functions</b> has trig, calculus, solve and constants; <b>⚙</b> has more unit packages.
-        </li>
-        <li className="kbd-only">
-          <kbd>Ctrl</kbd> <kbd>/</kbd> lists keyboard shortcuts.
-        </li>
-        <li>Worksheets are saved in this browser only; use Export to keep a copy.</li>
-      </ul>
-      <button className="text-btn strong" onClick={dismiss}>
-        Got it
-      </button>
-    </section>
-  );
-}
+// The keyboard shortcuts panel (D37). The first-run welcome became the start card and tour (D60).
+import { useEffect } from 'react';
 
 const ROWS: [string[], string][] = [
   [['Enter'], 'New row below'],

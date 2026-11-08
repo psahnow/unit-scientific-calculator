@@ -30,6 +30,8 @@ export interface RowCtx {
   usesFocus?: boolean;
   /** A unit chip on this row comes from packages that are off (D26). */
   packageHint?: { unit: string; packages: string[]; typed?: boolean };
+  /** A one-time tip about this row (D60). */
+  tip?: ReactNode;
 }
 
 type ExprRow = Extract<Row, { type: 'expr' }>;
@@ -100,7 +102,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
         autoUnit={r.autoUnit}
         current={unitText}
         userChosen={!!row.displayUnit}
-        onPick={(u) => s.updateRow(row.id, { displayUnit: u })}
+        onPick={(u) => (s.updateRow(row.id, { displayUnit: u }), s.dismissTip('unit'))}
       />
     );
     {
@@ -219,6 +221,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
           <span aria-hidden>⚠</span> {ctx.notice}
         </div>
       )}
+      {ctx.tip}
       {row.slider && sliderMatch && (
         <Slider row={row} match={sliderMatch} unit={r?.kind === 'value' ? formatUnit(r.autoUnit) : ''} />
       )}

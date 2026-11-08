@@ -1,6 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { evaluateWorksheet, renameDefinition, definitionScope } from '../engine/worksheet';
-import { Shortcuts, Welcome } from './Help';
+import { Shortcuts } from './Help';
+import { Coach, StartCard, TipLine } from './Onboarding';
+import { activeTip } from './tour';
 import { setCurrentPackages } from '../engine/units/packages';
 import type { FormatOptions } from '../engine/format';
 import { useStore, visibleRows, type RowType } from '../state/store';
@@ -114,6 +116,10 @@ export function App() {
     }
   };
 
+  // one inline tip at a time, never during the tour (D60)
+  const tip = s.tour ? null : activeTip(calcRows, result, s.tipsSeen);
+  const tipFor = (id: string) => (tip?.rowId === id ? <TipLine tip={tip} /> : undefined);
+
   let n = 0;
   return (
     <div className={`app ${toolbox ? 'with-toolbox' : ''}`}>
@@ -129,6 +135,7 @@ export function App() {
         )}
         <ToolboxButton open={toolbox} onToggle={() => toggleToolbox(!toolbox)} />
       </div>
+      <Coach result={result} toolbox={toolbox} openToolbox={() => toggleToolbox(true)} />
       </header>
       {s.storageError && (
         <div className="storage-banner" role="alert">
@@ -141,7 +148,6 @@ export function App() {
         <span className="print-title">{s.ws.title}</span>
         <span className="print-date">{new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
       </div>
-      <Welcome />
       <div className="sheet-wrap">
       <VarPanel rows={calcRows} result={result} fmt={fmt} />
       <main className="list" aria-label="Expressions">
@@ -221,15 +227,16 @@ export function App() {
               </div>
               <RowBoundary resetKey={JSON.stringify(row)}>
               {row.type === 'expr' && (
-                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), onRename: (n: string) => doRename(row.id, n), usesFocus: usesFocus(row.id), notice: result.notices.get(row.id), info: result.infos.get(row.id), packageHint: result.packageHints.get(row.id) }} />
+                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), onRename: (n: string) => doRename(row.id, n), usesFocus: usesFocus(row.id), notice: result.notices.get(row.id), info: result.infos.get(row.id), packageHint: result.packageHints.get(row.id), tip: tipFor(row.id) }} />
               )}
               {row.type === 'note' && <NoteRow row={row} />}
               {row.type === 'folder' && <FolderRow row={row} count={childCount} />}
-              {row.type === 'table' && <TableRow row={row} cols={result.columns} fmt={fmt} vars={varsFor(row.parent ?? null)} />}
+              {row.type === 'table' && <TableRow row={row} cols={result.columns} fmt={fmt} vars={varsFor(row.parent ?? null)} tip={tipFor(row.id)} />}
               </RowBoundary>
             </div>
           );
         })}
+        <StartCard />
         <button className="add-bottom" onClick={() => s.addRow('expr', rows[rows.length - 1]?.id ?? null, { parent: undefined })}>
           + Add expression
         </button>

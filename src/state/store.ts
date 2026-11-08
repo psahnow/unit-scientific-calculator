@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from 'zustand';
 import { renumberRefs } from '../engine/rowrefs';
 import type { Row, TableColumn } from '../engine/worksheet';
 import type { Notation } from '../engine/format';
@@ -76,45 +76,22 @@ interface State {
   openWorksheet(id: string): void;
   deleteWorksheet(id: string): void;
   importWorksheet(json: string): void;
+
+  /** The guided tour (D60): which step, the worksheet it runs in, and the one to go back to. */
+  tour: { step: number; wsId: string; prevWs: string | null } | null;
+  startTour(): void;
+  setTourStep(step: number): void;
+  /** keep: leave the Tour worksheet; otherwise delete it and go back. */
+  endTour(keep: boolean): void;
+  /** One-time inline tips already dismissed in this browser (D60). */
+  tipsSeen: string[];
+  dismissTip(id: string): void;
 }
 
-function sampleWorksheet(): Worksheet {
-  const f = uid();
-  const t = uid();
-  return {
-    schema: 1,
-    id: uid(),
-    title: 'Beam check',
-    updated: Date.now(),
-    settings: { ...DEFAULT_SETTINGS },
-    rows: [
-      { id: f, type: 'folder', title: 'Beam inputs' },
-      { id: uid(), type: 'expr', latex: 'F=6\\unit{kN}', parent: f },
-      { id: uid(), type: 'expr', latex: 'A=20\\unit{mm}^{2}', parent: f },
-      { id: uid(), type: 'expr', latex: 'L=1.5\\unit{m}', parent: f, slider: { min: '0', max: '3', step: '0.1' } },
-      { id: uid(), type: 'note', text: 'Stress check — results come out in the units of the expression. Use the unit chip to switch.' },
-      { id: uid(), type: 'expr', latex: '\\sigma=\\frac{F}{A}', displayUnit: 'MPa' },
-      { id: uid(), type: 'expr', latex: 'M=F\\cdot L' },
-      { id: uid(), type: 'expr', latex: 'f\\left(x\\right)=x^{2}\\cdot4\\frac{\\unit{N}}{\\unit{m}^{2}}' },
-      { id: uid(), type: 'expr', latex: 'f\\left(L\\right)' },
-      { id: uid(), type: 'expr', latex: '20\\unit{\\degree C}+5\\unit{\\Delta\\degree C}' },
-      {
-        id: t,
-        type: 'table',
-        columns: [
-          { id: uid(), header: 'x_{1}', unit: 'mm', values: ['10', '20', '30', ''] },
-          { id: uid(), header: 'y_{1}=f\\left(x_{1}\\right)', unit: 'µN', values: [] },
-        ],
-      },
-      { id: uid(), type: 'expr', latex: '' },
-    ],
-  };
-}
-
-function blankWorksheet(): Worksheet {
+function blankWorksheet(base = 'Untitled worksheet'): Worksheet {
   const taken = new Set(loadIndex().map((w) => w.title));
-  let title = 'Untitled worksheet';
-  for (let n = 2; taken.has(title); n++) title = `Untitled worksheet ${n}`;
+  let title = base;
+  for (let n = 2; taken.has(title); n++) title = `${base} ${n}`;
   return { schema: 1, id: uid(), title, updated: Date.now(), settings: { ...DEFAULT_SETTINGS }, rows: [{ id: uid(), type: 'expr', latex: '' }] };
 }
 
@@ -139,6 +116,7 @@ function lsSet(k: string, v: string): boolean {
   }
 }
 const LS_THEME = 'dimensional:theme';
+const LS_TIPS = 'dimensional:tips';
 function initialTheme(): Theme {
   const t = lsGet(LS_THEME);
   return t === 'dark' || t === 'system' || t === 'light' ? t : 'light';
@@ -237,7 +215,8 @@ function loadWs(id: string): Worksheet | null {
 function initial(): { ws: Worksheet; index: State['index'] } {
   const index = loadIndex();
   const cur = lsGet(LS_CURRENT);
-  const ws = (cur && loadWs(cur)) || (index[0] && loadWs(index[0].id)) || sampleWorksheet();
+  // a first visit starts on an empty worksheet, with the start card and an optional tour (D60)
+  const ws = (cur && loadWs(cur)) || (index[0] && loadWs(index[0].id)) || blankWorksheet();
   return { ws, index };
 }
 
@@ -434,12 +413,12 @@ export const useStore = create<State>((set, get) => {
     },
     newWorksheet() {
       saveNow();
-      set({ ws: blankWorksheet(), past: [], future: [], mergeKey: null });
+      set({ ws: blankWorksheet(), past: [], future: [], mergeKey: null, tour: null });
     },
     openWorksheet(id) {
       saveNow();
       const ws = loadWs(id);
-      if (ws) set({ ws, past: [], future: [], mergeKey: null });
+      if (ws) set({ ws, past: [], future: [], mergeKey: null, tour: get().tour?.wsId === id ? get().tour : null });
     },
     deleteWorksheet(id) {
       lsDel(lsWs(id));
@@ -455,7 +434,46 @@ export const useStore = create<State>((set, get) => {
       saveNow();
       const ws = migrate(JSON.parse(json));
       ws.id = uid();
-      set({ ws, past: [], future: [], mergeKey: null });
+      set({ ws, past: [], future: [], mergeKey: null, tour: null });
+    },
+
+    tour: null,
+    startTour() {
+      saveNow();
+      const prevWs = get().ws.id;
+      const ws = blankWorksheet('Tour');
+      const focus = ws.rows[0].id;
+      set({ ws, past: [], future: [], mergeKey: null, tour: { step: 0, wsId: ws.id, prevWs }, focusId: focus, focusNonce: get().focusNonce + 1 });
+    },
+    setTourStep(step) {
+      const t = get().tour;
+      if (t) set({ tour: { ...t, step } });
+    },
+    endTour(keep) {
+      const t = get().tour;
+      set({ tour: null });
+      if (!t || keep) return;
+      // back to where you were; the practice sheet goes
+      const prev = t.prevWs && t.prevWs !== t.wsId ? loadWs(t.prevWs) : null;
+      lsDel(lsWs(t.wsId));
+      const index = get().index.filter((w) => w.id !== t.wsId);
+      lsSet(LS_INDEX, JSON.stringify(index));
+      set({ index, ws: prev ?? (index[0] && loadWs(index[0].id)) ?? blankWorksheet(), past: [], future: [], mergeKey: null });
+      if (get().ws.id) lsSet(LS_CURRENT, get().ws.id);
+    },
+    tipsSeen: (() => {
+      try {
+        const v = JSON.parse(lsGet(LS_TIPS) ?? '[]');
+        return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+      } catch {
+        return [];
+      }
+    })(),
+    dismissTip(id) {
+      if (get().tipsSeen.includes(id)) return;
+      const tipsSeen = [...get().tipsSeen, id];
+      lsSet(LS_TIPS, JSON.stringify(tipsSeen));
+      set({ tipsSeen });
     },
   };
 });

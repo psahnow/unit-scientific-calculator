@@ -94,6 +94,9 @@ export function TopBar() {
             >
               Keyboard shortcuts <span className="menu-date">Ctrl /</span>
             </button>
+            <button className="menu-item" onClick={() => (s.startTour(), menu.setOpen(false))}>
+              Take the tour
+            </button>
             <button className="menu-item" onClick={() => (setAbout(true), menu.setOpen(false))}>
               About Dimensional
             </button>
@@ -162,6 +165,13 @@ export function TopBar() {
                 <option value="scientific">Scientific</option>
                 <option value="engineering">Engineering</option>
               </select>
+              <small className="field-help">
+                {st.notation === 'auto'
+                  ? 'Plain numbers, switching to ×10ⁿ only for very large or small values.'
+                  : st.notation === 'scientific'
+                    ? 'Always one digit before the point: 6.43×10⁶.'
+                    : 'Powers of ten in steps of three, to match k, M, G: 6.43×10⁶, 643×10³.'}
+              </small>
             </label>
             <label title="With Auto notation, large values switch to scientific notation (6.43×10⁶) from this size up">
               Scientific notation from
@@ -177,7 +187,10 @@ export function TopBar() {
             </label>
             <label className="check">
               <input type="checkbox" checked={st.exactDefault} onChange={(e) => set({ exactDefault: e.target.checked })} />
-              Show exact fractions (1/3)
+              <span>
+                Show exact fractions (1/3)
+                <small className="field-help">For plain numbers that don’t end, like 1/3. Values with units always show decimals; the a/b switch in a row’s margin changes one row.</small>
+              </span>
             </label>
             <fieldset className="packages">
               <legend>Unit packages</legend>

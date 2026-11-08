@@ -1109,6 +1109,13 @@ td.computed {
   color: var(--fg-muted);
   padding: 0 4px 0 0;
 }
+.field-help {
+  display: block;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 400;
+}
 .pk-help {
   margin: 0;
   font-size: 12px;
@@ -1574,18 +1581,22 @@ html {
   color: var(--error);
   font-size: 12px;
 }
-.welcome {
+/* the guided tour (D60): a coach card in the corner, a ring around what to look at */
+.coach {
   position: fixed;
   right: 16px;
   bottom: calc(16px + var(--toolbox-h, 0px));
   z-index: 35;
   width: min(380px, calc(100vw - 32px));
-  padding: 14px 18px 14px;
+  padding: 10px 16px 10px;
   border: 1.5px solid var(--result-border);
   border-radius: 6px;
   background: var(--result-bg);
   box-shadow: var(--shadow);
   font-size: 14px;
+  line-height: 1.5;
+}
+.coach.in {
   animation: welcome-in 0.25s ease-out;
 }
 @keyframes welcome-in {
@@ -1594,22 +1605,137 @@ html {
     transform: translateY(8px);
   }
 }
-.welcome h2 {
-  margin: 0 0 4px;
+.coach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--fg-muted);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+.coach h2 {
+  margin: 2px 0 4px;
   font-size: 16px;
 }
-.welcome .welcome-eg {
-  margin: 0 0 6px;
-  font-family: var(--serif);
-  font-size: 16px;
-}
-.welcome ul {
+.coach p {
   margin: 0;
-  padding-left: 18px;
-  line-height: 1.55;
 }
-.welcome .text-btn {
+.coach-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.coach-actions .spacer {
+  flex: 1;
+}
+.coach-done {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 6px;
+}
+.coach-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.coach-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.coach-dots .past {
+  background: var(--fg-muted);
+}
+.coach-dots .on {
+  background: var(--accent);
+}
+code.eg {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--accent-soft);
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+.tour-spot {
+  position: fixed;
+  z-index: 34;
+  pointer-events: none;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  animation: tour-pulse 1.6s ease-in-out infinite;
+  display: none;
+}
+@keyframes tour-pulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot,
+  .coach.in {
+    animation: none;
+  }
+}
+
+/* an empty worksheet explains itself (D60) */
+.start-card {
+  margin: 16px 56px 4px;
+  padding: 14px 18px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 6px;
+  background: var(--result-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 620px;
+}
+.start-card h2 {
+  margin: 0 0 4px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 19px;
+}
+.start-card p {
+  margin: 0 0 10px;
+}
+.start-egs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.eg-btn {
+  font-family: var(--serif);
+  font-size: 15px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.eg-btn:hover,
+.eg-btn:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.start-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
   margin-top: 10px;
+  font-size: 13px;
+}
+.start-foot .text-btn {
+  margin-left: -8px;
+}
+.row-notice.tip .link-btn {
+  margin-left: 4px;
 }
 .shortcuts table {
   border-collapse: collapse;
@@ -1770,15 +1896,31 @@ math-field {
   .btn-label {
     display: none;
   }
-  .welcome {
-    right: 8px;
-    left: 8px;
+  /* on a phone the coach sits in the pinned header, clear of the on-screen keyboard */
+  .coach {
+    position: static;
     width: auto;
-    bottom: 8px;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 6px 12px 6px;
+    font-size: 13px;
+  }
+  .coach h2 {
+    font-size: 14px;
+  }
+  .coach-dots {
+    display: none;
+  }
+  .start-card {
+    margin: 12px 8px 4px;
   }
 }
 @media print {
-  .welcome {
+  .coach,
+  .tour-spot,
+  .start-card,
+  .row-notice.tip {
     display: none !important;
   }
 }

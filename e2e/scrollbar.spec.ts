@@ -12,7 +12,6 @@ test('a real scrollbar is present in these tests', async ({ page }) => {
 
 test('the page keeps its width when a long sheet brings in the scrollbar', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
   await page.getByRole('button', { name: 'Worksheets' }).click();
   await page.getByRole('button', { name: '+ New worksheet' }).click();
   const width = () => page.evaluate(() => document.querySelector('.app')!.getBoundingClientRect().width);
@@ -38,8 +37,6 @@ test('the footer sits at the bottom of the window on a short sheet', async ({ pa
     await page.setViewportSize({ width: w, height: h });
     await page.goto('/');
     await page.waitForSelector('.row math-field');
-    const welcome = page.getByRole('button', { name: 'Dismiss welcome' });
-    if (await welcome.isVisible()) await welcome.click();
     await page.getByRole('button', { name: 'Worksheets' }).click();
     await page.getByRole('button', { name: '+ New worksheet' }).click();
     await expect(page.locator('.row')).toHaveCount(1);

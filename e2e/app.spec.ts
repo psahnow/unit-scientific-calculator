@@ -1,11 +1,10 @@
 // Real-browser checks of the main flows (D38): typing with chips, results, unit dropdowns, toolbox,
 // drag-and-drop, undo, export/import. Each test starts from a fresh browser profile.
 import { test, expect, type Page } from '@playwright/test';
+import { openSample } from './sample';
 
 async function freshSheet(page: Page) {
-  await page.goto('/');
-  // dismiss the welcome card, start a blank worksheet
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  await openSample(page);
   await page.getByRole('button', { name: 'Worksheets' }).click();
   await page.getByRole('button', { name: '+ New worksheet' }).click();
   await expect(page.locator('.row')).toHaveCount(1);
@@ -97,8 +96,7 @@ test('a number right after a letter is a subscript: T1 = 5, then 2·T12', async 
 
 test('wide screens list the variables in the margin; clicking one goes to its row', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  await openSample(page);
   const panel = page.getByRole('complementary', { name: 'Variables' });
   await expect(panel).toBeVisible();
   await expect(panel.locator('.var-item').filter({ hasText: 'σ' })).toContainText('300 MPa');
@@ -127,8 +125,7 @@ test('Tab straight after fast typing takes the whole unit (mm, not m)', async ({
 });
 
 test('arrow keys go into a note and out again', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  await openSample(page);
   // sample sheet: row 4 is L = 1.5 m, row 5 a note, row 6 σ = F/A
   const above = page.locator('.row').nth(3).locator('math-field');
   const note = page.locator('.row').nth(4).locator('textarea');
@@ -217,8 +214,7 @@ test('a unit that no longer fits: picking one that does clears the error, (none)
 });
 
 test('margin switches: folder scope and fraction', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  await openSample(page);
   // row 3 of the sample, A = 20 mm², is inside the "Beam inputs" folder
   const row = page.locator('.row').nth(2);
   await row.hover();
@@ -240,8 +236,7 @@ test('margin switches: folder scope and fraction', async ({ page }) => {
 });
 
 test('drag from anywhere in the margin, but not from a switch', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  await openSample(page);
   const value = (n: number) => page.locator('.row').nth(n).locator('math-field');
   // the bottom of row 3's margin (no switch there) onto row 2: A moves above F
   const g = page.locator('.row').nth(2).locator('.gutter');
@@ -279,8 +274,7 @@ test('text inserted in one go (dictation, IME) reaches the field (review #24)', 
 });
 
 test('a second table gets its own names, x₂ and y₂ (review #1)', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  await openSample(page);
   // the sample sheet already has a table with x₁ / y₁
   await page.getByRole('button', { name: /Add/ }).first().click();
   await page.getByRole('button', { name: /Table/ }).click();
@@ -290,8 +284,7 @@ test('a second table gets its own names, x₂ and y₂ (review #1)', async ({ pa
 });
 
 test('a value typed past the slider’s range widens it (review #12)', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Dismiss welcome' }).click();
+  await openSample(page);
   // sample row 4: L = 1.5 m, slider 0 to 3
   const row = page.locator('.row').nth(3);
   const f = row.locator('math-field');
@@ -384,12 +377,82 @@ test('the production build loads with no console errors and works through the sa
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
-  await page.waitForSelector('.row math-field');
+  await openSample(page);
   // the sample worksheet evaluates without errors: σ = F / A shown in MPa
   await expect(page.locator('.row-result .result').filter({ hasText: 'MPa' }).first()).toContainText('300');
   await expect(page.locator('.result.error, .col-error')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('a first visit: an empty sheet with the start card; an example goes into the row', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.title-input')).toHaveValue('Untitled worksheet');
+  await expect(page.locator('.row')).toHaveCount(1);
+  const card = page.getByRole('region', { name: 'Getting started' });
+  await expect(card).toBeVisible();
+  await card.getByRole('button', { name: '6 kN / 20 mm²' }).click();
+  await expect(card).toBeHidden();
+  await expect(result(page, 1)).toContainText('0.3');
+  await expect(result(page, 1)).toContainText('kN/mm²');
+  await expect(field(page, 1)).toBeFocused();
+  // the one-time tip about the unit button; Got it, and it stays gone
+  const tip = page.locator('.row-notice.tip');
+  await expect(tip).toContainText('Click the unit');
+  await tip.getByRole('button', { name: 'Got it' }).click();
+  await expect(tip).toHaveCount(0);
+  await page.reload();
+  await expect(result(page, 1)).toContainText('kN/mm²');
+  await expect(tip).toHaveCount(0);
+});
+
+test('the tour: every step done with Show me, then Finish goes back and removes the Tour sheet', async ({ page }) => {
+  await page.goto('/');
+  await typeRow(page, 1, '2+2');
+  await page.getByRole('button', { name: 'Worksheets' }).click();
+  await page.getByRole('button', { name: 'Take the tour' }).click();
+  const coach = page.getByRole('dialog', { name: 'Tour' });
+  await expect(page.locator('.title-input')).toHaveValue('Tour');
+  const titles: string[] = [];
+  for (let k = 0; k < 7; k++) {
+    const title = (await coach.locator('h2').textContent())!;
+    titles.push(title);
+    await coach.getByRole('button', { name: 'Show me' }).click();
+    await expect(coach.locator('.coach-done')).toBeVisible();
+    await coach.getByRole('button', { name: 'Next →' }).click();
+    await expect(coach.locator('h2')).not.toHaveText(title);
+  }
+  expect(titles).toEqual([
+    'Numbers carry units',
+    'Units do the arithmetic',
+    'Show it your way',
+    'Mistakes are caught',
+    'Change one, update all',
+    'Reuse an answer',
+    'Functions and constants',
+  ]);
+  // the worksheet the tour built: no ⚠ left over, F changed, σ in MPa, #3 · 2
+  await expect(page.locator('.result.error')).toHaveCount(0);
+  await expect(page.locator('.row-result .result').filter({ hasText: 'MPa' }).first()).toContainText('400');
+  await expect(coach.locator('h2')).toHaveText('That’s the tour');
+  await coach.getByRole('button', { name: 'Finish' }).click();
+  await expect(coach).toBeHidden();
+  await expect(page.locator('.title-input')).toHaveValue('Untitled worksheet');
+  await expect(result(page, 1)).toContainText('4');
+  await page.getByRole('button', { name: 'Worksheets' }).click();
+  await expect(page.locator('.menu-ws')).toHaveCount(1);
+});
+
+test('the tour moves on by itself once a step is done, and ✕ ends it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Take the 2-minute tour/ }).click();
+  const coach = page.getByRole('dialog', { name: 'Tour' });
+  await expect(coach.locator('h2')).toHaveText('Numbers carry units');
+  await typeRow(page, 1, 'F=6kN');
+  await expect(coach.locator('h2')).toHaveText('Units do the arithmetic');
+  await coach.getByRole('button', { name: 'End the tour' }).click();
+  await expect(coach).toBeHidden();
+  await expect(page.locator('.title-input')).toHaveValue('Untitled worksheet');
+  await expect(page.getByRole('region', { name: 'Getting started' })).toBeVisible();
 });
 
 test('nothing moves after the first paint (no layout shift)', async ({ page }) => {
@@ -409,8 +472,7 @@ test.describe('phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
   test('the on-screen keyboard ↵ adds one row; leaving an edited field adds none', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await openSample(page);
     const rows = page.locator('.row');
     const before = await rows.count();
     // edit a row with the on-screen keyboard, then leave it by tapping the title: no new row
@@ -447,8 +509,7 @@ test('“/” after unit chips puts them on top: 5 m Tab / s Tab = 5 m/s', async
 test.describe('phone keyboards', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   test('the unit menu opens without the phone keyboard; tapping its search box brings it up', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await openSample(page);
     await page.locator('.row-result .unit-chip').first().tap();
     const search = page.getByPlaceholder(/type a unit/);
     await expect(search).toBeVisible();
@@ -457,8 +518,7 @@ test.describe('phone keyboards', () => {
     await expect(search).toBeFocused();
   });
   test('a button in the keyboard’s tab bar hides it, and stays after switching tabs', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await openSample(page);
     const field = page.locator('.row math-field').nth(1);
     await field.tap();
     const kb = page.locator('.ML__keyboard.is-visible');
@@ -472,8 +532,7 @@ test.describe('phone keyboards', () => {
     await expect(field).not.toBeFocused();
   });
   test('a swipe that starts on a field scrolls without raising the keyboard; a tap edits', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await openSample(page);
     const field = page.locator('.row math-field').nth(1);
     const box = (await field.boundingBox())!;
     const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
@@ -491,8 +550,7 @@ test.describe('phone keyboards', () => {
     await expect(page.locator('.ML__keyboard.is-visible')).toBeVisible();
   });
   test('on-screen: x then 1 is x₁, and the next key leaves the subscript', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await openSample(page);
     await page.getByRole('button', { name: 'Worksheets' }).tap();
     await page.getByRole('button', { name: '+ New worksheet' }).tap();
     const f = page.locator('.row math-field').first();
@@ -512,8 +570,7 @@ test.describe('phone keyboards', () => {
     await expect(f).toHaveJSProperty('value', 'x_{12}+');
   });
   test('the row being edited stays visible above the on-screen keyboard', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await openSample(page);
     // (row 4 of the sample sits where the keyboard will cover it)
     const field = page.locator('.row math-field').nth(3);
     await field.tap();
@@ -542,8 +599,7 @@ test.describe('phone keyboards', () => {
 test.describe('phone ÷', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   test('the on-screen ÷ after a unit chip divides by what comes next', async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Dismiss welcome' }).tap();
+    await openSample(page);
     await page.getByRole('button', { name: 'Worksheets' }).tap();
     await page.getByRole('button', { name: '+ New worksheet' }).tap();
     await page.locator('.row math-field').first().tap();
