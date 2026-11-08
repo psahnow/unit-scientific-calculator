@@ -1,7 +1,7 @@
 // Real-browser checks of the main flows (D38): typing with chips, results, unit dropdowns, toolbox,
 // drag-and-drop, undo, export/import. Each test starts from a fresh browser profile.
 import { test, expect, type Page } from '@playwright/test';
-import { openSample } from './sample';
+import { openSample, openSheet, SAMPLE } from './sample';
 
 async function freshSheet(page: Page) {
   await openSample(page);
@@ -55,6 +55,29 @@ test('the unit dropdown changes only the display', async ({ page }) => {
   await search.press('Enter');
   await expect(result(page, 2)).toContainText('435.1132132');
   await expect(result(page, 2)).toContainText('psi');
+});
+
+test('the unit menu keeps its size while you scroll its list (opened upward, near the bottom)', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 750 });
+  // a distance in miles shown in inches, last of 12 rows
+  const rows = [
+    ...Array.from({ length: 11 }, (_, i) => ({ id: 'p' + i, type: 'expr', latex: String(i + 1) })),
+    { id: 'd', type: 'expr', latex: String.raw`d=3\unit{mi}`, displayUnit: 'in' },
+  ];
+  await openSheet(page, { ...SAMPLE, id: 'miles', title: 'Miles', rows });
+  await page.evaluate(() => scrollTo(0, 1e6));
+  await result(page, 12).locator('.unit-chip').click();
+  const menu = page.locator('.unit-menu');
+  await expect(menu).toBeVisible();
+  const before = (await menu.boundingBox())!;
+  // the button is near the bottom, so the menu opens upward
+  expect(before.y + before.height).toBeLessThan((await result(page, 12).locator('.unit-chip').boundingBox())!.y + 1);
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height - 40);
+  for (let k = 0; k < 25; k++) await page.mouse.wheel(0, 200);
+  await page.waitForTimeout(200);
+  const after = (await menu.boundingBox())!;
+  expect(after.height).toBe(before.height);
+  expect(after.y).toBe(before.y);
 });
 
 test('a kelvin value can be shown in °C, with a note on why that can mislead', async ({ page }) => {

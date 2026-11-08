@@ -63,10 +63,17 @@ const MARGIN = 8;
 function usePlacement(anchor: RefObject<HTMLElement | null>, menu: RefObject<HTMLDivElement | null>) {
   const [style, setStyle] = useState<React.CSSProperties>({ visibility: 'hidden' });
   useLayoutEffect(() => {
-    const place = () => {
+    // the menu's natural height, measured once when it opens: after that its height is set by
+    // placing it, so measuring again would read back our own (bordered, slightly smaller) height and
+    // shrink it a little on every scroll
+    let natural = 0;
+    const place = (e?: Event) => {
+      // scrolling the list inside the menu doesn't move anything
+      if (e?.type === 'scroll' && e.target instanceof Node && menu.current?.contains(e.target)) return;
       const a = anchor.current?.getBoundingClientRect();
       const m = menu.current;
       if (!a || !m) return;
+      if (!natural) natural = m.scrollHeight;
       const vw = document.documentElement.clientWidth;
       const vh = window.innerHeight;
       const width = Math.min(290, vw - 2 * MARGIN);
@@ -76,7 +83,7 @@ function usePlacement(anchor: RefObject<HTMLElement | null>, menu: RefObject<HTM
       const head = document.querySelector('.app-head')?.getBoundingClientRect().bottom ?? 0;
       const below = vh - a.bottom - GAP - MARGIN;
       const above = a.top - GAP - MARGIN - head;
-      const want = Math.min(420, m.scrollHeight);
+      const want = Math.min(420, natural);
       const down = below >= want || below >= above;
       const maxHeight = Math.max(160, Math.min(420, down ? below : above));
       setStyle({
