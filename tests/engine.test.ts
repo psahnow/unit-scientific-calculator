@@ -68,8 +68,8 @@ describe('units (spec §11)', () => {
     expect(f.value).toBe('1.348853659');
   });
   it('dimension errors', () => {
-    expect(calc('5\\unit{m}+3\\unit{s}')).toMatch(/Can't add length \(m\) and time \(s\)/);
-    expect(calc('\\sin\\left(5\\unit{N}\\right)')).toMatch(/sin expects an angle/);
+    expect(calc('5\\unit{m}+3\\unit{s}')).toMatch(/Can't add a length \(m\) and a time \(s\)/);
+    expect(calc('\\sin\\left(5\\unit{N}\\right)')).toMatch(/sin needs an angle or a plain number, not a force/);
   });
   it('implicit unit chips from bare letters (D17)', () => {
     expect(calc('6N')).toBe('6 N');
@@ -92,11 +92,11 @@ describe('units (spec §11)', () => {
 describe('temperature', () => {
   it('affine rules', () => {
     expect(calc('20\\unit{\\degree C}+5\\unit{\\Delta\\degree C}')).toBe('25 °C');
-    expect(calc('20\\unit{\\degree C}+5\\unit{\\degree C}')).toMatch(/two absolute temperatures/);
+    expect(calc('20\\unit{\\degree C}+5\\unit{\\degree C}')).toMatch(/add two temperatures/);
     expect(calc('30\\unit{\\degree C}-10\\unit{\\degree C}')).toBe('20 Δ°C');
     expect(calc({ latex: '100\\unit{\\degree C}', unit: '°F' })).toBe('212 °F');
     expect(calc({ latex: '0\\unit{\\degree C}', unit: 'K' })).toBe('273.15 K');
-    expect(calc('2\\cdot20\\unit{\\degree C}')).toMatch(/absolute temperature/);
+    expect(calc('2\\cdot20\\unit{\\degree C}')).toMatch(/Can't multiply a temperature in °C or °F/);
   });
 });
 
@@ -127,7 +127,7 @@ describe('variables, functions, inheritance', () => {
     expect(calc(['f\\left(x\\right)=x^{2}\\cdot4\\frac{\\unit{N}}{\\unit{m}^{2}}', 'f\\left(3\\unit{m}\\right)'])).toBe('36 N');
   });
   it('cycles and undefined', () => {
-    expect(calc(['a=b', 'b=a'])).toMatch(/Circular/);
+    expect(calc(['a=b', 'b=a'])).toMatch(/in a loop/);
     expect(calc('q+1')).toMatch(/isn't defined yet: add a row like q = 5/);
     expect(calc(['a=1', 'a=2', 'a'])).toMatch(/more than once/);
   });

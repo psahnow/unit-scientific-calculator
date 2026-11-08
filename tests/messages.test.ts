@@ -24,7 +24,7 @@ describe('plain-language errors (D28)', () => {
     expect(msg(r`\frac{}{2}`)).toMatch(/empty box/);
     expect(msg(r`2+`)).toMatch(/Something's missing/);
     expect(msg(r`2)`)).toMatch(/extra “\)”/);
-    expect(msg(r`x<3`)).toMatch(/only go inside a piecewise/);
+    expect(msg(r`x<3`)).toMatch(/only work inside { } cases/);
     expect(msg(r`a=b=2`)).toMatch(/Only one “=”/);
     expect(msg(r`\lim_{x\to}x`)).toMatch(/say where the variable goes/);
   });

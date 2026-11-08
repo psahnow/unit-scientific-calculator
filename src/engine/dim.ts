@@ -76,3 +76,14 @@ export function dimName(a: Dim): string {
   for (const [p, n] of NAMES) if (dimEq(a, dim(p))) return n;
   return 'quantity';
 }
+
+/** The kind of value, for messages: "a force", "an area", "a plain number"; undefined if it has no everyday name. */
+export function kindOf(a: Dim): string | undefined {
+  const n = dimName(a);
+  if (n === 'quantity') return undefined;
+  if (n === 'dimensionless') return 'a plain number';
+  if (n === 'velocity') return 'a speed';
+  if (n === 'angular velocity') return 'an angular speed';
+  if (n === 'amount') return 'an amount of substance';
+  return (/^[aeiou]/.test(n) ? 'an ' : 'a ') + n;
+}

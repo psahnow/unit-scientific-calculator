@@ -124,7 +124,7 @@ function UnitsBrowser({ insert }: { insert(latex: string): void }) {
   return (
     <div className="tb-units" role="tabpanel">
       <div className="tb-units-bar">
-        <input className="unit-search" placeholder="Search units: name or symbol (e.g. pascal, psi)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search units" />
+        <input className="unit-search" placeholder="Search units, like pascal or psi" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search units" />
         <label className="tb-units-all">
           <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show units from packages that are off
           {!all && hidden > 0 && <span className="muted"> ({hidden} hidden)</span>}
@@ -142,7 +142,7 @@ function UnitsBrowser({ insert }: { insert(latex: string): void }) {
                   <button
                     key={u.id}
                     className={`tb-unit ${on ? '' : 'off'}`}
-                    title={`${u.name}${pk.length ? ` (${pk.join(' / ')}${on ? '' : ', off for this worksheet'})` : ''}`}
+                    title={`${u.name}${pk.length ? ` (${pk.join(' / ')}${on ? '' : ', turned off for this worksheet'})` : ''}`}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insert(`\\unit{${symbolToLatex(u.id)}}`)}
                   >

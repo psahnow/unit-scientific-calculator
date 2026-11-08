@@ -210,7 +210,7 @@ export function App() {
                     <span className="num">⚠</span>
                   </HoverTip>
                 ) : (
-                  <span className="num" title={res?.kind === 'value' && !res.defName ? `Row ${num}: use #${num} to refer to its answer` : undefined}>
+                  <span className="num" title={res?.kind === 'value' && !res.defName ? `Row ${num}. Type #${num} to use its answer elsewhere` : undefined}>
                     {num}
                   </span>
                 )}

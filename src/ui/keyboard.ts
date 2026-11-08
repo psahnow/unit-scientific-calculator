@@ -21,7 +21,7 @@ const NAV: Key[] = [
   '[right]',
   '[(]',
   '[)]',
-  fn(',', ',', 'Comma (lists, function inputs)'),
+  fn(',', ',', 'Comma, for lists and function inputs'),
   '[=]',
   fn('x₁', '_{#0}', 'Subscript, as in F₁ (on a keyboard, type _)'),
   { label: '⌫', class: 'action dim-backspace', command: 'performWithFeedback(deleteBackward)', width: 1.5, tooltip: 'Delete' },
@@ -29,7 +29,7 @@ const NAV: Key[] = [
 ]
 const DIGITS: Key[] = ['[1]', '[2]', '[3]', '[4]', '[5]', '[6]', '[7]', '[8]', '[9]', '[0]'];
 /** ÷: a fraction of what's before the caret; after unit chips, handled by setDivideHandler. */
-const DIVIDE: Key = { latex: '\\frac{#@}{#?}', label: '÷', class: 'big-op dim-divide', tooltip: 'Divide (a fraction)' };
+const DIVIDE: Key = { latex: '\\frac{#@}{#?}', label: '÷', class: 'big-op dim-divide', tooltip: 'Divide' };
 
 /**
  * The keyboard's ↵ adds a row below the focused one (D40). It acts on its own press, not on MathLive's

@@ -142,8 +142,8 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       {r?.kind === 'value' && r.literal && sliderMatch && (
         <button
           className={`icon-btn ${row.slider ? 'on' : ''}`}
-          title={row.slider ? 'Remove slider' : 'Make slider'}
-          aria-label={row.slider ? 'Remove slider' : 'Make slider'}
+          title={row.slider ? 'Remove the slider' : 'Add a slider'}
+          aria-label={row.slider ? 'Remove the slider' : 'Add a slider'}
           onClick={() => {
             if (row.slider) s.updateRow(row.id, { slider: undefined });
             else {
@@ -194,9 +194,9 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       {resultEl && <div className="row-result">{resultEl}</div>}
       {ctx.packageHint && (
         <div className="row-notice" role="note">
-          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is a unit from{' '}
-          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')}, which is off for this worksheet.{' '}
-          {ctx.packageHint.typed ? 'Turn it on to use it here.' : 'This chip still calculates, but the unit isn’t offered when typing.'}{' '}
+          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is from the{' '}
+          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')} units, which are off for this worksheet.{' '}
+          {ctx.packageHint.typed ? 'Turn them on to use it here.' : 'It still works here, but won’t be suggested as you type.'}{' '}
           {ctx.packageHint.packages.map((id) => (
             <button
               key={id}
@@ -272,10 +272,10 @@ export function GutterTools({ row, ctx, folderTitle }: { row: ExprRow; ctx: RowC
           className={`gutter-btn scope ${local ? 'on' : ''}`}
           title={
             local
-              ? `${defName} is only defined inside ${where}${ctx.shadows ? ', where it replaces the global one' : ''}. Click to make it visible everywhere.`
-              : `${defName} is visible everywhere. Click to keep it inside ${where}, so other folders can use the name for something else.`
+              ? `${defName} only works inside ${where}${ctx.shadows ? ', where it replaces the one outside' : ''}. Click to make it work everywhere.`
+              : `${defName} works everywhere. Click to keep it inside ${where}, so other folders can use the name for something else.`
           }
-          aria-label={local ? `${defName}: only in ${where}. Make it visible everywhere` : `${defName}: visible everywhere. Keep it inside ${where}`}
+          aria-label={local ? `${defName}: only in ${where}. Make it work everywhere` : `${defName}: works everywhere. Keep it inside ${where}`}
           aria-pressed={local}
           onClick={() => s.updateRow(row.id, { scope: local ? undefined : 'folder' })}
         >
@@ -361,7 +361,7 @@ function RenameButton({ name, onRename }: { name: string; onRename(n: string): s
             }}
             aria-label="New name"
           />
-          <span className="muted">Every row that uses this {name} changes too. Use F_1 for a subscript.</span>
+          <span className="muted">Rows that use {name} change too. Type F_1 for a subscript, m. for ṁ.</span>
           <button className="text-btn strong" onClick={submit}>
             Rename
           </button>
@@ -379,7 +379,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       className="icon-btn"
-      title={done ? 'Copied' : `Copy result: ${text}`}
+      title={done ? 'Copied' : `Copy ${text}`}
       aria-label="Copy result"
       onClick={async () => {
         try {
@@ -550,7 +550,7 @@ export function FolderRow({ row, count }: { row: Extract<Row, { type: 'folder' }
         {row.collapsed && <span className="folder-count">{count} item{count === 1 ? '' : 's'}</span>}
       </div>
       <div className="row-actions">
-        <button className="icon-btn" title="Add expression in folder" aria-label="Add expression in folder" onClick={() => s.addRow('expr', row.id, { parent: row.id })}>
+        <button className="icon-btn" title="Add a row to this folder" aria-label="Add a row to this folder" onClick={() => s.addRow('expr', row.id, { parent: row.id })}>
           +
         </button>
         <RowMenu id={row.id} />

@@ -133,7 +133,7 @@ export const TOUR: TourStep[] = [
     id: 'functions',
     title: 'Functions and constants',
     body: () =>
-      'Open ƒ(x) Functions: trig, logs, calculus, solve and roots, and physical constants like g and c. Click one to insert it at the caret.',
+      'Open ƒ(x) Functions: trig, logs, calculus, solve and roots, and physical constants like g and c. Click one to put it where your cursor is.',
     goal: (c) => c.toolbox,
     target: () => '[aria-controls="toolbox"]',
     showMe: (_, api) => api.openToolbox(),

@@ -214,7 +214,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       if (t.t !== 'num' || nx.t !== 'letter' || after?.t === 'letter' || (after?.t === 'op' && after.v === '_')) continue;
       const u = lookupUnit(nx.v);
       if (!u || !vars.has(nx.v) || (settings.packages && !availability(settings.packages)(u))) continue;
-      infos.set(r.id, `In ${t.v}${nx.v}, ${nx.v} is your variable ${nx.v}, not the unit ${u.name} (${u.id}). To mean ${u.name}, pick it from the suggestions as you type.`);
+      infos.set(r.id, `Here ${nx.v} is your variable ${nx.v}, not the unit ${u.name} (${u.id}). For the unit, pick ${u.id} from the suggestions as you type.`);
       break;
     }
   }
@@ -238,7 +238,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       parsed.set(
         r.id,
         new ParseError(
-          `${c.text} is only defined inside ${where}. Make it global, or move this row into that folder. ` +
+          `${c.text} is only defined inside ${where}. Make it work everywhere, or move this row into that folder. ` +
             `If you meant ${meaning}, pick it from the suggestions as you type.`,
         ),
       );
@@ -268,12 +268,12 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   function valueOf(name: string, src: DefSource): Value {
     const key = srcKey(src);
     const cached = varCache.get(key);
-    if (cached instanceof Error) throw new CalcError(`depends on “${name}”, which has an error`);
+    if (cached instanceof Error) throw new CalcError(`Uses “${name}”, which has an error`);
     if (cached) return cached;
     const at = visiting.findIndex((v) => v.key === key);
     if (at >= 0) {
       const cycle = visiting.slice(at).map((v) => v.name).concat(name).join(' → ');
-      throw new CycleError(`Circular definition: ${cycle}`);
+      throw new CycleError(`These depend on each other in a loop: ${cycle}`);
     }
     visiting.push({ key, name });
     try {
@@ -405,7 +405,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     const r = rowById.get(rowId) as Extract<Row, { type: 'expr' }>;
     const p = parsed.get(rowId)!;
     if (p instanceof Error) throw p;
-    if (p.kind === 'empty' || p.kind === 'fdef') throw new CalcError('No value');
+    if (p.kind === 'empty' || p.kind === 'fdef') throw new CalcError('This row has no value');
     const run = collectNotes(() => evaluate(p.expr, rowEnv(rowId)));
     let value = run.value;
     if (run.notes.length) rowNotes.set(rowId, run.notes.join(' '));
@@ -451,7 +451,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         if (!cell.trim()) continue;
         const n = parseExpression(cellToLatex(cell), ctx);
         const q = evaluate(n, env);
-        if (q.t !== 'q') throw new CalcError('Table cells must be single values');
+        if (q.t !== 'q') throw new CalcError('A table cell holds one value, not a list');
         const x = q.q;
         items.push(unit && dimEq(x.dim, DIMLESS) && !x.unit.length ? fromUnit(x.si, unit) : x);
       }
@@ -519,7 +519,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     if (m && res?.kind === 'error') {
       const homes = [...locals.entries()].filter(([fid, lv]) => fid !== (r.parent ?? null) && lv.vars.has(m[1])).map(([fid]) => fid);
       if (homes.length) {
-        results.set(r.id, { ...res, message: `“${m[1]}” is only defined inside ${folderList(homes)}: make it global, or move this row into that folder` });
+        results.set(r.id, { ...res, message: `“${m[1]}” is only defined inside ${folderList(homes)}. Make it work everywhere, or move this row into that folder` });
         continue;
       }
     }
@@ -530,7 +530,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       packageHints.set(r.id, { unit: u.id, packages: packagesOf(u), typed: true });
       // "2Torr" fails as T·o·r·r: say it's a unit that is switched off instead
       if (res?.kind === 'error' && u.id.length > 1 && /isn't defined yet/.test(res.message))
-        results.set(r.id, { ...res, message: `“${u.id}” is a unit from a package that is off for this worksheet` });
+        results.set(r.id, { ...res, message: `“${u.id}” is from a unit package that is off for this worksheet` });
     }
   }
 
@@ -657,7 +657,7 @@ function degreeSensitive(n: Node): boolean {
 export function renameDefinition(rows: Row[], result: WorksheetResult, defRowId: string, newName: string): Row[] | string {
   const def = rows.find((r) => r.id === defRowId);
   const span = result.defSpans.get(defRowId);
-  if (!def || def.type !== 'expr' || !span) return 'Only a row that defines a name can be renamed';
+  if (!def || def.type !== 'expr' || !span) return 'Only a row that defines a name, like x = 5, can be renamed';
   const oldName = latexToSymbol(def.latex.slice(span.s, span.e)).replace(/_\{?([^}]*)\}?/, '_$1');
   // m. or m.. typed in the box: ṁ, m̈ (D61)
   const name = newName

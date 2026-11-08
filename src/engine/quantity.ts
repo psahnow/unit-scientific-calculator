@@ -1,7 +1,7 @@
 // Quantity: hidden SI magnitude + dimension + display unit expression (DESIGN.md §5).
 import * as N from './num';
 import { type Num } from './num';
-import { type Dim, DIMLESS, dimMul, dimDiv, dimPow, dimEq, isDimlessLoose, dimName } from './dim';
+import { type Dim, DIMLESS, dimMul, dimDiv, dimPow, dimEq, isDimlessLoose, kindOf } from './dim';
 import {
   type UnitExpr,
   unitDim,
@@ -26,9 +26,12 @@ export class CalcError extends Error {}
 
 export const scalar = (n: Num): Quantity => ({ si: n, dim: DIMLESS, unit: [] });
 
+/** A value's kind for messages: "a force (kN)", "a plain number", or "a value in kg·m" when it has no everyday name. */
 export function describe(q: { dim: Dim; unit: UnitExpr }): string {
   const u = formatUnit(q.unit);
-  return u ? `${dimName(q.dim)} (${u})` : dimName(q.dim);
+  const k = kindOf(q.dim);
+  if (!k) return u ? `a value in ${u}` : 'a value';
+  return u ? `${k} (${u})` : k;
 }
 
 /** Build a quantity from a value expressed in `unit`. */
@@ -69,19 +72,19 @@ export function kelvinAsAbsolute(q: Quantity, unit: UnitExpr): boolean {
 /** Why reading a kelvin value as a temperature can mislead (shown under the result). */
 export function kelvinNote(unit: UnitExpr): string {
   const u = formatUnit(unit);
-  return `Read as an absolute temperature. Kelvin also measures temperature changes: if this value is a change (ΔT), show it in K or Δ${u}, since a change of 10 K is 10 Δ°C, not −263.15 °C.`;
+  return `Read as a temperature. If this is a change in temperature (ΔT), show it in K or Δ${u} instead: a change of 10 K is 10 Δ°C, not −263.15 °C.`;
 }
 
 /** Check a target unit is a valid display unit for q. Returns an error message or null. */
 export function checkConvertible(q: Quantity, unit: UnitExpr): string | null {
   if (kelvinAsAbsolute(q, unit)) return null;
   const ud = unitDim(unit);
-  if (!dimEq(ud, q.dim)) return `Can't show ${dimName(q.dim)} in ${formatUnit(unit)} (${dimName(ud)})`;
+  if (!dimEq(ud, q.dim)) return `Can't show ${kindOf(q.dim) ?? 'this value'} in ${formatUnit(unit)}, which is ${kindOf(ud) ?? 'something else'}`;
   const single = unit.length === 1 && unit[0].power === 1 ? getUnit(unit[0].id) : undefined;
   if (q.tempKind === 'absolute' && single?.tempKind === 'delta')
-    return 'An absolute temperature needs an absolute unit (K, °C, °F, °R)';
+    return 'This is a temperature: show it in K, °C, °F or °R';
   if (q.tempKind !== 'absolute' && single?.tempKind === 'absolute' && dimEq(q.dim, single.dim))
-    return 'A temperature difference needs a difference unit (K, Δ°C, Δ°F, °R)';
+    return 'This is a temperature difference: show it in K, Δ°C, Δ°F or °R';
   return null;
 }
 
@@ -93,7 +96,7 @@ export function convertTo(q: Quantity, unit: UnitExpr): Quantity {
 }
 
 const ABS_TEMP_MSG = (op: string) =>
-  `Can't ${op} an absolute temperature (°C/°F); use K or a temperature difference (Δ°C)`;
+  `Can't ${op} a temperature in °C or °F. Use K, or a temperature difference (Δ°C)`;
 
 function deltaOf(unit: UnitExpr): UnitExpr {
   const off = offsetUnit(unit);
@@ -112,7 +115,7 @@ export function add(a: Quantity, b: Quantity): Quantity {
   requireSameDim(a, b, 'add');
   const si = N.add(a.si, b.si);
   if (a.tempKind === 'absolute' && b.tempKind === 'absolute')
-    throw new CalcError("Can't add two absolute temperatures; did you mean a temperature difference (Δ°C)?");
+    throw new CalcError("Can't add two temperatures. To add a change, make it a difference: 20 °C + 5 Δ°C");
   if (a.tempKind === 'absolute') return { si, dim: a.dim, unit: a.unit, tempKind: 'absolute' };
   if (b.tempKind === 'absolute') return { si, dim: b.dim, unit: b.unit, tempKind: 'absolute' };
   const unit = a.unit.length || !b.unit.length ? a.unit : b.unit;
@@ -125,7 +128,7 @@ export function sub(a: Quantity, b: Quantity): Quantity {
     // abs − abs → difference, shown in the delta form of the first unit
     return { si: N.sub(a.si, b.si), dim: a.dim, unit: deltaOf(a.unit), tempKind: 'delta' };
   }
-  if (b.tempKind === 'absolute') throw new CalcError("Can't subtract an absolute temperature from a difference");
+  if (b.tempKind === 'absolute') throw new CalcError("Can't subtract a temperature from a temperature difference");
   return add(a, neg(b));
 }
 
@@ -161,12 +164,12 @@ function finishProduct(si: Num, d: Dim, unit: UnitExpr): Quantity {
 }
 
 export function pow(a: Quantity, e: Quantity): Quantity {
-  if (!isDimlessLoose(e.dim)) throw new CalcError(`Exponent must be dimensionless; got ${describe(e)}`);
+  if (!isDimlessLoose(e.dim)) throw new CalcError(`A power must be a plain number, not ${describe(e)}`);
   if (a.tempKind === 'absolute') throw new CalcError(ABS_TEMP_MSG('raise'));
   if (dimEq(a.dim, DIMLESS)) return scalar(N.pow(a.si, e.si));
   const p = N.toNumber(e.si);
   const fr = N.toFraction(p);
-  if (!fr) throw new CalcError('A quantity with units can only be raised to a rational power');
+  if (!fr) throw new CalcError('A value with units can only be raised to a simple fractional power, like 2 or 1/2');
   const si = N.powRational(a.si, fr[0], fr[1]);
   return finishProduct(si, dimPow(a.dim, p), a.unit.map((t) => ({ id: t.id, power: t.power * p })));
 }

@@ -25,7 +25,7 @@ describe('typed function inputs', () => {
     expect(show(F, r`F\left(3\right)`)).toBe('6 m');
   });
   it('refuses another dimension, saying what it needs', () => {
-    expect(show(F, r`F\left(2\unit{kg}\right)`)).toMatch(/^error: F needs l in m \(length.*\); got mass/);
+    expect(show(F, r`F\left(2\unit{kg}\right)`)).toMatch(/^error: F needs l to be a length, like m, not a mass \(kg\)/);
   });
   it('several typed inputs, compound units, and untyped ones alongside', () => {
     const P = r`P\left(F:\unit{kN},A:\unit{mm}^2,k\right)=\frac{k\cdot F}{A}`;
@@ -50,7 +50,7 @@ describe('typed function inputs', () => {
     const R = r`R\left(k:real,L:\unit{m}\right)=k\cdot L`;
     expect(show(R, r`R\left(3,2\right)`)).toBe('6 m');
     expect(show(R, r`R\left(50\unit{\%},2\right)`)).toBe('1 m');
-    expect(show(R, r`R\left(3\unit{m},2\right)`)).toMatch(/^error: R needs k as a plain number \(real\)/);
+    expect(show(R, r`R\left(3\unit{m},2\right)`)).toMatch(/^error: R needs k to be a plain number, without units, not a length/);
   });
   it('untyped functions are unchanged', () => {
     expect(show(r`f\left(x\right)=2x`, r`f\left(3\unit{in}\right)`)).toBe('6 in');

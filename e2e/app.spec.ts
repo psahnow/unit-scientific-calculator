@@ -83,7 +83,7 @@ test('the unit dropdown changes only the display', async ({ page }) => {
   await page.keyboard.type('X/2mm^2', { delay: 25 });
   await expect(result(page, 2)).toContainText('N/mm²');
   await result(page, 2).locator('.unit-chip').click();
-  const search = page.getByPlaceholder(/type a unit/);
+  const search = page.getByPlaceholder(/Type a unit/);
   await expect(search).toBeFocused();
   await search.fill('psi');
   await search.press('Enter');
@@ -120,7 +120,7 @@ test('a kelvin value can be shown in °C, with a note on why that can mislead', 
   await page.keyboard.press('Escape');
   await expect(result(page, 1)).toContainText('300');
   await result(page, 1).locator('.unit-chip').click();
-  const search = page.getByPlaceholder(/type a unit/);
+  const search = page.getByPlaceholder(/Type a unit/);
   await search.fill('degC');
   await search.press('Enter');
   await expect(result(page, 1)).toContainText('26.85');
@@ -131,7 +131,7 @@ test('a kelvin value can be shown in °C, with a note on why that can mislead', 
   await expect(tip).toBeHidden();
   await page.locator('.unit-note').hover();
   await expect(tip).toBeVisible();
-  await expect(tip).toContainText('absolute temperature');
+  await expect(tip).toContainText('Read as a temperature');
 });
 
 test('a number right after a letter is a subscript: T1 = 5, then 2·T12', async ({ page }) => {
@@ -252,8 +252,8 @@ test('a unit that no longer fits: picking one that does clears the error, (none)
   await typeRow(page, 1, '5m');
   await page.locator('.title-input').click();
   await result(page, 1).locator('.unit-chip').click();
-  await page.getByPlaceholder(/type a unit/).fill('mm');
-  await page.getByPlaceholder(/type a unit/).press('Enter');
+  await page.getByPlaceholder(/Type a unit/).fill('mm');
+  await page.getByPlaceholder(/Type a unit/).press('Enter');
   // the row becomes a plain number: "mm" no longer fits
   await field(page, 1).click();
   await expect(field(page, 1)).toBeFocused();
@@ -277,10 +277,10 @@ test('margin switches: folder scope and fraction', async ({ page }) => {
   await row.hover();
   const scope = row.locator('.gutter-btn.scope');
   await expect(scope).toHaveAttribute('aria-pressed', 'false');
-  await expect(scope).toHaveAttribute('title', /A is visible everywhere. Click to keep it inside “Beam inputs”/);
+  await expect(scope).toHaveAttribute('title', /A works everywhere. Click to keep it inside “Beam inputs”/);
   await scope.click();
   await expect(scope).toHaveAttribute('aria-pressed', 'true');
-  await expect(scope).toHaveAttribute('title', /A is only defined inside “Beam inputs”/);
+  await expect(scope).toHaveAttribute('title', /A only works inside “Beam inputs”/);
   // the fraction switch: L = 1.5 m is 3/2 m
   const l = page.locator('.row').nth(3);
   await l.hover();
@@ -568,7 +568,7 @@ test.describe('phone keyboards', () => {
   test('the unit menu opens without the phone keyboard; tapping its search box brings it up', async ({ page }) => {
     await openSample(page);
     await page.locator('.row-result .unit-chip').first().tap();
-    const search = page.getByPlaceholder(/type a unit/);
+    const search = page.getByPlaceholder(/Type a unit/);
     await expect(search).toBeVisible();
     await expect(search).not.toBeFocused();
     await search.tap();

@@ -66,7 +66,7 @@ function unexpected(t: Tok): string {
       case '≤':
       case '≥':
       case '≠':
-        return `Comparisons like “${t.v}” only go inside a piecewise, like {x ${t.v} 3: …}`;
+        return `Comparisons like “${t.v}” only work inside { } cases, like {x ${t.v} 3: 1, 0}`;
       case '^':
         return 'A power needs something to raise: put a value before it';
       case '!':
@@ -719,7 +719,7 @@ class Parser {
       }
     }
     if (!lo || !lo.length || !hi || !hi.length)
-      throw new ParseError('This integral needs both limits: type the start below the ∫ and the end above it (only definite integrals are supported)');
+      throw new ParseError('This integral needs a start and an end: type them below and above the ∫');
     // find the differential "dx" that ends the integrand
     let depth = 0;
     for (let j = this.i; j < this.toks.length; j++) {

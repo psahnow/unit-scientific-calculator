@@ -18,7 +18,7 @@ function exportSaved() {
     a.download = `${title}.dimensional.json`;
     a.click();
   } catch {
-    alert('This browser’s storage could not be read.');
+    alert('Couldn’t read this browser’s storage.');
   }
 }
 
@@ -36,7 +36,7 @@ export class AppBoundary extends Component<{ children: ReactNode }, State> {
       <div className="crash">
         <div className="crash-card">
           <h1>Something went wrong</h1>
-          <p>Dimensional hit an unexpected error. Your worksheet is still saved in this browser.</p>
+          <p>Dimensional ran into a problem. Your worksheet is still saved in this browser.</p>
           <div className="crash-actions">
             <button className="text-btn strong" onClick={() => location.reload()}>
               Reload

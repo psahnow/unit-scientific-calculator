@@ -33,7 +33,7 @@ describe('integrals', () => {
   });
   it('needs dx and limits', () => {
     expect(calc(r`\int_{0}^{1}x^2`)).toMatch(/^error: End the integral/);
-    expect(calc(r`\int x\,dx`)).toMatch(/^error: This integral needs both limits/);
+    expect(calc(r`\int x\,dx`)).toMatch(/^error: This integral needs a start and an end/);
   });
 });
 
@@ -118,7 +118,7 @@ describe('piecewise', () => {
   it('picks the first matching case, else the otherwise value', () => {
     expect(calc('x=-2', abs)).toBe('2');
     expect(calc('x=5', abs)).toBe('5');
-    expect(calc('x=5', r`\left\{x<0:-x\right\}`)).toMatch(/No piecewise case/);
+    expect(calc('x=5', r`\left\{x<0:-x\right\}`)).toMatch(/None of the { } conditions is true/);
   });
   it('chained, ≤ and units', () => {
     expect(calc('x=5', r`\left\{0<x<10:1,0\right\}`)).toBe('1');

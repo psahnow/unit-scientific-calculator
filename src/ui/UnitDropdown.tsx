@@ -46,7 +46,7 @@ export function UnitButton(p: Props) {
         onKeyDown={(e) => {
           if (e.altKey && e.key === 'ArrowDown') setOpen(true);
         }}
-        title="Change display unit"
+        title="Show in another unit"
       >
         {p.current || p.label || '—'}
         <span className="caret">▾</span>
@@ -163,7 +163,7 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
       <input
         ref={searchRef}
         className="unit-search"
-        placeholder="type a unit… (e.g. kip/in^2)"
+        placeholder="Type a unit, like kip/in^2"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);

@@ -121,7 +121,7 @@ export function TopBar() {
           </div>
         )}
       </div>
-      <span className="brand" title="Dimensional: a unit-aware engineering calculator">
+      <span className="brand" title="Dimensional: a calculator that keeps track of units">
         <BrandMark className="brand-mark" />
         <span className="brand-name">Dimensional</span>
         <span className="brand-sep" aria-hidden>/</span>
@@ -146,7 +146,7 @@ export function TopBar() {
         <button
           className="icon-btn"
           // light → dark → system (follow the device) → light (D59)
-          title={`Paper: ${s.theme === 'system' ? 'follows your device' : s.theme}. Click for ${s.theme === 'light' ? 'dark' : s.theme === 'dark' ? 'following your device' : 'light'}`}
+          title={`Theme: ${s.theme === 'system' ? 'matches your device' : s.theme}. Click for ${s.theme === 'light' ? 'dark' : s.theme === 'dark' ? 'matching your device' : 'light'}`}
           aria-label={`Theme: ${s.theme === 'system' ? 'system' : s.theme}. Switch`}
           onClick={() => s.setTheme(s.theme === 'light' ? 'dark' : s.theme === 'dark' ? 'system' : 'light')}
         >
@@ -173,7 +173,7 @@ export function TopBar() {
                     : 'Powers of ten in steps of three, to match k, M, G: 6.43×10⁶, 643×10³.'}
               </small>
             </label>
-            <label title="With Auto notation, large values switch to scientific notation (6.43×10⁶) from this size up">
+            <label title="With Auto notation, values this large or larger are shown as 6.43×10⁶">
               Scientific notation from
               <select value={st.sciAbove} disabled={st.notation !== 'auto'} onChange={(e) => set({ sciAbove: Number(e.target.value) })}>
                 <option value={3}>10³</option>
@@ -189,12 +189,12 @@ export function TopBar() {
               <input type="checkbox" checked={st.exactDefault} onChange={(e) => set({ exactDefault: e.target.checked })} />
               <span>
                 Show exact fractions (1/3)
-                <small className="field-help">For plain numbers that don’t end, like 1/3. Values with units always show decimals; the a/b switch in a row’s margin changes one row.</small>
+                <small className="field-help">Shows 1/3 instead of 0.3333… for plain numbers. Values with units always use decimals. A row’s a/b switch changes just that row.</small>
               </span>
             </label>
             <fieldset className="packages">
               <legend>Unit packages</legend>
-              <p className="pk-help">Everyday SI and US units are always on. Turn on extra units for this worksheet:</p>
+              <p className="pk-help">Everyday metric and US units are always on. Add more for this worksheet:</p>
               {PACKAGES.map((p) => (
                 <label key={p.id} className="check pk" title={p.description}>
                   <input
@@ -252,10 +252,10 @@ export function TopBar() {
           </div>
         )}
       </div>
-      <button className="text-btn" onClick={doExport} title="Download worksheet as JSON" aria-label="Export">
+      <button className="text-btn" onClick={doExport} title="Save a copy of this worksheet as a file" aria-label="Export">
         ⤓<span className="btn-label"> Export</span>
       </button>
-      <button className="text-btn" aria-label="Import" onClick={() => fileRef.current?.click()} title="Open a Dimensional worksheet (.dimensional.json, or an older .usc.json)">
+      <button className="text-btn" aria-label="Import" onClick={() => fileRef.current?.click()} title="Open a worksheet file you exported">
         ⤒<span className="btn-label"> Import</span>
       </button>
       <input
@@ -277,7 +277,7 @@ export function TopBar() {
       />
       {importError && (
         <div className="toast" onClick={() => setImportError(null)}>
-          Import failed: {importError}
+          Couldn’t open that file: {importError}
         </div>
       )}
       {about && <About onClose={() => setAbout(false)} />}

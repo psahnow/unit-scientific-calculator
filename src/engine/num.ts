@@ -13,7 +13,7 @@ function gcd(a: bigint, b: bigint): bigint {
 }
 
 export function exact(n: bigint, d: bigint = 1n): Num {
-  if (d === 0n) throw new EvalError('Division by zero');
+  if (d === 0n) throw new EvalError("Can't divide by zero");
   if (d < 0n) {
     n = -n;
     d = -d;
@@ -29,7 +29,7 @@ export const ONE = exact(1n);
 /** Parse a decimal literal ("0.45359237", "1e-3", "12") exactly. */
 export function parseDecimal(s: string): Num {
   const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(s.trim());
-  if (!m || (m[2] === '' && (m[3] ?? '') === '')) throw new SyntaxError(`Bad number '${s}'`);
+  if (!m || (m[2] === '' && (m[3] ?? '') === '')) throw new SyntaxError(`“${s}” isn't a number`);
   const sign = m[1] === '-' ? -1n : 1n;
   const intPart = m[2] || '0';
   const frac = m[3] ?? '';
@@ -75,7 +75,7 @@ export function mul(a: Num, b: Num): Num {
   return float(toNumber(a) * toNumber(b));
 }
 export function div(a: Num, b: Num): Num {
-  if (isZero(b)) throw new EvalError('Division by zero');
+  if (isZero(b)) throw new EvalError("Can't divide by zero");
   if (a.kind === 'exact' && b.kind === 'exact') return exact(a.n * b.d, a.d * b.n);
   return float(toNumber(a) / toNumber(b));
 }
@@ -103,7 +103,7 @@ export function powRational(a: Num, p: number, q = 1): Num {
     const neg_ = n < 0n;
     if (q !== 1) {
       const Q = BigInt(q);
-      if (neg_ && q % 2 === 0) throw new EvalError('Even root of a negative number');
+      if (neg_ && q % 2 === 0) throw new EvalError("Can't take an even root (like √) of a negative number");
       const rn = intRoot(neg_ ? -n : n, Q);
       const rd = intRoot(d, Q);
       if (rn === null || rd === null) return float(signedPow(toNumber(a), p / q));
@@ -112,7 +112,7 @@ export function powRational(a: Num, p: number, q = 1): Num {
     }
     const P = BigInt(Math.abs(p));
     if (p < 0) {
-      if (n === 0n) throw new EvalError('Division by zero');
+      if (n === 0n) throw new EvalError("Can't divide by zero");
       return exact(d ** P, n ** P);
     }
     return exact(n ** P, d ** P);

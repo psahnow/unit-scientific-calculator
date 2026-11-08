@@ -6,7 +6,7 @@ import { polyOf, coefficients, realRoots, termSize } from './algebra';
 import { isUnitOnly, collectRefs } from './ast';
 import * as Q from './quantity';
 import { type Quantity, CalcError, scalar, describe } from './quantity';
-import { dim, dimEq, dimDiv, dimPow, isDimlessLoose, isAngle, DIMLESS, type Dim } from './dim';
+import { dim, kindOf, dimEq, dimDiv, dimPow, isDimlessLoose, isAngle, DIMLESS, type Dim } from './dim';
 import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, combine, parseUnitExpr, formatUnit } from './units/registry';
 import { CONST_BY_KEY } from './units/constants.data';
 import { formatQuantity } from './format';
@@ -45,7 +45,7 @@ function constQuantity(key: string): Quantity {
   let q = constCache.get(key);
   if (!q) {
     const c = CONST_BY_KEY.get(key);
-    if (!c) throw new CalcError(`Unknown constant ${key}`);
+    if (!c) throw new CalcError(`There's no constant called ${key}`);
     q = Q.fromUnit(c.value, parseUnitExpr(c.unit));
     constCache.set(key, q);
   }
@@ -67,14 +67,14 @@ function typedInput(q: Quantity, u: UnitExpr, fn: string, param: string): Quanti
   if (!dimEq(q.dim, want))
     throw new CalcError(
       u.length
-        ? `${fn} needs ${param} in ${formatUnit(u)} (${describe({ dim: want, unit: u })}); got ${describe(q)}`
-        : `${fn} needs ${param} as a plain number (real), without units; got ${describe(q)}`,
+        ? `${fn} needs ${param} to be ${kindOf(want) ?? `in ${formatUnit(u)}`}, like ${formatUnit(u)}, not ${describe(q)}`
+        : `${fn} needs ${param} to be a plain number, without units, not ${describe(q)}`,
     );
   return Q.convertTo(q, u);
 }
 
 function asQ(v: Value, what = 'value'): Quantity {
-  if (v.t !== 'q') throw new CalcError(`Expected a single ${what}, got a list`);
+  if (v.t !== 'q') throw new CalcError(`This needs a single ${what}, not a list`);
   return v.q;
 }
 
@@ -98,7 +98,7 @@ export function unifyList(items: Quantity[]): Quantity[] {
   const first = items[0];
   return items.map((q, i) => {
     if (i === 0) return q;
-    if (!dimEq(q.dim, first.dim)) throw new CalcError(`List items must share a dimension: ${describe(first)} vs ${describe(q)}`);
+    if (!dimEq(q.dim, first.dim)) throw new CalcError(`Everything in a list needs the same kind of unit: ${describe(first)} and ${describe(q)} don't mix`);
     return { ...q, unit: first.unit, tempKind: q.tempKind };
   });
 }
@@ -116,7 +116,7 @@ export function evalUnitNode(n: Node, env: Env): UnitExpr {
       }
     }
   }
-  throw new CalcError('Invalid unit expression');
+  throw new CalcError("That isn't a unit");
 }
 
 export function evaluate(n: Node, env: Env): Value {
@@ -158,14 +158,14 @@ export function evaluate(n: Node, env: Env): Value {
     }
     case 'fact':
       return broadcast1(evaluate(n.a, env), (x) => {
-        if (!Q.isScalar(x)) throw new CalcError('Factorial needs a dimensionless number');
+        if (!Q.isScalar(x)) throw new CalcError('Factorial (!) needs a plain number, without units');
         return scalar(N.factorial(x.si));
       });
     case 'abs':
       return broadcast1(evaluate(n.a, env), absQ);
     case 'root': {
       const k = asQ(evaluate(n.n, env));
-      if (!Q.isScalar(k)) throw new CalcError('Root index must be a number');
+      if (!Q.isScalar(k)) throw new CalcError('The small number on a root (the 3 in ³√) must be a plain number');
       const kn = N.toNumber(k.si);
       return broadcast1(evaluate(n.a, env), (x) =>
         Number.isInteger(kn) && kn > 0 ? Q.root(x, kn) : Q.pow(x, scalar(N.div(N.ONE, k.si))),
@@ -179,8 +179,8 @@ export function evaluate(n: Node, env: Env): Value {
       const fd = env.getFunc(n.name);
       if (!fd) throw new CalcError(`“${n.name}” isn't a function: define it like ${n.name}(x) = …`);
       if (fd.params.length !== n.args.length)
-        throw new CalcError(`${n.name} expects ${fd.params.length} argument${fd.params.length === 1 ? '' : 's'}`);
-      if ((env.depth ?? 0) > 200) throw new RecursionError(`“${n.name}” keeps calling itself and never stops: give it a case that doesn't call ${n.name}, e.g. with a piecewise { }`);
+        throw new CalcError(`${n.name} needs ${fd.params.length} input${fd.params.length === 1 ? '' : 's'}`);
+      if ((env.depth ?? 0) > 200) throw new RecursionError(`“${n.name}” keeps calling itself and never stops. Give it a case that doesn't call ${n.name}, using { } cases`);
       const locals = new Map(env.locals ?? []);
       fd.params.forEach((p, i) => {
         const arg = evaluate(n.args[i], env);
@@ -208,7 +208,7 @@ export function evaluate(n: Node, env: Env): Value {
       return evalSolve(n, env);
     case 'piecewise': {
       for (const b of n.branches) if (!b.cond || condHolds(b.cond, env)) return evaluate(b.value, env);
-      throw new CalcError('No piecewise case applies here, and there is no “otherwise” value');
+      throw new CalcError('None of the { } conditions is true here, and there is no “otherwise” value at the end');
     }
     case 'call': {
       let r = callBuiltin(n.name, n.args.map((a) => evaluate(a, env)), env, n.base ? asQ(evaluate(n.base, env)) : undefined, n.args);
@@ -248,7 +248,7 @@ function sampler(body: Node, env: Env, v: string, like: Quantity, what: string) 
   const at = (x: number): Quantity => {
     const r = evaluate(body, bind(env, v, { si: N.float(x), dim: like.dim, unit: like.unit }));
     const q = asQ(r, `value from the ${what}`);
-    if (dimRef && !dimEq(q.dim, dimRef.dim)) throw new CalcError(`The ${what} changes dimension (${describe(dimRef)} vs ${describe(q)})`);
+    if (dimRef && !dimEq(q.dim, dimRef.dim)) throw new CalcError(`The ${what} changes its kind of unit along the way: ${describe(dimRef)}, then ${describe(q)}`);
     dimRef ??= q;
     return q;
   };
@@ -274,7 +274,7 @@ function evalIntegral(n: CalcNode<'integral'>, env: Env): Quantity {
   // the variable takes the units of the limits; 0 and ∞ fit any unit
   const like = isZeroOrInf(lo) ? hi : lo;
   for (const b of [lo, hi])
-    if (!isZeroOrInf(b) && !dimEq(b.dim, like.dim)) throw new CalcError(`Integral limits don't match: ${describe(lo)} and ${describe(hi)}`);
+    if (!isZeroOrInf(b) && !dimEq(b.dim, like.dim)) throw new CalcError(`The integral's start and end need the same kind of unit: ${describe(lo)} and ${describe(hi)}`);
   const a = N.toNumber(lo.si);
   const b = N.toNumber(hi.si);
   const s = sampler(n.body, env, n.v, like, 'integrand');
@@ -419,7 +419,7 @@ function evalSeries(n: CalcNode<'series'>, env: Env): Quantity {
     const q = asQ(evaluate(node, env), what);
     const x = q.si;
     if (!Q.isScalar(q) || !N.isExact(x) || x.d !== 1n) {
-      if (Q.isScalar(q) && !Number.isFinite(N.toNumber(x))) throw new CalcError(`${n.op === 'sum' ? 'Σ' : 'Π'} needs a finite upper limit`);
+      if (Q.isScalar(q) && !Number.isFinite(N.toNumber(x))) throw new CalcError(`${n.op === 'sum' ? 'Σ' : 'Π'} can't go up to infinity`);
       throw new CalcError(`The ${what} of ${n.op === 'sum' ? 'Σ' : 'Π'} must be a whole number`);
     }
     return x.n;
@@ -455,7 +455,7 @@ function evalSolve(n: CalcNode<'solve'>, env: Env): Value {
     const a = side(n.lhs, at(x));
     const b = side(n.rhs, at(x));
     if (!dimEq(a.dim, b.dim) && !isZeroOrInf(a) && !isZeroOrInf(b))
-      throw new CalcError(`The two sides of the equation don't match: ${describe(a)} and ${describe(b)}`);
+      throw new CalcError(`The two sides of the equation have different kinds of unit: ${describe(a)} and ${describe(b)}`);
     return N.toNumber(a.si) - N.toNumber(b.si);
   };
   const scale = unitScale(like);
@@ -576,7 +576,7 @@ function condHolds(c: Cond, env: Env): boolean {
 class RecursionError extends CalcError {}
 
 function absQ(x: Quantity): Quantity {
-  if (x.tempKind === 'absolute') throw new CalcError("Can't take abs of an absolute temperature");
+  if (x.tempKind === 'absolute') throw new CalcError("Can't take |x| of a temperature in °C or °F. Use K, or a temperature difference (Δ°C)");
   return N.cmp(x.si, N.ZERO) < 0 ? Q.neg(x) : x;
 }
 
@@ -588,7 +588,7 @@ const ANGLE = dim({ A: 1 });
 function toRadians(x: Quantity, env: Env, fn: string): number {
   if (isAngle(x.dim)) return N.toNumber(x.si);
   if (dimEq(x.dim, DIMLESS)) return env.angle === 'deg' ? (N.toNumber(x.si) * Math.PI) / 180 : N.toNumber(x.si);
-  throw new CalcError(`${fn} expects an angle or a dimensionless number; got ${describe(x)}`);
+  throw new CalcError(`${fn} needs an angle or a plain number, not ${describe(x)}`);
 }
 
 /** Exact results at special angles (multiples of 30°/45°). */
@@ -641,12 +641,12 @@ const ELEMENTWISE = new Set([
 
 /** Non-negative integer argument (exact), for combinatorics and number theory. */
 function requireInt(x: Quantity, fn: string): bigint {
-  if (!isDimlessLoose(x.dim)) throw new CalcError(`${fn} expects whole numbers; got ${describe(x)}`);
+  if (!isDimlessLoose(x.dim)) throw new CalcError(`${fn} needs whole numbers, not ${describe(x)}`);
   const v = x.si;
   if (N.isExact(v) && v.d === 1n) return v.n;
   const f = N.toNumber(v);
   if (Number.isInteger(f) && Math.abs(f) <= Number.MAX_SAFE_INTEGER) return BigInt(f);
-  throw new CalcError(`${fn} expects whole numbers`);
+  throw new CalcError(`${fn} needs whole numbers`);
 }
 
 const bigAbs = (a: bigint) => (a < 0n ? -a : a);
@@ -695,19 +695,19 @@ function erfcTail(x: number): number {
 
 function callBuiltin(name: string, args: Value[], env: Env, base: Quantity | undefined, argNodes: Node[]): Value {
   if (ELEMENTWISE.has(name)) {
-    if (args.length !== 1) throw new CalcError(`${name} expects 1 argument`);
+    if (args.length !== 1) throw new CalcError(`${name} needs 1 input`);
     return broadcast1(args[0], (x) => elementwise(name, x, env, base));
   }
   switch (name) {
     case 'atan2': {
       const [y, x] = args.map((a) => asQ(a));
-      if (!y || !x) throw new CalcError('atan2 expects 2 arguments');
+      if (!y || !x) throw new CalcError('atan2 needs 2 inputs: atan2(y, x)');
       if (!dimEq(y.dim, x.dim)) throw new CalcError(`atan2: can't mix ${describe(y)} and ${describe(x)}`);
       return qv(angleResult(Math.atan2(N.toNumber(y.si), N.toNumber(x.si)), env));
     }
     case 'nthroot': {
       const [x, k] = args.map((a) => asQ(a));
-      if (!x || !k) throw new CalcError('nthroot expects 2 arguments');
+      if (!x || !k) throw new CalcError('nthroot needs 2 inputs');
       return qv(Q.root(x, N.toNumber(k.si)));
     }
     case 'round': {
@@ -725,7 +725,7 @@ function callBuiltin(name: string, args: Value[], env: Env, base: Quantity | und
     }
     case 'mod': {
       const [a, b] = args;
-      if (!a || !b) throw new CalcError('mod expects 2 arguments');
+      if (!a || !b) throw new CalcError('mod needs 2 inputs: mod(7, 3)');
       return broadcast2(a, b, (x, y) => {
         if (!dimEq(x.dim, y.dim)) throw new CalcError(`mod: can't mix ${describe(x)} and ${describe(y)}`);
         const q = N.floor(N.div(x.si, y.si));
@@ -786,11 +786,11 @@ function callBuiltin(name: string, args: Value[], env: Env, base: Quantity | und
       return qv(scalar(N.exact(BigInt(flatten(args).length))));
     case 'nCr':
     case 'nPr': {
-      if (args.length !== 2) throw new CalcError(`${name} expects 2 arguments`);
+      if (args.length !== 2) throw new CalcError(`${name} needs 2 inputs`);
       return broadcast2(args[0], args[1], (a, b) => {
         const n = requireInt(a, name);
         const k = requireInt(b, name);
-        if (n < 0n || k < 0n) throw new CalcError(`${name} expects non-negative whole numbers`);
+        if (n < 0n || k < 0n) throw new CalcError(`${name} needs whole numbers, 0 or more`);
         if (k > n) return scalar(N.ZERO);
         let r = 1n;
         for (let i = 0n; i < k; i++) r *= n - i;
@@ -858,7 +858,7 @@ function elementwise(name: string, x: Quantity, env: Env, base?: Quantity): Quan
       const r =
         name === 'asin' ? Math.asin(v) : name === 'acos' ? Math.acos(v) : name === 'atan' ? Math.atan(v)
         : name === 'arcsec' ? Math.acos(1 / v) : name === 'arccsc' ? Math.asin(1 / v) : Math.atan(1 / v);
-      if (Number.isNaN(r)) throw new CalcError(`${name}: argument out of range`);
+      if (Number.isNaN(r)) throw new CalcError(`${name} isn't defined for that value`);
       return angleResult(r, env);
     }
     case 'sinh':
@@ -867,17 +867,17 @@ function elementwise(name: string, x: Quantity, env: Env, base?: Quantity): Quan
       return scalar(N.float(Math.asinh(requireDimless(x, name))));
     case 'acosh': {
       const v = requireDimless(x, name);
-      if (v < 1) throw new CalcError('acosh: argument must be at least 1');
+      if (v < 1) throw new CalcError('cosh⁻¹ needs a value of 1 or more');
       return scalar(N.float(Math.acosh(v)));
     }
     case 'atanh': {
       const v = requireDimless(x, name);
-      if (Math.abs(v) >= 1) throw new CalcError('atanh: argument must be between −1 and 1');
+      if (Math.abs(v) >= 1) throw new CalcError('tanh⁻¹ needs a value between −1 and 1');
       return scalar(N.float(Math.atanh(v)));
     }
     case 'gamma': {
       const v = requireDimless(x, name);
-      if (Number.isInteger(v) && v <= 0) throw new CalcError('Γ is undefined at 0 and negative whole numbers');
+      if (Number.isInteger(v) && v <= 0) throw new CalcError("Γ isn't defined at 0 or negative whole numbers");
       // exact for positive whole numbers: Γ(n) = (n − 1)!
       if (N.isExact(x.si) && x.si.d === 1n && x.si.n <= 1001n) return scalar(N.factorial(N.exact(x.si.n - 1n)));
       return scalar(N.float(gammaReal(v)));
@@ -896,12 +896,12 @@ function elementwise(name: string, x: Quantity, env: Env, base?: Quantity): Quan
       return scalar(N.float(Math.exp(requireDimless(x, name))));
     case 'ln': {
       const v = requireDimless(x, name);
-      if (v <= 0) throw new CalcError('ln of a non-positive number');
+      if (v <= 0) throw new CalcError('ln needs a number greater than 0');
       return scalar(N.float(Math.log(v)));
     }
     case 'log': {
       const v = requireDimless(x, name);
-      if (v <= 0) throw new CalcError('log of a non-positive number');
+      if (v <= 0) throw new CalcError('log needs a number greater than 0');
       const b = base ? requireDimless(base, 'log base') : 10;
       // exact for integer powers of the base
       const r = Math.log(v) / Math.log(b);

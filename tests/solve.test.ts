@@ -35,7 +35,7 @@ describe('solve', () => {
   it('explains mistakes', () => {
     expect(show(r`solve\left(x^2,x\right)`)).toMatch(/needs an equation with “=”/);
     expect(show(r`solve\left(x=2\right)`)).toMatch(/Write it like solve/);
-    expect(show(r`solve\left(x+1\unit{m}=2\unit{s},x,1\unit{m}\right)`)).toMatch(/don't match|Can't add/);
+    expect(show(r`solve\left(x+1\unit{m}=2\unit{s},x,1\unit{m}\right)`)).toMatch(/different kinds of unit|Can't add/);
     // x·m = 2 s does have an answer: x = 2 s/m
     expect(show(r`solve\left(x\unit{m}=2\unit{s},x\right)`)).toBe('2 s/m');
   });

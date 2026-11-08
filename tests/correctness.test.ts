@@ -266,7 +266,7 @@ describe('conversions through the whole pipeline (typed LaTeX → result → dis
       const res = evaluateWorksheet(rows, { angle: 'rad' }).rows.get('r' + (lines.length - 1));
       return res?.kind === 'value' ? res.unitNote : undefined;
     };
-    expect(note([{ latex: '300' + u('K'), unit: '°C' }])).toMatch(/absolute temperature.*change/);
+    expect(note([{ latex: '300' + u('K'), unit: '°C' }])).toMatch(/Read as a temperature.*change/);
     expect(note([{ latex: '300' + u('K'), unit: 'K' }])).toBeUndefined();
     // …but a temperature difference stays a difference: no exception for computed or Δ values
     expect(isError({ latex: `30${u('°C')}-10${u('°C')}`, unit: '°F' })).toBe(true);

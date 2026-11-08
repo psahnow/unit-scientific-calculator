@@ -33,13 +33,13 @@ export function About({ onClose }: { onClose(): void }) {
         <p className="tagline">Every number knows its units.</p>
         <p className="eg">6 N ÷ 2 mm² = 3 MPa</p>
         <ul>
-          <li>Type units after numbers; results come out in the units the math produces.</li>
-          <li>Every result has a unit dropdown; the number always matches the unit shown.</li>
-          <li>Exact fractions where possible, folders, tables, sliders, calculus.</li>
-          <li>Turn on unit packages per worksheet in ⚙ Settings.</li>
+          <li>Type units after numbers. Answers come out in the units your formula produces.</li>
+          <li>Click an answer’s unit to show it in another. The number always matches the unit.</li>
+          <li>Exact fractions, folders, tables, sliders and calculus.</li>
+          <li>More units, like ksi or eV, are in ⚙ Settings.</li>
         </ul>
         <p>
-          <b>Private by design:</b> no account, no tracking; your worksheets stay in this browser and it works offline. Made by{' '}
+          <b>Private:</b> no account and no tracking. Your worksheets stay in this browser, and it works offline. Made by{' '}
           <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">
             Perry Sahnow
           </a>
