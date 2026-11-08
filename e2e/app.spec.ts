@@ -633,6 +633,57 @@ test('“/” after unit chips puts them on top: 5 m Tab / s Tab = 5 m/s', async
   await expect(result(page, 2)).toContainText('N/mm²');
 });
 
+test('dividing by a value puts the quantity on top: 6 m / 3 s = (6 m)/(3 s); by a unit, 6 (m/s)', async ({ page }) => {
+  await freshSheet(page);
+  await typeRow(page, 1, 't=2s');
+  await page.keyboard.press('Escape');
+  const keys = async (ks: string[]) => {
+    for (const k of ks) {
+      if (k === 'Tab') await expect(page.locator('.ac-pop')).toBeVisible();
+      await (k.length > 1 ? page.keyboard.press(k) : page.keyboard.type(k));
+    }
+  };
+  // a value: the 6 m goes on top as soon as the 3 is typed, and the caret stays in the denominator
+  await nextRow(page, 2);
+  await keys(['6', 'm', 'Tab', '/', '3']);
+  await expect(field(page, 2)).toHaveJSProperty('value', String.raw`\frac{6\unit{m}}{3}`);
+  await keys(['s', 'Tab']);
+  await expect(field(page, 2)).toHaveJSProperty('value', String.raw`\frac{6\unit{m}}{3\unit{s}}`);
+  await expect(result(page, 2)).toContainText('2');
+  await expect(result(page, 2)).toContainText('m/s');
+  // deleting the value moves the 6 back out; a unit alone keeps it there
+  await nextRow(page, 3);
+  await keys(['6', 'm', 'Tab', '/', '3', 'Backspace']);
+  await expect(field(page, 3)).toHaveJSProperty('value', String.raw`6\frac{\unit{m}}{}`);
+  await keys(['s', 'Tab']);
+  await expect(field(page, 3)).toHaveJSProperty('value', String.raw`6\frac{\unit{m}}{\unit{s}}`);
+  // a defined name counts as a value
+  await nextRow(page, 4);
+  await keys(['6', 'm', 'Tab', '/', 't']);
+  await expect(field(page, 4)).toHaveJSProperty('value', String.raw`\frac{6\unit{m}}{t}`);
+  await expect(result(page, 4)).toContainText('3');
+});
+
+test('a unit finished by the next symbol becomes a chip; suggestions never join letters across a fraction bar', async ({ page }) => {
+  await freshSheet(page);
+  // 6, m, / : the m turns into a chip as the / is typed, and goes on top of the fraction
+  await typeRow(page, 1, '6m/s');
+  const items = page.locator('.ac-pop [role="option"]');
+  await expect(items.first()).toContainText('s'); // the s under the bar, not "ms"
+  await expect(page.locator('.ac-pop')).not.toContainText('ms');
+  await page.keyboard.press('Escape');
+  expect(await field(page, 1).evaluate((f) => (f as HTMLInputElement).value)).toMatch(/^6\\frac\{\\unit\{m\}\}\{/);
+  await expect(result(page, 1)).toContainText('m/s');
+  // the same with an operator: 6 m + 2 m
+  await nextRow(page, 2);
+  await page.keyboard.type('6m+', { delay: 25 });
+  await expect(field(page, 2)).toHaveJSProperty('value', String.raw`6\unit{m}+`);
+  // a name being defined is left as letters
+  await nextRow(page, 3);
+  await page.keyboard.type('m=5', { delay: 25 });
+  await expect(field(page, 3)).toHaveJSProperty('value', 'm=5');
+});
+
 test.describe('phone keyboards', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   test('the unit menu opens without the phone keyboard; tapping its search box brings it up', async ({ page }) => {

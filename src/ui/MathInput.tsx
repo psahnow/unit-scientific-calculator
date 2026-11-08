@@ -17,8 +17,10 @@ export function loadMathLive() {
   return mathlive;
 }
 import { suggestionsFor, type Suggestion } from '../engine/suggest';
+import { normalizeSymbol } from '../engine/units/registry';
 import { setUpKeyboard, setReturnHandler, setDivideHandler, setBeforeKeyHandler } from './keyboard';
 import { latexToSymbol } from '../engine/latex';
+import { regroups } from './regroup';
 
 export const MACROS = {
   unit: { args: 1, def: '\\textcolor{var(--unit)}{\\mathrm{#1}}', captureSelection: true, expand: false },
@@ -260,14 +262,80 @@ interface Popover {
 }
 
 /** Trailing letter run before the caret (incl. \mu, \Omega, \degree, \Delta). */
-function trailingRun(before: string): { latex: string; afterNumber: boolean } | null {
+function trailingRun(before: string, maxLetters = Infinity): { latex: string; afterNumber: boolean } | null {
   const m = /((?:\\(?:mu|Omega|degree|Delta)\s*|[A-Za-z])+)$/.exec(before);
   if (!m) return null;
+  // only the letters in the caret's own part of the expression: m over s is not "ms" (D67)
+  const letters = m[1].match(/\\(?:mu|Omega|degree|Delta)\s*|[A-Za-z]/g) ?? [];
+  if (letters.length > maxLetters) return maxLetters > 0 ? { latex: letters.slice(-maxLetters).join(''), afterNumber: false } : null;
   const rest = before.slice(0, before.length - m[1].length);
   // don't complete inside a command name or subscript
   if (/\\[A-Za-z]*$/.test(rest) || /_\{?[A-Za-z0-9]*$/.test(rest)) return null;
   const afterNumber = /[0-9.)}]\s*$/.test(rest) || /\\right\)\s*$/.test(rest);
   return { latex: m[1], afterNumber };
+}
+
+const LETTER_ATOM = /^(?:[A-Za-z]|\\(?:mu|Omega|degree|Delta)\s*)$/;
+/** How many letters come right before the caret in its own part of the expression (not across a fraction bar). */
+function lettersBeforeCaret(mf: MathfieldElement): number {
+  let n = 0;
+  for (let k = mf.position - 1; k >= 0 && LETTER_ATOM.test(at(mf, k)); k--) n++;
+  return n;
+}
+/** The letters being typed at the caret, as the suggestion list sees them. */
+function runAtCaret(mf: MathfieldElement) {
+  return trailingRun(mf.getValue(0, mf.position, 'latex'), lettersBeforeCaret(mf));
+}
+/** Typing one of these ends a word: a unit typed after a number becomes its chip then (D67). */
+const ENDS_A_WORD = new Set(['/', '*', '+', '-', '=', ')', ']', ',', ' ', '^', ':', '<', '>', '|', 'ArrowRight']);
+
+/**
+ * Group the division being typed (D66): when the denominator becomes a value (3 s, a constant, a
+ * defined name), the quantity before the fraction moves on top, 6 m / 3 s = (6 m)/(3 s); when it is
+ * units again, it moves back out, 6 (m/s). Only the fraction whose denominator has the caret is
+ * touched. `ours` remembers the fractions moved here, so the move back never undoes one typed that
+ * way on purpose. Returns whether it changed anything.
+ */
+export function regroupDivision(mf: MathfieldElement, vars: readonly string[], ours: Set<string>): boolean {
+  const latex = mf.getValue('latex');
+  const p = mf.position;
+  for (const g of regroups(latex, vars, (n) => ours.has(n))) {
+    // where this piece of LaTeX is in the field: its end is the offset whose prefix is exactly up to it
+    const prefix = latex.slice(0, g.e);
+    let e = -1;
+    for (let k = p; k <= mf.lastOffset; k++)
+      if (mf.getValue(0, k, 'latex') === prefix) {
+        e = k;
+        break;
+      }
+    if (e < 0) continue;
+    const old = latex.slice(g.s, g.e);
+    let s = -1;
+    for (let k = 0; k <= p; k++)
+      if (mf.getValue(k, e, 'latex') === old) {
+        s = k;
+        break;
+      }
+    if (s < 0) continue;
+    // the caret must be in the denominator: from its start (where the rest reads as the denominator) to its end
+    const den = g.den;
+    let ds = -1;
+    for (let k = e - 1; k >= s; k--)
+      if (mf.getValue(k, e - 1, 'latex') === den) {
+        ds = k;
+        break;
+      }
+    if (ds < 0 || p < ds || p > e - 1) continue;
+    const fromEnd = e - p;
+    if (g.dir === 'up') ours.add(g.quantity);
+    else ours.delete(g.quantity);
+    mf.selection = { ranges: [[s, e]], direction: 'forward' };
+    mf.executeCommand(['insert', g.latex, { insertionMode: 'replaceSelection', selectionMode: 'after', format: 'latex' }]);
+    // the denominator is unchanged, so the caret is the same distance from the fraction's end
+    mf.position = mf.position - fromEnd;
+    return true;
+  }
+  return false;
 }
 
 function atomCount(latex: string): number {
@@ -315,9 +383,7 @@ export function MathInput(p: Props) {
       mf.addEventListener('mount', onMount);
 
       const refreshPopover = () => {
-        const pos = mf.position;
-        const before = mf.getValue(0, pos, 'latex');
-        const run = trailingRun(before);
+        const run = runAtCaret(mf);
         if (!run) return setPop(null);
         const items = suggestionsFor(latexToSymbol(run.latex), props.current.vars, run.afterNumber);
         setPop(items.length ? { items, sel: 0, navigated: false, prefixLatex: run.latex } : null);
@@ -330,7 +396,7 @@ export function MathInput(p: Props) {
        * is actually typed. Returns false if nothing fits.
        */
       const accept = (picked?: Suggestion, chosen = false): boolean => {
-        const run = trailingRun(mf.getValue(0, mf.position, 'latex'));
+        const run = runAtCaret(mf);
         const items = run ? suggestionsFor(latexToSymbol(run.latex), props.current.vars, run.afterNumber) : [];
         if (!run || !items.length) {
           setPop(null);
@@ -345,13 +411,33 @@ export function MathInput(p: Props) {
         return true;
       };
 
+      const regrouped = new Set<string>();
+      let regrouping = false;
       const onInput = (e: Event) => {
         const ie = e as InputEvent;
+        if (regrouping) return; // the regroup's own edit
         if (ie.inputType === 'insertText' && ie.data && DIGIT.test(ie.data)) autoSubscript(mf);
         // the on-screen "." (a physical "." is handled before it goes in): m. → ṁ (D61)
         if (ie.inputType === 'insertText' && ie.data === '.' && at(mf, mf.position - 1) === '.') {
           mf.executeCommand('deleteBackward');
           if (!dotLetter(mf)) mf.executeCommand(['insert', '.', { format: 'latex' }]);
+        }
+        // 6 m / 3 s → (6 m)/(3 s); 6 m / s stays 6 (m/s) (D66)
+        if (/^(insert|delete)/.test(ie.inputType ?? 'insert')) {
+          const tryRegroup = () => {
+            regrouping = true;
+            try {
+              return regroupDivision(mf, props.current.vars, regrouped);
+            } finally {
+              regrouping = false;
+            }
+          };
+          // the field can still be settling the keystroke (a placeholder being replaced): if a regroup
+          // is due but couldn't be placed yet, try again once it has
+          if (!tryRegroup() && regroups(mf.getValue('latex'), props.current.vars, (n) => regrouped.has(n)).length)
+            requestAnimationFrame(() => {
+              if (tryRegroup()) props.current.onChange(mf.getValue('latex'));
+            });
         }
         props.current.onChange(mf.getValue('latex'));
         refreshPopover();
@@ -393,6 +479,13 @@ export function MathInput(p: Props) {
         }
         // typing on after T₁₂: leave the subscript first (D47)
         if (e.key.length === 1 && !DIGIT.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) leaveDigitSubscript(mf);
+        // finishing a word: a unit typed after a number (6 m, then /) becomes its chip now, not when
+        // the row is left (D67). Only an exact unit, and only when no name of yours is spelled that way
+        if (ENDS_A_WORD.has(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          const run = runAtCaret(mf);
+          const top = run?.afterNumber ? suggestionsFor(latexToSymbol(run.latex), props.current.vars, true)[0] : undefined;
+          if (run && top && (top.kind === 'unit' || top.kind === 'const') && top.label === normalizeSymbol(latexToSymbol(run.latex))) accept(top, true);
+        }
         if (e.key === '.' && !e.ctrlKey && !e.metaKey && !e.altKey && dotLetter(mf)) {
           e.preventDefault();
           e.stopPropagation();
