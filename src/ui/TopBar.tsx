@@ -211,6 +211,34 @@ export function TopBar() {
                 </label>
               ))}
             </fieldset>
+            {/* optional maths for this worksheet (D63): one at a time, since both use i */}
+            <fieldset className="packages extra-math">
+              <legend>Vectors and complex numbers</legend>
+              <p className="pk-help">Off unless you need them. Only one can be on at a time, since both use i.</p>
+              <label className="check pk" title={st.imaginary ? 'Turn off complex numbers first' : undefined}>
+                <input type="checkbox" checked={!!st.vectors && !st.imaginary} disabled={!!st.imaginary} onChange={(e) => set({ vectors: e.target.checked || undefined })} />
+                <span>
+                  Vectors
+                  <small>(3, 4) N, 3i + 4j, e₁ … eₙ. · is the dot product, × the cross product, |v| the length</small>
+                </span>
+              </label>
+              <label className="check pk" title={st.vectors ? 'Turn off vectors first' : undefined}>
+                <input type="checkbox" checked={!!st.imaginary} disabled={!!st.vectors} onChange={(e) => set({ imaginary: e.target.checked ? 'i' : undefined })} />
+                <span>
+                  Complex numbers
+                  <small>3 + 4i, √−4 = 2i, 5∠53°; re, im, conj, arg</small>
+                </span>
+              </label>
+              {st.imaginary && (
+                <label className="imag-letter">
+                  Write √−1 as
+                  <select value={st.imaginary} onChange={(e) => set({ imaginary: e.target.value as 'i' | 'j' })}>
+                    <option value="i">i</option>
+                    <option value="j">j (electrical)</option>
+                  </select>
+                </label>
+              )}
+            </fieldset>
             <fieldset className="packages custom-units">
               <legend>Custom units</legend>
               <p className="pk-help">Define your own units for this worksheet, like bag = 25 kg or ksf = kip/ft^2.</p>

@@ -10,7 +10,7 @@ function show(...lines: string[]): string {
   if (v.kind === 'error') return 'error: ' + v.message;
   if (v.kind !== 'value') return v.kind;
   if (v.value.t === 'list') return '[' + v.value.items.map((q) => formatQuantity(q).value).join(', ') + '] ' + formatQuantity(v.value.items[0]).unit;
-  const f = formatQuantity(v.value.q);
+  const f = formatQuantity((v.value as unknown as { q: never }).q);
   return f.unit ? `${f.value} ${f.unit}` : f.value;
 }
 

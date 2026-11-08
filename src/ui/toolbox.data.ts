@@ -39,7 +39,8 @@ export interface Key {
 const fn = (name: string, cmd = `\\operatorname{${name}}`) => `${cmd}\\left(#0\\right)`;
 const fn2 = (name: string, cmd = `\\operatorname{${name}}`) => `${cmd}\\left(#0,#?\\right)`;
 
-export const GROUPS: { id: string; label: string; keys: Key[]; browser?: 'units' }[] = [
+/** needs: a tab shown only when the worksheet has vectors or complex numbers on (D63). */
+export const GROUPS: { id: string; label: string; keys: Key[]; browser?: 'units'; needs?: 'vectors' | 'complex' }[] = [
   {
     id: 'trig',
     label: 'Trig',
@@ -160,6 +161,43 @@ export const GROUPS: { id: string; label: string; keys: Key[]; browser?: 'units'
     label: 'Greek',
     keys: [
       ...GREEK_KEYS,
+    ],
+  },
+  {
+    id: 'vectors',
+    label: 'Vectors',
+    needs: 'vectors',
+    keys: [
+      { label: '(x, y)', insert: '\\left(#0,#?\\right)', title: 'A 2D vector. Add a unit after it: (3, 4) N' },
+      { label: '(x, y, z)', insert: '\\left(#0,#?,#?\\right)', title: 'A 3D vector', wide: true },
+      { label: '⟨x, y⟩', insert: '\\left\\langle#0,#?\\right\\rangle', title: 'A vector in angle brackets, the same as (x, y)' },
+      { label: 'î', insert: 'i', title: 'Unit vector î = (1, 0, 0). Type i' },
+      { label: 'ĵ', insert: 'j', title: 'Unit vector ĵ = (0, 1, 0). Type j' },
+      { label: 'k̂', insert: 'k', title: 'Unit vector k̂ = (0, 0, 1). Type k' },
+      { label: 'eₙ', insert: 'e_{#0}', title: 'Unit vector eₙ, for any number of dimensions: e₁, e₂, …' },
+      { label: 'u · v', insert: '\\cdot', title: 'Dot product (also a number times a vector)' },
+      { label: 'u × v', insert: '\\times', title: 'Cross product of 3D vectors' },
+      { label: '|v|', insert: '\\left|#0\\right|', title: 'Length of a vector: |(3, 4)| = 5' },
+      { label: 'dot', insert: fn2('dot'), title: 'Dot product: dot(u, v)' },
+      { label: 'cross', insert: fn2('cross'), title: 'Cross product: cross(u, v)' },
+      { label: 'norm', insert: fn('norm'), title: 'Length of a vector, the same as |v|' },
+    ],
+  },
+  {
+    id: 'complex',
+    label: 'Complex',
+    needs: 'complex',
+    keys: [
+      { label: 'i', insert: 'i', title: 'The imaginary unit, √−1 (j if the worksheet uses j)' },
+      { label: 'a + bi', insert: '#0+#?i', title: 'A complex number. Add a unit after it in brackets: (3 + 4i) Ω' },
+      { label: 'r∠θ', insert: '#0\\angle#?', title: 'Polar form: 5∠53.13° is 3 + 4i. A plain angle follows RAD/DEG' },
+      { label: '|z|', insert: '\\left|#0\\right|', title: 'Size of a complex number: |3 + 4i| = 5' },
+      { label: 're', insert: fn('re'), title: 'Real part: re(3 + 4i) = 3' },
+      { label: 'im', insert: fn('im'), title: 'Imaginary part: im(3 + 4i) = 4' },
+      { label: 'conj', insert: fn('conj'), title: 'Complex conjugate: conj(3 + 4i) = 3 − 4i' },
+      { label: 'arg', insert: fn('arg'), title: 'Angle of a complex number, following RAD/DEG' },
+      { label: '√x', insert: '\\sqrt{#0}', title: 'Square root: √−4 = 2i' },
+      { label: 'eˣ', insert: 'e^{#0}', title: 'e to a power: e^(iπ) = −1' },
     ],
   },
   { id: 'constants', label: 'Constants', keys: CONST_KEYS },

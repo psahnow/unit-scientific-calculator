@@ -3,20 +3,28 @@ import { evaluateWorksheet } from '../src/engine/worksheet';
 import { GROUPS } from '../src/ui/toolbox.data';
 
 const r = String.raw;
-function evaluates(latex: string): string {
+function evaluates(latex: string, needs?: 'vectors' | 'complex'): string {
   // x = 1 so derivative keys have a point to work at
   const res = evaluateWorksheet(
     [
       { id: 'x0', type: 'expr', latex: 'x=1' },
       { id: 'x', type: 'expr', latex },
     ],
-    { angle: 'rad' },
+    { angle: 'rad', ...(needs === 'vectors' ? { vectors: true } : needs === 'complex' ? { imaginary: 'i' as const } : {}) },
   ).rows.get('x');
   return res?.kind === 'error' ? res.message : 'ok';
 }
 
 /** Fill a key's placeholders the way a user would, with values its function accepts. */
-function example(insert: string): string {
+function example(insert: string, needs?: 'vectors' | 'complex'): string {
+  // vectors and complex numbers (D63): operators between two of them, functions of one
+  if (needs === 'vectors') {
+    if (insert === r`\cdot` || insert === r`\times`) return r`\left(1,2,3\right)` + insert + ' i';
+    if (/dot|cross/.test(insert)) return insert.replace('#0', 'i').replace('#?', 'j');
+    if (/norm|left\|/.test(insert)) return insert.replace('#0', r`\left(3,4\right)`);
+    return insert.replace(/#0|#\?/g, '2');
+  }
+  if (needs === 'complex') return insert.replace('#0', '3').replace(/#\?/g, '2');
   if (['<', '>', r`\le`, r`\ge`].includes(insert)) return r`\left\{1` + insert + r`2:1,0\right\}`;
   if (insert === r`\infty`) return r`\int_{0}^{\infty}e^{-x}\,\mathrm{d}x`;
   if (insert.includes('solve')) return insert.replace('#0', 'x^2').replace('#?', '2');
@@ -38,13 +46,13 @@ function example(insert: string): string {
 }
 
 describe('toolbox keys', () => {
-  const keys = GROUPS.flatMap((g) => g.keys.map((k) => ({ ...k, group: g.label })));
+  const keys = GROUPS.flatMap((g) => g.keys.map((k) => ({ ...k, group: g.label, needs: g.needs })));
   it('has keys in every group', () => {
     for (const g of GROUPS) if (!g.browser) expect(g.keys.length).toBeGreaterThan(0);
   });
   for (const k of keys) {
     it(`${k.group}: ${k.label} → ${k.insert}`, () => {
-      expect(evaluates(example(k.insert))).toBe('ok');
+      expect(evaluates(example(k.insert, k.needs), k.needs)).toBe('ok');
     });
   }
 });

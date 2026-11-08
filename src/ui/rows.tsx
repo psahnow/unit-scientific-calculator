@@ -3,7 +3,8 @@ import { flushSync } from 'react-dom';
 import type { Row, RowResult } from '../engine/worksheet';
 import { applyChips } from '../engine/worksheet';
 import type { ChipFix } from '../engine/ast';
-import { formatQuantity, hasFractionForm, type FormatOptions } from '../engine/format';
+import { formatQuantity, formatValue, hasFractionForm, type FormatOptions, type ValueView } from '../engine/format';
+import { primaryQ, sizeQ } from '../engine/evaluate';
 import { displayValue } from '../engine/quantity';
 import { formatUnit } from '../engine/units/registry';
 import { MathInput } from './MathInput';
@@ -32,6 +33,8 @@ export interface RowCtx {
   packageHint?: { unit: string; packages: string[]; typed?: boolean };
   /** A one-time tip about this row (D60). */
   tip?: ReactNode;
+  /** RAD/DEG and the letter for √−1, for writing vectors and complex numbers (D63). */
+  view?: ValueView;
 }
 
 type ExprRow = Extract<Row, { type: 'expr' }>;
@@ -57,7 +60,9 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
     if (st.focusId === row.id) st.setFocus(null);
   };
 
-  const q = r?.kind === 'value' ? (r.value.t === 'q' ? r.value.q : r.value.items[0]) : undefined;
+  // the quantity that carries the unit, and (for a vector or complex number) its size for the unit menu
+  const q = r?.kind === 'value' ? primaryQ(r.value) : undefined;
+  const menuQ = r?.kind === 'value' ? sizeQ(r.value) : undefined;
   const unitText = q ? formatUnit(q.unit) : '';
   const sliderMatch = /^(.*=\s*)(-?\d+(?:\.\d+)?)(.*)$/s.exec(row.latex);
 
@@ -98,7 +103,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
   else if (r?.kind === 'value' && q) {
     const unitBtn = (
       <UnitButton
-        q={q}
+        q={menuQ ?? q}
         autoUnit={r.autoUnit}
         current={unitText}
         userChosen={!!row.displayUnit}
@@ -106,17 +111,14 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       />
     );
     {
-      const val =
-        r.value.t === 'q'
-          ? formatQuantity(r.value.q, fmt).value
-          : '[' + r.value.items.map((x) => formatQuantity(x, fmt).value).join(', ') + ']';
+      const val = formatValue(r.value, fmt, { ...ctx.view, alt: row.form === 'alt' }).value;
       copyText = unitText ? `${val} ${unitText}` : val;
       resultEl = (
         <div className="result">
           <span className="eq">=</span>
           <span className="val">{typesetNumber(val)}</span>
           {/* no unit: the same quiet chip for single values and lists (D59) */}
-          {unitText ? unitBtn : <UnitButton {...{ q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
+          {unitText ? unitBtn : <UnitButton {...{ q: menuQ ?? q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
           {r.unitError && (
             <HoverTip text={r.unitError} kind="warn">
               <span className="warn">⚠</span>
@@ -259,12 +261,15 @@ export function GutterTools({ row, ctx, folderTitle }: { row: ExprRow; ctx: RowC
   const r = ctx.result;
   const mode = row.displayMode ?? (row.displayUnit ? 'decimal' : ctx.fmt.mode);
   const q = r?.kind === 'value' && r.value.t === 'q' ? r.value.q : undefined;
-  const fracAvail = !!q && hasFractionForm(displayValue(q));
+  const fracAvail = r?.kind === 'value' && r.value.t === 'q' && !!q && hasFractionForm(displayValue(q));
+  // a vector as (3, 4) or 3î + 4ĵ; a complex number as 3 + 4i or 5∠53.13° (D63)
+  const formKind = r?.kind === 'value' && (r.value.t === 'vec' || r.value.t === 'cx') ? r.value.t : null;
+  const alt = row.form === 'alt';
   const showsFraction = !!q && fracAvail && formatQuantity(q, { ...ctx.fmt, mode }).value.includes('/');
   const defName = r?.kind === 'value' || r?.kind === 'error' ? r.defName : r?.kind === 'func' ? r.name : undefined;
   const local = row.scope === 'folder';
   const where = folderTitle ? `“${folderTitle}”` : 'this folder';
-  if (!(row.parent && defName) && !fracAvail) return null;
+  if (!(row.parent && defName) && !fracAvail && !formKind) return null;
   return (
     <div className="gutter-tools">
       {row.parent && defName && (
@@ -301,6 +306,25 @@ export function GutterTools({ row, ctx, folderTitle }: { row: ExprRow; ctx: RowC
           onClick={() => s.updateRow(row.id, { displayMode: showsFraction ? 'decimal' : 'fraction' })}
         >
           a/b
+        </button>
+      )}
+      {formKind && (
+        <button
+          className={`gutter-btn form ${alt ? 'on' : ''}`}
+          title={
+            formKind === 'vec'
+              ? alt
+                ? 'Shown as 3î + 4ĵ. Click for (3, 4).'
+                : 'Shown as (3, 4). Click for 3î + 4ĵ.'
+              : alt
+                ? 'Shown in polar form, 5∠53°. Click for 3 + 4i.'
+                : 'Shown as 3 + 4i. Click for polar form, 5∠53°.'
+          }
+          aria-label={formKind === 'vec' ? (alt ? 'Show as (x, y)' : 'Show with î, ĵ, k̂') : alt ? 'Show as a + bi' : 'Show in polar form'}
+          aria-pressed={alt}
+          onClick={() => s.updateRow(row.id, { form: alt ? undefined : 'alt' })}
+        >
+          {formKind === 'vec' ? 'î' : '∠'}
         </button>
       )}
     </div>

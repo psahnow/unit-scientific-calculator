@@ -3,9 +3,9 @@
 export type Tok =
   | { t: 'num'; v: string; s: number; e: number }
   | { t: 'letter'; v: string; s: number; e: number }
-  | { t: 'op'; v: string; s: number; e: number } // + - * / = , ! % ^ _ |
-  | { t: 'open'; v: '(' | '[' | '|' | '{'; s: number; e: number }
-  | { t: 'close'; v: ')' | ']' | '|' | '}'; s: number; e: number }
+  | { t: 'op'; v: string; s: number; e: number; cross?: boolean } // + - * / = , ! % ^ _ | ∠; × is marked cross (D63)
+  | { t: 'open'; v: '(' | '[' | '|' | '{' | '⟨'; s: number; e: number }
+  | { t: 'close'; v: ')' | ']' | '|' | '}' | '⟩'; s: number; e: number }
   | { t: 'cmd'; v: string; s: number; e: number; arg?: string }
   | { t: 'unit'; v: string; s: number; e: number }
   | { t: 'const'; v: string; s: number; e: number }
@@ -167,7 +167,10 @@ export function tokenize(src: string): Tok[] {
       }
       if (/^(left|right|mleft|mright)$/.test(name) && src[i] === '.') i++; // null delimiter
       if (SKIP.has(name)) continue;
-      if (TIMES.has(name)) toks.push({ t: 'op', v: '*', s, e: i });
+      if (TIMES.has(name)) toks.push({ t: 'op', v: '*', s, e: i, ...(name === 'times' ? { cross: true } : {}) });
+      else if (name === 'angle' || name === 'measuredangle') toks.push({ t: 'op', v: '∠', s, e: i });
+      else if (name === 'langle') toks.push({ t: 'open', v: '⟨', s, e: i });
+      else if (name === 'rangle') toks.push({ t: 'close', v: '⟩', s, e: i });
       else if (name === 'div') toks.push({ t: 'op', v: '/', s, e: i });
       else if (name === '%') toks.push({ t: 'op', v: '%', s, e: i });
       else if (name === 'lbrack') toks.push({ t: 'open', v: '[', s, e: i });
@@ -197,7 +200,11 @@ export function tokenize(src: string): Tok[] {
     else if ('+-*/=,!^_%:<>'.includes(c)) toks.push({ t: 'op', v: c, s, e: i + 1 });
     else if ('≤≥≠→'.includes(c)) toks.push({ t: 'op', v: c, s, e: i + 1 });
     else if (c === '−') toks.push({ t: 'op', v: '-', s, e: i + 1 });
-    else if (c === '·' || c === '×') toks.push({ t: 'op', v: '*', s, e: i + 1 });
+    else if (c === '·') toks.push({ t: 'op', v: '*', s, e: i + 1 });
+    else if (c === '×') toks.push({ t: 'op', v: '*', s, e: i + 1, cross: true });
+    else if (c === '∠') toks.push({ t: 'op', v: '∠', s, e: i + 1 });
+    else if (c === '⟨') toks.push({ t: 'open', v: '⟨', s, e: i + 1 });
+    else if (c === '⟩') toks.push({ t: 'close', v: '⟩', s, e: i + 1 });
     else if (c === "'") {
       /* ignore primes */
     } else if (/[µμΩ°Δαβγδεζηθικλνξπρστυφχψωħ′″‰Å]/.test(c)) toks.push({ t: 'letter', v: c, s, e: i + 1 });

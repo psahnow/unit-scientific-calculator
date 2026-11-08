@@ -77,3 +77,77 @@ export function formatQuantity(q: Quantity, o: FormatOptions = DEFAULT_FORMAT): 
   const mode = o.mode === 'auto' && (q.unit.length > 0 || !dimEq(q.dim, DIMLESS)) ? 'decimal' : o.mode;
   return { value: formatNum(raw, { ...o, mode }), unit: formatUnit(q.unit), raw };
 }
+
+// ── Vectors, complex numbers and lists (D63) ─────────────────────────────────
+
+/** How a vector or complex answer is written: the row's switch picks the other form (D63). */
+export interface ValueView {
+  /** Vectors as 3î + 4ĵ (not (3, 4)); complex numbers in polar form 5∠53.13° (not 3 + 4i). */
+  alt?: boolean;
+  angle?: 'rad' | 'deg';
+  /** The letter for √−1. */
+  imag?: 'i' | 'j';
+}
+
+type AnyValue =
+  | { t: 'q'; q: Quantity }
+  | { t: 'list'; items: Quantity[] }
+  | { t: 'vec'; items: Quantity[] }
+  | { t: 'cx'; re: Quantity; im: Quantity };
+
+const BASIS = ['î', 'ĵ', 'k̂'];
+const SUB_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const sub = (n: number) => String(n).replace(/[0-9]/g, (d) => SUB_DIGITS[Number(d)]);
+
+/** Terms like 3î, −ĵ, 2.5e₄ joined with + and −; zero terms left out. */
+function joinTerms(terms: [string, string][]): string {
+  const kept = terms.filter(([c]) => c !== '0');
+  if (!kept.length) return '0';
+  return kept
+    .map(([c, sym], i) => {
+      const neg = c.startsWith('−');
+      const mag = neg ? c.slice(1) : c;
+      const body = (mag === '1' && sym ? '' : mag) + sym;
+      if (i === 0) return (neg ? '−' : '') + body;
+      return (neg ? ' − ' : ' + ') + body;
+    })
+    .join('');
+}
+
+/** Any answer as text: the number part and its unit (shown on the unit button). */
+export function formatValue(v: AnyValue, o: FormatOptions, view: ValueView = {}): { value: string; unit: string } {
+  if (v.t === 'q') {
+    const f = formatQuantity(v.q, o);
+    return { value: f.value, unit: f.unit };
+  }
+  if (v.t === 'list') {
+    return { value: '[' + v.items.map((x) => formatQuantity(x, o).value).join(', ') + ']', unit: v.items[0] ? formatUnit(v.items[0].unit) : '' };
+  }
+  if (v.t === 'vec') {
+    const unit = v.items[0] ? formatUnit(v.items[0].unit) : '';
+    const parts = v.items.map((x) => formatQuantity(x, o).value);
+    if (!view.alt) return { value: '(' + parts.join(', ') + ')', unit };
+    const syms = parts.map((_, i) => (parts.length <= 3 ? BASIS[i] : 'e' + sub(i + 1)));
+    const text = joinTerms(parts.map((p, i) => [p, syms[i]]));
+    return { value: unit && /[+−]/.test(text.slice(1)) ? `(${text})` : text, unit };
+  }
+  const unit = formatUnit(v.re.unit);
+  const letter = view.imag ?? 'i';
+  if (view.alt) {
+    // polar: |z| ∠ angle, the angle following RAD/DEG
+    // both parts are in the same unit, so the size and angle can be read off the shown numbers
+    const re = N.toNumber(displayValue(v.re));
+    const im = N.toNumber(displayValue(v.im));
+    const r = Math.hypot(re, im);
+    const th = Math.atan2(im, re);
+    const ang = view.angle === 'deg' ? `${formatFloat((th * 180) / Math.PI, o)}°` : `${formatFloat(th, o)} rad`;
+    return { value: `${formatFloat(r, o)}∠${ang}`, unit };
+  }
+  const re = formatQuantity(v.re, o).value;
+  const im = formatQuantity(v.im, o).value;
+  const text = joinTerms([
+    [re, ''],
+    [im, letter],
+  ]);
+  return { value: unit && /[+−]/.test(text.slice(1)) ? `(${text})` : text, unit };
+}

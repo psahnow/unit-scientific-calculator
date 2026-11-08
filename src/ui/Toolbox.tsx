@@ -32,7 +32,15 @@ export function Toolbox({ onClose }: { onClose(): void }) {
       /* per-viewer convenience only */
     }
   };
-  const group = GROUPS.find((g) => g.id === tab) ?? GROUPS[0];
+  // the Vectors and Complex tabs only when the worksheet has them on (D63); √−1 in its own letter
+  const vectors = useStore((st) => !!st.ws.settings.vectors && !st.ws.settings.imaginary);
+  const imag = useStore((st) => st.ws.settings.imaginary);
+  const visible = GROUPS.filter((g) => !g.needs || (g.needs === 'vectors' ? vectors : !!imag)).map((g) =>
+    g.id === 'complex' && imag === 'j'
+      ? { ...g, keys: g.keys.map((k) => ({ ...k, label: k.label.replace(/i$/, 'j'), insert: k.insert.replace(/i$/, 'j') })) }
+      : g,
+  );
+  const group = visible.find((g) => g.id === tab) ?? visible[0];
 
   // keep the page's bottom padding equal to the drawer, so it never hides the last rows
   const ref = useRef<HTMLElement>(null);
@@ -60,7 +68,7 @@ export function Toolbox({ onClose }: { onClose(): void }) {
   return (
     <section id="toolbox" className="toolbox" aria-label="Functions" ref={ref}>
       <div className="tb-tabs" role="tablist">
-        {GROUPS.map((g) => (
+        {visible.map((g) => (
           <button
             key={g.id}
             role="tab"

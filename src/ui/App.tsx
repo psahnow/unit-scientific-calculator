@@ -23,9 +23,18 @@ export function App() {
   // recalculate just after, in the background (D38)
   const calcRows = useDeferredValue(rows);
   const result = useMemo(
-    () => evaluateWorksheet(calcRows, { angle: settings.angle, packages: settings.packages, units: settings.units }),
-    [calcRows, settings.angle, settings.packages, settings.units],
+    () =>
+      evaluateWorksheet(calcRows, {
+        angle: settings.angle,
+        packages: settings.packages,
+        units: settings.units,
+        vectors: settings.vectors,
+        imaginary: settings.imaginary,
+      }),
+    [calcRows, settings.angle, settings.packages, settings.units, settings.vectors, settings.imaginary],
   );
+  // how vectors and complex numbers are written (D63)
+  const view = useMemo(() => ({ angle: settings.angle, imag: settings.imaginary }), [settings.angle, settings.imaginary]);
   const fmt: FormatOptions = { sigFigs: settings.sigFigs, notation: settings.notation, sciAbove: settings.sciAbove, mode: settings.exactDefault ? 'auto' : 'decimal' };
   // names visible from each folder (folder-scoped definitions only count inside their folder)
   const varsFor = useMemo(() => {
@@ -149,7 +158,7 @@ export function App() {
         <span className="print-date">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
       </div>
       <div className="sheet-wrap">
-      <VarPanel rows={calcRows} result={result} fmt={fmt} />
+      <VarPanel rows={calcRows} result={result} fmt={fmt} view={view} />
       <main className="list" aria-label="Expressions">
         {visible.map((row) => {
           // every row keeps its number, as in a spreadsheet (folded rows too): #n means this row (D56)
@@ -227,7 +236,7 @@ export function App() {
               </div>
               <RowBoundary resetKey={JSON.stringify(row)}>
               {row.type === 'expr' && (
-                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), onRename: (n: string) => doRename(row.id, n), usesFocus: usesFocus(row.id), notice: result.notices.get(row.id), info: result.infos.get(row.id), packageHint: result.packageHints.get(row.id), tip: tipFor(row.id) }} />
+                <ExpressionRow row={row} ctx={{ result: res, chips: result.chips.get(row.id), fmt, vars: varsFor(row.parent ?? null), number: n, shadows: result.shadows.has(row.id), onRename: (n: string) => doRename(row.id, n), usesFocus: usesFocus(row.id), notice: result.notices.get(row.id), info: result.infos.get(row.id), packageHint: result.packageHints.get(row.id), tip: tipFor(row.id), view }} />
               )}
               {row.type === 'note' && <NoteRow row={row} />}
               {row.type === 'folder' && <FolderRow row={row} count={childCount} />}

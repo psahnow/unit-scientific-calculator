@@ -20,6 +20,9 @@ export interface ParseContext {
   units?: Availability;
   /** Names bound inside this expression (function parameters, ∫ dx, Σ n, solve x): not references to rows. */
   bound?: ReadonlySet<string>;
+  /** Optional maths (D63): (x, y, z) is a vector and × the cross product; ∠ makes a complex number. */
+  vectors?: boolean;
+  imaginary?: 'i' | 'j';
 }
 
 /** Where a name is used in a row's LaTeX (character offsets). */
@@ -35,13 +38,15 @@ export const LETTER_FUNCS = new Set([
   'arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'min', 'max', 'mod', 'round', 'floor', 'ceil', 'sign',
   'sum', 'mean', 'median', 'stdev', 'var', 'count', 'length', 'nthroot', 'hypot', 'total',
   'asinh', 'acosh', 'atanh', 'arsinh', 'arcosh', 'artanh', 'gamma', 'erf', 'erfc', 'nCr', 'nPr', 'gcd', 'lcm',
+  // vectors and complex numbers (D63)
+  'dot', 'cross', 'norm', 're', 'im', 'conj', 'arg',
 ]);
 /** LaTeX commands that are functions (\sin, \operatorname{abs}, …). */
 const CMD_FUNCS = new Set([...LETTER_FUNCS, 'arcsec', 'arccsc', 'arccot', 'lg', 'sgn', 'operatorname']);
 
 const CMP_OPS = new Set(['<', '>', '≤', '≥', '=', '≠']);
 
-const CLOSERS: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
+const CLOSERS: Record<string, string> = { ')': '(', ']': '[', '}': '{', '⟩': '⟨' };
 const NAMES: Record<string, string> = { '*': '×', '/': '÷', '^': 'power', '_': 'subscript' };
 
 /** A plain-language message for a token that can't go where it is (D28). */
@@ -316,8 +321,9 @@ class Parser {
     let acc: Node = this.parseUnary(false);
     let explicit = false;
     for (;;) {
-      if (this.isOp('*') || this.isOp('/')) {
-        const op = (this.peek() as { v: string }).v as '*' | '/';
+      if (this.isOp('*') || this.isOp('/') || this.isOp('∠')) {
+        const tok = this.peek() as { v: string; cross?: boolean };
+        const op = tok.v as '*' | '/' | '∠';
         this.i++;
         let b = this.parseUnary(op === '*');
         // number–unit juxtaposition binds tighter than · and / (2·20 °C = 2·(20 °C))
@@ -332,7 +338,10 @@ class Parser {
           }
           b = bindImplicit(b, f);
         }
-        acc = { k: 'bin', op, a: acc, b };
+        // r∠θ makes a complex number; × between vectors is the cross product (D63)
+        if (op === '∠') acc = { k: 'polar', r: acc, th: b };
+        else if (op === '*' && tok.cross && this.ctx.vectors) acc = { k: 'call', name: 'cross', args: [acc, b] };
+        else acc = { k: 'bin', op, a: acc, b };
         explicit = true;
         continue;
       }
@@ -505,7 +514,8 @@ class Parser {
               items.push(this.parseExpr());
             }
             this.expectClose(')');
-            return { k: 'list', items };
+            // (3, 4) is a vector when the worksheet has vectors on (D63), else a list as before
+            return { k: this.ctx.vectors ? 'vec' : 'list', items };
           }
           this.expectClose(')');
           return first;
@@ -524,6 +534,17 @@ class Parser {
             }
           this.expectClose(']');
           return { k: 'list', items };
+        }
+        if (t.v === '⟨') {
+          if (!this.ctx.vectors) throw new ParseError('⟨ ⟩ makes a vector: turn on vectors in ⚙ Settings');
+          this.i++;
+          const items: Node[] = [this.parseExpr()];
+          while (this.isOp(',')) {
+            this.i++;
+            items.push(this.parseExpr());
+          }
+          this.expectClose('⟩');
+          return { k: 'vec', items };
         }
         if (t.v === '{') return this.piecewiseAhead() ? this.parsePiecewise() : this.group();
         if (t.v === '|') {

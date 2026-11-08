@@ -2,7 +2,7 @@
 // with its value, grouped by folder. Click one to go to its row.
 import type { ReactNode } from 'react';
 import type { Row, WorksheetResult } from '../engine/worksheet';
-import { formatQuantity, type FormatOptions } from '../engine/format';
+import { formatQuantity, formatValue, type FormatOptions, type ValueView } from '../engine/format';
 import { useStore } from '../state/store';
 
 interface Item {
@@ -27,7 +27,7 @@ function nameNode(name: string): ReactNode {
   );
 }
 
-export function VarPanel({ rows, result, fmt }: { rows: Row[]; result: WorksheetResult; fmt: FormatOptions }) {
+export function VarPanel({ rows, result, fmt, view }: { rows: Row[]; result: WorksheetResult; fmt: FormatOptions; view?: ValueView }) {
   const focusRow = useStore((s) => s.focusRow);
   const groups: { title?: string; items: Item[] }[] = [];
   const byFolder = new Map<string | undefined, { title?: string; items: Item[] }>();
@@ -48,8 +48,8 @@ export function VarPanel({ rows, result, fmt }: { rows: Row[]; result: Worksheet
     if (r.kind === 'value' && r.defName) {
       let value: string;
       let unit = '';
-      if (r.value.t === 'q') {
-        const f = formatQuantity(r.value.q, fmt);
+      if (r.value.t === 'q' || r.value.t === 'vec' || r.value.t === 'cx') {
+        const f = formatValue(r.value, fmt, { ...view, alt: row.form === 'alt' });
         value = f.value;
         unit = f.unit;
       } else {

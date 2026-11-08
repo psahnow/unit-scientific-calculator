@@ -22,7 +22,7 @@ function calc(lines: Line[] | Line, angle: 'rad' | 'deg' = 'rad', opts = DEFAULT
   if (r.kind === 'error') return 'ERR: ' + r.message;
   if (r.kind !== 'value') return r.kind;
   if (r.value.t === 'list') return '[' + r.value.items.map((q) => formatQuantity(q, opts).value).join(', ') + '] ' + formatUnit(r.value.items[0]?.unit ?? []);
-  const f = formatQuantity(r.value.q, opts);
+  const f = formatQuantity((r.value as unknown as { q: never }).q, opts);
   return (f.value + ' ' + f.unit).trim();
 }
 

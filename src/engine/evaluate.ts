@@ -11,8 +11,10 @@ import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, combine, parse
 import { CONST_BY_KEY } from './units/constants.data';
 import { formatQuantity } from './format';
 import { diff, antiderivative, div as divNode, type Need } from './symbolic';
+import * as VX from './vecx';
+import type { VecValue, CxValue } from './vecx';
 
-export type Value = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] };
+export type Value = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] } | VecValue | CxValue;
 
 export interface FuncDef {
   params: string[];
@@ -29,9 +31,33 @@ export interface Env {
   angle: 'rad' | 'deg';
   locals?: Map<string, Value>;
   depth?: number;
+  /** Optional per worksheet (D63): vectors (i, j, k, eₙ, (x, y, z)), or complex numbers with i or j. */
+  vectors?: boolean;
+  imaginary?: 'i' | 'j';
+}
+
+/** i, j, k and e₁ … eₙ as unit vectors, or i (or j) as √−1, when the worksheet has them on and the name isn't yours. */
+function builtinName(name: string, env: Env): Value | undefined {
+  if (env.imaginary && name === env.imaginary) return VX.IMAG;
+  if (env.vectors) {
+    const ijk = ['i', 'j', 'k'].indexOf(name);
+    if (ijk >= 0) return VX.basis(ijk + 1);
+    const e = /^e_{?([1-9][0-9]*)}?$/.exec(name);
+    if (e && Number(e[1]) <= 100) return VX.basis(Number(e[1]));
+  }
+  return undefined;
 }
 
 export const qv = (q: Quantity): Value => ({ t: 'q', q });
+
+/** The quantity that carries a value's unit: itself, a list's first item, a vector's first part, a complex number's real part. */
+export function primaryQ(v: Value): Quantity | undefined {
+  return v.t === 'q' ? v.q : v.t === 'cx' ? v.re : v.items[0];
+}
+/** A value's size, for unit menus: |v| for a vector, |z| for a complex number. */
+export function sizeQ(v: Value): Quantity | undefined {
+  return v.t === 'vec' || v.t === 'cx' ? VX.magnitude(v) : primaryQ(v);
+}
 
 export function unitQuantity(u: UnitExpr): Quantity {
   if (offsetUnit(u)) return Q.fromUnit(N.ONE, u);
@@ -74,13 +100,14 @@ function typedInput(q: Quantity, u: UnitExpr, fn: string, param: string): Quanti
 }
 
 function asQ(v: Value, what = 'value'): Quantity {
-  if (v.t !== 'q') throw new CalcError(`This needs a single ${what}, not a list`);
+  if (v.t !== 'q') throw new CalcError(`This needs a single ${what}, not ${v.t === 'list' ? 'a list' : v.t === 'vec' ? 'a vector' : 'a complex number'}`);
   return v.q;
 }
 
 /** Broadcast a binary op over lists (Desmos-style; shorter length wins). */
 function broadcast2(a: Value, b: Value, f: (x: Quantity, y: Quantity) => Quantity): Value {
   if (a.t === 'q' && b.t === 'q') return qv(f(a.q, b.q));
+  if (a.t === 'vec' || a.t === 'cx' || b.t === 'vec' || b.t === 'cx') throw new CalcError('This works on single values, not vectors or complex numbers');
   const ai = a.t === 'list' ? a.items : null;
   const bi = b.t === 'list' ? b.items : null;
   const n = Math.min(ai?.length ?? Infinity, bi?.length ?? Infinity);
@@ -89,6 +116,7 @@ function broadcast2(a: Value, b: Value, f: (x: Quantity, y: Quantity) => Quantit
   return { t: 'list', items: unifyList(items) };
 }
 function broadcast1(a: Value, f: (x: Quantity) => Quantity): Value {
+  if (a.t === 'vec' || a.t === 'cx') throw new CalcError('This works on single values, not vectors or complex numbers');
   return a.t === 'q' ? qv(f(a.q)) : { t: 'list', items: unifyList(a.items.map(f)) };
 }
 
@@ -130,8 +158,12 @@ export function evaluate(n: Node, env: Env): Value {
     case 'var': {
       const local = env.locals?.get(n.name);
       if (local) return local;
-      const v = env.getVar(n.name);
-      if (!v) throw new CalcError(`“${n.name}” isn't defined yet: add a row like ${n.name} = 5`);
+      const v = env.getVar(n.name) ?? builtinName(n.name, env);
+      if (!v) {
+        // i and j are often meant as √−1 or unit vectors: say where those are (D63)
+        const hint = (n.name === 'i' || n.name === 'j') && !env.imaginary && !env.vectors ? '. For √−1 or a unit vector, turn on complex numbers or vectors in ⚙ Settings' : '';
+        throw new CalcError(`“${n.name}” isn't defined yet: add a row like ${n.name} = 5${hint}`);
+      }
       return v;
     }
     case 'unit':
@@ -142,32 +174,50 @@ export function evaluate(n: Node, env: Env): Value {
       if (isUnitOnly(n)) return qv(unitQuantity(combine(evalUnitNode(n, env))));
       const a = evaluate(n.a, env);
       const b = evaluate(n.b, env);
+      if (a.t === 'vec' || a.t === 'cx' || b.t === 'vec' || b.t === 'cx') return VX.binOp(n.op, a, b) as Value;
+      // √−4 = 2i when complex numbers are on (D63)
+      if (n.op === '^' && env.imaginary && a.t === 'q' && b.t === 'q' && VX.needsComplexPow(a.q, b.q)) return VX.complexPow(a.q, b.q) as Value;
       const f = { '+': Q.add, '-': Q.sub, '*': Q.mul, '/': Q.div, '^': Q.pow }[n.op];
       return broadcast2(a, b, f);
     }
-    case 'neg':
-      return broadcast1(evaluate(n.a, env), Q.neg);
+    case 'neg': {
+      const a = evaluate(n.a, env);
+      if (a.t === 'vec' || a.t === 'cx') return VX.negate(a) as Value;
+      return broadcast1(a, Q.neg);
+    }
+    case 'vec':
+      return VX.vec(n.items.map((it) => asQ(evaluate(it, env), 'number in each part of a vector')));
+    case 'polar': {
+      if (!env.imaginary) throw new CalcError('∠ makes a complex number: turn on complex numbers in ⚙ Settings');
+      return VX.polar(asQ(evaluate(n.r, env)), asQ(evaluate(n.th, env)), env.angle) as Value;
+    }
     case 'qty': {
       const v = evaluate(n.v, env);
       const u = combine(evalUnitNode(n.u, env));
       const uq = unitQuantity(u);
-      return broadcast1(v, (x) => {
-        if (dimEq(x.dim, DIMLESS) && !x.unit.length) return Q.fromUnit(x.si, u);
-        return Q.mul(x, uq);
-      });
+      const attach = (x: Quantity) => (dimEq(x.dim, DIMLESS) && !x.unit.length ? Q.fromUnit(x.si, u) : Q.mul(x, uq));
+      if (v.t === 'vec' || v.t === 'cx') return VX.mapParts(v, attach) as Value; // (3, 4) N, (3 + 4i) Ω
+      return broadcast1(v, attach);
     }
     case 'fact':
       return broadcast1(evaluate(n.a, env), (x) => {
         if (!Q.isScalar(x)) throw new CalcError('Factorial (!) needs a plain number, without units');
         return scalar(N.factorial(x.si));
       });
-    case 'abs':
-      return broadcast1(evaluate(n.a, env), absQ);
+    case 'abs': {
+      const a = evaluate(n.a, env);
+      if (a.t === 'vec' || a.t === 'cx') return qv(VX.magnitude(a));
+      return broadcast1(a, absQ);
+    }
     case 'root': {
       const k = asQ(evaluate(n.n, env));
       if (!Q.isScalar(k)) throw new CalcError('The small number on a root (the 3 in ³√) must be a plain number');
       const kn = N.toNumber(k.si);
-      return broadcast1(evaluate(n.a, env), (x) =>
+      const x0 = evaluate(n.a, env);
+      const inv = scalar(N.div(N.ONE, k.si));
+      if (x0.t === 'cx') return VX.binOp('^', x0, qv(inv)) as Value;
+      if (env.imaginary && x0.t === 'q' && VX.needsComplexPow(x0.q, inv)) return VX.complexPow(x0.q, inv) as Value;
+      return broadcast1(x0, (x) =>
         Number.isInteger(kn) && kn > 0 ? Q.root(x, kn) : Q.pow(x, scalar(N.div(N.ONE, k.si))),
       );
     }
@@ -185,7 +235,8 @@ export function evaluate(n: Node, env: Env): Value {
       fd.params.forEach((p, i) => {
         const arg = evaluate(n.args[i], env);
         const un = fd.paramUnits?.[i];
-        locals.set(p, un ? broadcast1(arg, (q) => typedInput(q, declaredUnit(un, fd.env ?? env), n.name, p)) : arg);
+        const typed = (q: Quantity) => typedInput(q, declaredUnit(un!, fd.env ?? env), n.name, p);
+        locals.set(p, !un ? arg : arg.t === 'vec' || arg.t === 'cx' ? (VX.mapParts(arg, typed) as Value) : broadcast1(arg, typed));
       });
       try {
         return evaluate(fd.body, { ...(fd.env ?? env), locals, depth: (env.depth ?? 0) + 1 });
@@ -211,7 +262,18 @@ export function evaluate(n: Node, env: Env): Value {
       throw new CalcError('None of the { } conditions is true here, and there is no “otherwise” value at the end');
     }
     case 'call': {
-      let r = callBuiltin(n.name, n.args.map((a) => evaluate(a, env)), env, n.base ? asQ(evaluate(n.base, env)) : undefined, n.args);
+      const args = n.args.map((a) => evaluate(a, env));
+      // dot, cross, re, im, … and anything given a vector or complex number (D63)
+      if (VX.VECX_FUNCS.includes(n.name) || args.some((a) => a.t === 'vec' || a.t === 'cx')) {
+        const r = VX.builtin(n.name, args, env.angle);
+        if (r) return r as Value;
+      }
+      if (env.imaginary && args.length === 1 && args[0].t === 'q' && N.toNumber(args[0].q.si) < 0 && isDimlessLoose(args[0].q.dim)) {
+        // √−4 = 2i, ln(−1) = iπ
+        if (n.name === 'sqrt') return VX.complexPow(args[0].q, scalar(N.exact(1n, 2n))) as Value;
+        if (n.name === 'ln') return VX.lnNegative(args[0].q) as Value;
+      }
+      let r = callBuiltin(n.name, args, env, n.base ? asQ(evaluate(n.base, env)) : undefined, n.args);
       if (n.power) {
         const p = evaluate(n.power, env);
         r = broadcast2(r, p, Q.pow);
@@ -620,7 +682,11 @@ function angleResult(r: number, env: Env): Quantity {
 
 function flatten(args: Value[]): Quantity[] {
   const out: Quantity[] = [];
-  for (const a of args) a.t === 'q' ? out.push(a.q) : out.push(...a.items);
+  for (const a of args) {
+    if (a.t === 'q') out.push(a.q);
+    else if (a.t === 'list') out.push(...a.items);
+    else throw new CalcError(`This needs numbers or lists, not ${a.t === 'vec' ? 'a vector' : 'a complex number'}`);
+  }
   return out;
 }
 
@@ -939,7 +1005,7 @@ export function inferUnit(n: Node, env: Env, known: Map<string, Quantity>, depth
   const constant = (m: Node): Quantity | null => {
     try {
       const v = evaluate(m, env);
-      return v.t === 'q' ? v.q : (v.items[0] ?? null);
+      return primaryQ(v) ?? null;
     } catch {
       return null;
     }
@@ -972,6 +1038,9 @@ export function inferUnit(n: Node, env: Env, known: Map<string, Quantity>, depth
         return sub(n.a);
       case 'list':
         return n.items.length ? sub(n.items[0]) : null;
+      case 'vec':
+      case 'polar':
+        return null;
       case 'piecewise':
         return n.branches.length ? sub(n.branches[0].value) : null;
       case 'root': {

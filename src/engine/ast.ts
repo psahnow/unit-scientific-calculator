@@ -18,6 +18,9 @@ export type Node =
   | { k: 'call'; name: string; args: Node[]; base?: Node; power?: Node }
   | { k: 'ucall'; name: string; args: Node[] }
   | { k: 'list'; items: Node[] }
+  // vectors and complex numbers (D63): (x, y, z) or ⟨x, y, z⟩; r∠θ
+  | { k: 'vec'; items: Node[] }
+  | { k: 'polar'; r: Node; th: Node }
   | { k: 'fact'; a: Node }
   | { k: 'abs'; a: Node }
   | { k: 'root'; n: Node; a: Node }
@@ -99,7 +102,12 @@ export function collectRefs(n: Node, out: Set<string> = new Set()): Set<string> 
       if (n.power) collectRefs(n.power, out);
       break;
     case 'list':
+    case 'vec':
       n.items.forEach((a) => collectRefs(a, out));
+      break;
+    case 'polar':
+      collectRefs(n.r, out);
+      collectRefs(n.th, out);
       break;
     case 'root':
       collectRefs(n.n, out);

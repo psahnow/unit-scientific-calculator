@@ -91,6 +91,52 @@ test('the unit dropdown changes only the display', async ({ page }) => {
   await expect(result(page, 2)).toContainText('psi');
 });
 
+test('vectors: (3, 4) N, its length, i × j, and the î ĵ form from the margin', async ({ page }) => {
+  const rows = [
+    { id: 'a', type: 'expr', latex: String.raw`F=\left(3,4\right)\unit{N}` },
+    { id: 'b', type: 'expr', latex: String.raw`\left|F\right|` },
+    { id: 'c', type: 'expr', latex: String.raw`i\times j` },
+    { id: 'd', type: 'expr', latex: '' },
+  ];
+  await openSheet(page, { ...SAMPLE, id: 'vec', title: 'Vectors', rows, settings: { ...SAMPLE.settings, vectors: true } });
+  await expect(result(page, 1)).toContainText('(3, 4)');
+  await expect(result(page, 1)).toContainText('N');
+  await expect(result(page, 2)).toContainText('5');
+  await expect(result(page, 3)).toContainText('(0, 0, 1)');
+  // the margin switch writes it with unit vectors
+  await page.locator('.row').nth(0).hover();
+  await page.locator('.row').nth(0).locator('.gutter-btn.form').click();
+  await expect(result(page, 1)).toContainText('3î + 4ĵ');
+  // typed: 3i+4j
+  await typeRow(page, 4, '3i+4j');
+  await page.keyboard.press('Escape');
+  await expect(result(page, 4)).toContainText('(3, 4)');
+});
+
+test('complex numbers: (3 + 4i) Ω, √−4, polar form, and j in Settings; never with vectors', async ({ page }) => {
+  const rows = [
+    { id: 'a', type: 'expr', latex: String.raw`Z=\left(3+4i\right)\unit{\Omega}` },
+    { id: 'b', type: 'expr', latex: String.raw`\sqrt{-4}` },
+    { id: 'c', type: 'expr', latex: '' },
+  ];
+  await openSheet(page, { ...SAMPLE, id: 'cx', title: 'Complex', rows, settings: { ...SAMPLE.settings, angle: 'deg', imaginary: 'i' } });
+  await expect(result(page, 1)).toContainText('(3 + 4i)');
+  await expect(result(page, 1)).toContainText('Ω');
+  await expect(result(page, 2)).toContainText('2i');
+  await page.locator('.row').nth(0).hover();
+  await page.locator('.row').nth(0).locator('.gutter-btn.form').click();
+  await expect(result(page, 1)).toContainText('5∠53.13010235°');
+  // switch the letter to j
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByLabel('Write √−1 as').selectOption('j');
+  await expect(result(page, 2)).toContainText('2j');
+  // vectors can't be turned on alongside
+  await expect(page.getByRole('checkbox', { name: /Vectors/ })).toBeDisabled();
+  await page.getByRole('checkbox', { name: /Complex numbers/ }).uncheck();
+  await expect(page.getByRole('checkbox', { name: /Vectors/ })).toBeEnabled();
+  await expect(result(page, 2)).toContainText("Can't take an even root");
+});
+
 test('the unit menu keeps its size while you scroll its list (opened upward, near the bottom)', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 750 });
   // a distance in miles shown in inches, last of 12 rows

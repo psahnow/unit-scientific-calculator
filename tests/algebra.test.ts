@@ -20,7 +20,7 @@ function show(...lines: string[]): string {
     const f = formatQuantity(val.q);
     return f.unit ? `${f.value} ${f.unit}` : f.value;
   }
-  const fs = val.items.map((q) => formatQuantity(q));
+  const fs = (val as unknown as { items: never[] }).items.map((q) => formatQuantity(q));
   return `[${fs.map((f) => f.value).join(', ')}]` + (fs[0]?.unit ? ' ' + fs[0].unit : '');
 }
 function rootsOf(...lines: string[]): { si: Num[]; exact: boolean[] } {

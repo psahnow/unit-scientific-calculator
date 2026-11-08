@@ -3,7 +3,8 @@ import { parseRow, peekDefinition, parseExpression, ParseError, type ParseContex
 import type { ChipFix, ParsedRow, Node } from './ast';
 import { isUnitOnly } from './ast';
 import * as N from './num';
-import { evaluate, collectNotes, inferUnit, unitQuantity, declaredUnit, type Value, type Env, unifyList } from './evaluate';
+import { evaluate, collectNotes, inferUnit, unitQuantity, declaredUnit, primaryQ, type Value, type Env, unifyList } from './evaluate';
+import * as VX from './vecx';
 import { CalcError, convertTo, fromUnit, checkConvertible, kelvinAsAbsolute, kelvinNote, type Quantity } from './quantity';
 import { parseUnitExpr, getUnit, lookupUnit, setCustomUnits, formatUnit, type UnitExpr, type CustomUnitInput } from './units/registry';
 import { availability, packagesOf, offPackageMessage } from './units/packages';
@@ -35,6 +36,8 @@ export type Row =
       parent?: string;
       displayUnit?: string;
       displayMode?: DisplayMode;
+      /** 'alt': a vector as 3î + 4ĵ, a complex number in polar form (D63). */
+      form?: 'alt';
       slider?: SliderConfig;
       /** 'folder': the definition is only visible inside its folder (D24). Default: global. */
       scope?: 'folder';
@@ -88,6 +91,9 @@ export interface EvalSettings {
   packages?: readonly string[];
   /** Worksheet-defined units (D34), e.g. { symbol: 'bag', definition: '25 kg' }. */
   units?: readonly CustomUnitInput[];
+  /** Optional maths (D63): vectors, or complex numbers written with i or j. Never both. */
+  vectors?: boolean;
+  imaginary?: 'i' | 'j';
 }
 
 type DefSource =
@@ -153,15 +159,20 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   };
 
   const unitsOn = availability(settings.packages);
+  // built-in names the parser should read as names (D63): i, j, k, e₁ … for vectors; i or j for √−1
+  const vectorsOn = !!settings.vectors && !settings.imaginary;
+  const reserved = vectorsOn ? ['i', 'j', 'k', ...Array.from({ length: 20 }, (_, n) => `e_${n + 1}`)] : settings.imaginary ? [settings.imaginary] : [];
   const ctxCache = new Map<Scope, ParseContext>();
   const ctxFor = (scope: Scope): ParseContext => {
     let c = ctxCache.get(scope);
     if (!c) {
       const lv = scope !== null ? locals.get(scope) : undefined;
       c = {
-        vars: new Set([...global.vars.keys(), ...(lv?.vars.keys() ?? [])]),
+        vars: new Set([...reserved, ...global.vars.keys(), ...(lv?.vars.keys() ?? [])]),
         funcs: new Set([...global.funcs.keys(), ...(lv?.funcs.keys() ?? [])]),
         units: unitsOn,
+        vectors: vectorsOn,
+        imaginary: settings.imaginary,
       };
       ctxCache.set(scope, c);
     }
@@ -316,6 +327,8 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     if (hit) return hit;
     const env: Env = {
       angle: settings.angle,
+      vectors: vectorsOn,
+      imaginary: settings.imaginary,
       getVar(name) {
         if (name.startsWith('#')) return rowRef(Number(name.slice(1)));
         const lv = levelOf(scope, name);
@@ -409,7 +422,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     const run = collectNotes(() => evaluate(p.expr, rowEnv(rowId)));
     let value = run.value;
     if (run.notes.length) rowNotes.set(rowId, run.notes.join(' '));
-    const auto = value.t === 'q' ? value.q.unit : (value.items[0]?.unit ?? []);
+    const auto = primaryQ(value)?.unit ?? [];
     let unitError: string | undefined;
     let unitNote: string | undefined;
     if (r.displayUnit) {
@@ -418,7 +431,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         // a display unit from a package that is off is refused, like typing it would be (D59)
         const off = offPackageMessage(u, getUnit, availability(settings.packages));
         if (off) throw new CalcError(off);
-        const first = value.t === 'q' ? value.q : value.items[0];
+        const first = primaryQ(value);
         if (first && kelvinAsAbsolute(first, u)) unitNote = kelvinNote(u);
         value = applyUnit(value, u);
       } catch (e) {
@@ -502,6 +515,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         try {
           if (name && duplicateIn(global, name)) throw new CalcError(dupMessage(global, name));
           const v = name ? valueOf(name, { kind: 'col', rowId: r.id, colId: c.id }) : evalColumn(r.id, c.id);
+          if (v.t === 'vec' || v.t === 'cx') throw new CalcError(`A table column holds single values, not ${v.t === 'vec' ? 'vectors' : 'complex numbers'}`);
           colResults.set(c.id, { values: v.t === 'list' ? v.items : [v.q], isInput });
         } catch (e) {
           colResults.set(c.id, { error: friendly(e as Error), isInput });
@@ -545,7 +559,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
   for (const [id, n] of rowNotes) infos.set(id, infos.has(id) ? `${infos.get(id)} ${n}` : n);
   return {
-    rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars], shadows, notices, infos, packageHints, customUnitErrors,
+    rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars].filter((v) => !reserved.includes(v) || defined.has(v)), shadows, notices, infos, packageHints, customUnitErrors,
     refs: refsByRow,
     defSpans,
     resolves(rowId, name) {
@@ -561,6 +575,7 @@ class CycleError extends CalcError {}
 
 function applyUnit(v: Value, u: UnitExpr): Value {
   if (v.t === 'q') return { t: 'q', q: convertTo(v.q, u) };
+  if (v.t === 'vec' || v.t === 'cx') return VX.mapParts(v, (q) => convertTo(q, u)) as Value;
   return { t: 'list', items: v.items.map((q) => convertTo(q, u)) };
 }
 

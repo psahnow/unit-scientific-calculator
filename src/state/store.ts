@@ -14,6 +14,9 @@ export interface Settings {
   exactDefault: boolean; // show non-terminating exact results as fractions
   /** Worksheet-defined units, e.g. { symbol: 'bag', definition: '25 kg' } (D34). */
   units: CustomUnit[];
+  /** Optional maths (D63), off by default: vectors, or complex numbers written with i or j. Never both. */
+  vectors?: boolean;
+  imaginary?: 'i' | 'j';
 }
 
 export interface CustomUnit {
@@ -156,6 +159,7 @@ export function migrate(raw: unknown): Worksheet {
         displayMode: ['auto', 'decimal', 'fraction'].includes(r.displayMode as string) ? (r.displayMode as 'auto') : undefined,
         slider: s && typeof s === 'object' ? { min: str(s.min, '0'), max: str(s.max, '10'), step: str(s.step, '0.1') } : undefined,
         scope: r.scope === 'folder' ? 'folder' : undefined,
+        form: r.form === 'alt' ? 'alt' : undefined,
       });
     } else if (r.type === 'note') rows.push({ ...base, type: 'note', text: str(r.text) });
     else if (r.type === 'folder') rows.push({ id: base.id, type: 'folder', title: str(r.title, 'Folder'), collapsed: r.collapsed === true });
@@ -185,6 +189,7 @@ export function migrate(raw: unknown): Worksheet {
     packages: Array.isArray(s.packages) ? s.packages.filter((p): p is string => typeof p === 'string') : [],
     exactDefault: typeof s.exactDefault === 'boolean' ? s.exactDefault : DEFAULT_SETTINGS.exactDefault,
     units: Array.isArray(s.units) ? s.units.filter((u) => u && typeof u.symbol === 'string' && typeof u.definition === 'string') : [],
+    ...(s.imaginary === 'i' || s.imaginary === 'j' ? { imaginary: s.imaginary } : s.vectors === true ? { vectors: true } : {}),
   };
   return {
     schema: 1,
