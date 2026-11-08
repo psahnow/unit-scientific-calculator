@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { renumberRefs } from '../engine/rowrefs';
 import type { Row, TableColumn } from '../engine/worksheet';
 import type { Notation } from '../engine/format';
+import { setCurrentPackages } from '../engine/units/packages';
+import { setCustomUnits } from '../engine/units/registry';
 
 export interface Settings {
   angle: 'rad' | 'deg';
@@ -99,9 +101,27 @@ function blankWorksheet(base = 'Untitled worksheet'): Worksheet {
 }
 
 // ── Persistence ──────────────────────────────────────────────────────────────
-const LS_INDEX = 'usc:worksheets';
-const LS_CURRENT = 'usc:current';
-const lsWs = (id: string) => `usc:ws:${id}`;
+export const LS_INDEX = 'dimensional:worksheets';
+export const LS_CURRENT = 'dimensional:current';
+export const lsWs = (id: string) => `dimensional:ws:${id}`;
+/** Per-browser conveniences kept outside the worksheets: the functions drawer, and its last tab. */
+export const LS_TOOLBOX = 'dimensional:toolbox';
+export const LS_TOOLBOX_TAB = 'dimensional:toolbox-tab';
+
+/** Versions before the rename saved under "usc:": move whatever they saved to the new names, once. */
+function migrateLegacyKeys() {
+  try {
+    for (const k of Object.keys(localStorage)) {
+      if (!k.startsWith('usc:')) continue;
+      const next = 'dimensional:' + k.slice(4);
+      // a copy under the new name is newer: keep it
+      if (localStorage.getItem(next) === null) localStorage.setItem(next, localStorage.getItem(k) ?? '');
+      localStorage.removeItem(k);
+    }
+  } catch {
+    /* storage blocked: nothing to move */
+  }
+}
 
 function lsGet(k: string): string | null {
   try {
@@ -231,6 +251,7 @@ export function exportWorksheet(ws: Worksheet): string {
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────
+migrateLegacyKeys();
 const init = initial();
 
 export const useStore = create<State>((set, get) => {
@@ -252,7 +273,7 @@ export const useStore = create<State>((set, get) => {
   const freeTableIndex = (rows: Row[]) => {
     const used = new Set<string>();
     const note = (latex: string) => {
-      const m = /^s*([xy])_{?s*([0-9]+)s*}?/.exec(latex);
+      const m = /^\s*([xy])_\{?\s*([0-9]+)\s*\}?/.exec(latex);
       if (m) used.add(m[2]);
     };
     for (const r of rows) {
@@ -274,7 +295,9 @@ export const useStore = create<State>((set, get) => {
     mergeKey: null,
     focusId: null,
     theme: initialTheme(),
-    storageError: lsSet('dimensional:probe', '1') ? null : "This browser isn't saving your work (storage is blocked or in a private window). Use Export to keep a copy.",
+    storageError: lsSet('dimensional:probe', '1')
+      ? null
+      : "This browser isn't saving your work (storage is blocked or in a private window). Use Export to keep a copy.",
     setTheme(t) {
       lsSet(LS_THEME, t);
       set({ theme: t });
@@ -499,8 +522,18 @@ function saveNow() {
   if (JSON.stringify(next) !== JSON.stringify(index)) useStore.setState({ index: next });
 }
 
+// The unit catalogue and the unit sets in force are shared by the whole engine. They follow the open
+// worksheet's settings, installed here when the settings change, so rendering only ever reads them.
+// This listener is added before any component subscribes, so it runs first on every change.
+function syncEngine(settings: Settings) {
+  setCurrentPackages(settings.packages);
+  setCustomUnits(settings.units ?? []);
+}
+syncEngine(useStore.getState().ws.settings);
+
 let timer: ReturnType<typeof setTimeout> | undefined;
 useStore.subscribe((s, prev) => {
+  if (s.ws.settings.packages !== prev.ws.settings.packages || s.ws.settings.units !== prev.ws.settings.units) syncEngine(s.ws.settings);
   if (s.ws === prev.ws) return;
   clearTimeout(timer);
   timer = setTimeout(saveNow, 500);

@@ -54,7 +54,9 @@ describe('ans', () => {
 
 describe('solve skips poles', () => {
   it('P/A = 250 MPa with A already defined near the answer', () => {
-    expect(show(String.raw`P=12\unit{kN}`, String.raw`A=20\unit{mm}^2`, String.raw`\operatorname{\mathrm{solve}}\left(\frac{P}{A}=250\unit{MPa},A\right)`)).toBe('48 mm²');
+    expect(
+      show(String.raw`P=12\unit{kN}`, String.raw`A=20\unit{mm}^2`, String.raw`\operatorname{\mathrm{solve}}\left(\frac{P}{A}=250\unit{MPa},A\right)`),
+    ).toBe('48 mm²');
   });
   it('1/x = 2 from a negative guess still finds 0.5', () => {
     expect(show(String.raw`solve\left(\frac{1}{x}=2,x,-1\right)`)).toBe('0.5');

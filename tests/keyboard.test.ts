@@ -42,23 +42,35 @@ const pages = DIMENSIONAL_LAYOUTS.flatMap((layout) => {
   const l = layout as { label?: string; rows?: RawKey[][]; layers?: { id: string; rows: RawKey[][] }[] };
   return l.layers ? l.layers.map((x) => ({ name: `${l.label} (${x.id})`, rows: x.rows })) : [{ name: l.label ?? '?', rows: l.rows ?? [] }];
 });
-const widthOf = (k: RawKey) =>
-  typeof k === 'string' ? (k === '[separator-5]' ? 0.5 : k === '[shift]' ? 1.5 : 1) : (k.width ?? 1);
+const widthOf = (k: RawKey) => (typeof k === 'string' ? (k === '[separator-5]' ? 0.5 : k === '[shift]' ? 1.5 : 1) : (k.width ?? 1));
 const labelOf = (k: RawKey) =>
-  typeof k === 'string' ? k.replace(/^\[(.*)\]$/, '$1').replace('*', '×').replace('/', '÷').replace('-', '−') : (k.label ?? k.latex ?? k.insert ?? '');
+  typeof k === 'string'
+    ? k
+        .replace(/^\[(.*)\]$/, '$1')
+        .replace('*', '×')
+        .replace('/', '÷')
+        .replace('-', '−')
+    : (k.label ?? k.latex ?? k.insert ?? '');
 
 describe('on-screen keyboard layout', () => {
   it('every page is five rows of ten key-widths, ending in the same bottom row', () => {
     const bottom = JSON.stringify(pages[0].rows[4]);
     for (const p of pages) {
       expect(p.rows.length, p.name).toBe(5);
-      for (const [i, row] of p.rows.entries()) expect(row.reduce((a, k) => a + widthOf(k), 0), `${p.name} row ${i + 1}`).toBe(10);
+      for (const [i, row] of p.rows.entries())
+        expect(
+          row.reduce((a, k) => a + widthOf(k), 0),
+          `${p.name} row ${i + 1}`,
+        ).toBe(10);
       expect(JSON.stringify(p.rows[4]), p.name).toBe(bottom);
     }
   });
   it('no key appears twice on a page', () => {
     for (const p of pages) {
-      const labels = p.rows.flat().map(labelOf).filter((x) => x && !/^separator/.test(x) && x !== 'shift');
+      const labels = p.rows
+        .flat()
+        .map(labelOf)
+        .filter((x) => x && !/^separator/.test(x) && x !== 'shift');
       const dupes = labels.filter((x, i) => labels.indexOf(x) !== i);
       expect(dupes, p.name).toEqual([]);
     }

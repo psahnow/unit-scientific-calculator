@@ -57,7 +57,9 @@ describe('package and scope explanations (findings 14, 17, 18)', () => {
       { id: 'x', type: 'expr', latex: r`\frac{F}{2}` },
     ];
     // farad off (no Electrical): F has no fallback meaning, so it's an error that names the folders
-    expect(show(rows, 'x', [])).toBe('error: “F” is only defined inside “Folder (row 1)”, “Folder (row 3)”. Make it work everywhere, or move this row into that folder');
+    expect(show(rows, 'x', [])).toBe(
+      'error: “F” is only defined inside “Folder (row 1)”, “Folder (row 3)”. Make it work everywhere, or move this row into that folder',
+    );
   });
 });
 

@@ -20,9 +20,26 @@ export interface Suggestion {
 }
 
 const FUNC_LATEX: Record<string, string> = {
-  sin: '\\sin', cos: '\\cos', tan: '\\tan', sec: '\\sec', csc: '\\csc', cot: '\\cot', asin: '\\arcsin', acos: '\\arccos',
-  atan: '\\arctan', arcsin: '\\arcsin', arccos: '\\arccos', arctan: '\\arctan', sinh: '\\sinh', cosh: '\\cosh', tanh: '\\tanh',
-  ln: '\\ln', log: '\\log', exp: '\\exp', min: '\\min', max: '\\max',
+  sin: '\\sin',
+  cos: '\\cos',
+  tan: '\\tan',
+  sec: '\\sec',
+  csc: '\\csc',
+  cot: '\\cot',
+  asin: '\\arcsin',
+  acos: '\\arccos',
+  atan: '\\arctan',
+  arcsin: '\\arcsin',
+  arccos: '\\arccos',
+  arctan: '\\arctan',
+  sinh: '\\sinh',
+  cosh: '\\cosh',
+  tanh: '\\tanh',
+  ln: '\\ln',
+  log: '\\log',
+  exp: '\\exp',
+  min: '\\min',
+  max: '\\max',
 };
 
 export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterNumber: boolean): Suggestion[] {
@@ -41,7 +58,8 @@ export function suggestionsFor(prefixRaw: string, vars: Iterable<string>, afterN
   const dotted = /^\p{L}$/u.test(prefix) ? [prefix + '̇', prefix + '̈'] : [];
   if (!afterNumber)
     for (const v of varList)
-      if (v !== prefix && v.toLowerCase().startsWith(lp) && !dotted.some((d) => v.startsWith(d))) add({ kind: 'var', label: v, detail: 'variable', insert: varLatex(v) });
+      if (v !== prefix && v.toLowerCase().startsWith(lp) && !dotted.some((d) => v.startsWith(d)))
+        add({ kind: 'var', label: v, detail: 'variable', insert: varLatex(v) });
 
   // Ambiguous symbols (lb → lbm / lbf) always prompt (D20).
   const exact = lookupUnit(prefix);

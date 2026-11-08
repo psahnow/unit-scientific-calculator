@@ -202,8 +202,7 @@ describe('named-unit collapse (D23)', () => {
 });
 
 describe('scientific notation threshold', () => {
-  const f = (x: number | bigint, sciAbove?: number) =>
-    formatNum(typeof x === 'bigint' ? N.exact(x) : N.float(x), { ...DEFAULT_FORMAT, sciAbove });
+  const f = (x: number | bigint, sciAbove?: number) => formatNum(typeof x === 'bigint' ? N.exact(x) : N.float(x), { ...DEFAULT_FORMAT, sciAbove });
   it('defaults to switching at 10^12', () => {
     expect(f(6430000n)).toBe('6430000');
     expect(f(1.5e12)).toBe('1.5×10¹²');

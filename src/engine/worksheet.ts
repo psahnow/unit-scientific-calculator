@@ -83,6 +83,61 @@ export interface WorksheetResult {
   customUnitErrors: (string | undefined)[];
   /** Rows using a unit chip from a package that is off: the packages that would provide it. */
   packageHints: Map<string, { unit: string; packages: string[]; typed?: boolean }>;
+  /** What each row's answer depended on, so the next calculation can reuse the answers that can't have changed (D65). */
+  cache?: EvalCache;
+}
+
+/**
+ * One thing a row's answer was worked out from (D65): a name and the definition it meant, a
+ * function, a #n reference, or ans. If each still means the same, unchanged definition, the answer
+ * can't have changed.
+ */
+type Dep =
+  | { k: 'var'; scope: string | null; name: string; src: string | null; dup: boolean }
+  | { k: 'func'; scope: string | null; name: string; id: string | null; dup: boolean; sig: string }
+  | { k: 'ref'; n: number; id: string | null }
+  | { k: 'ans'; row: string; id: string | null };
+
+type RowFull = { value: Value; auto: UnitExpr; unitError?: string; unitNote?: string };
+interface CacheEntry {
+  /** The row as it was read: its parsed form, folder and display unit. */
+  sig: string;
+  deps: Dep[];
+  outcome: { ok: RowFull } | { err: Error };
+  note?: string;
+}
+export interface EvalCache {
+  settingsKey: string;
+  entries: Map<string, CacheEntry>;
+}
+
+/** JSON that keeps bigints (exact numbers) and non-finite floats apart. */
+function stableJson(x: unknown): string {
+  return JSON.stringify(x, (_k, v) => (typeof v === 'bigint' ? `${v}n` : typeof v === 'number' && !Number.isFinite(v) ? String(v) : v));
+}
+
+/** The same answer as last time: hand back last time's object, so the UI can tell nothing changed by identity. */
+function sameResult(a: RowResult, b: RowResult): boolean {
+  if (a === b) return true;
+  if (a.kind !== b.kind) return false;
+  switch (a.kind) {
+    case 'none':
+      return true;
+    case 'error':
+      return b.kind === 'error' && a.message === b.message && a.defName === b.defName;
+    case 'func':
+      return b.kind === 'func' && a.name === b.name && a.outUnit === b.outUnit;
+    case 'value':
+      return (
+        b.kind === 'value' &&
+        a.value === b.value &&
+        a.defName === b.defName &&
+        a.unitError === b.unitError &&
+        a.unitNote === b.unitNote &&
+        a.literal === b.literal &&
+        formatUnit(a.autoUnit) === formatUnit(b.autoUnit)
+      );
+  }
 }
 
 export interface EvalSettings {
@@ -96,9 +151,7 @@ export interface EvalSettings {
   imaginary?: 'i' | 'j';
 }
 
-type DefSource =
-  | { kind: 'row'; rowId: string }
-  | { kind: 'col'; rowId: string; colId: string };
+type DefSource = { kind: 'row'; rowId: string } | { kind: 'col'; rowId: string; colId: string };
 
 type Scope = string | null;
 
@@ -120,8 +173,20 @@ export function definitionScope(r: Row): Scope {
   return r.type === 'expr' && r.scope === 'folder' && r.parent ? r.parent : null;
 }
 
-export function evaluateWorksheet(rows: Row[], settings: EvalSettings): WorksheetResult {
+/**
+ * Work out every row. With `prev` (the last result for this worksheet), a row whose own text and
+ * everything it depended on are unchanged keeps last time's answer instead of being worked out
+ * again (D65); the answers are the same either way.
+ */
+export function evaluateWorksheet(rows: Row[], settings: EvalSettings, prev?: WorksheetResult): WorksheetResult {
   const customUnitErrors = setCustomUnits(settings.units ?? []);
+  // anything in the settings can change any answer: a different key starts afresh
+  const settingsKey = stableJson([settings.angle, settings.packages ?? null, settings.units ?? [], !!settings.vectors, settings.imaginary ?? null]);
+  const prevEntries = prev?.cache?.settingsKey === settingsKey ? prev.cache.entries : undefined;
+  const entries = new Map<string, CacheEntry>();
+  /** The dependencies being collected, one list per row being worked out (rows nest: a row works out the rows it uses). */
+  const depStack: Dep[][] = [];
+  const record = (d: Dep) => depStack[depStack.length - 1]?.push(d);
   const results = new Map<string, RowResult>();
   const colResults = new Map<string, ColumnResult>();
   const chips = new Map<string, ChipFix[]>();
@@ -283,7 +348,11 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     if (cached) return cached;
     const at = visiting.findIndex((v) => v.key === key);
     if (at >= 0) {
-      const cycle = visiting.slice(at).map((v) => v.name).concat(name).join(' → ');
+      const cycle = visiting
+        .slice(at)
+        .map((v) => v.name)
+        .concat(name)
+        .join(' → ');
       throw new CycleError(`These depend on each other in a loop: ${cycle}`);
     }
     visiting.push({ key, name });
@@ -306,6 +375,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
    */
   function rowRef(n: number): Value {
     const r = rows[n - 1];
+    record({ k: 'ref', n, id: r?.id ?? null });
     if (!r) throw new CalcError(n === 0 ? 'The row this referred to (#) was deleted' : `There’s no row ${n}`);
     if (r.type !== 'expr') throw new CalcError(`Row ${n} is a ${r.type === 'note' ? 'note' : r.type === 'folder' ? 'folder' : 'table'}, so #${n} has no value`);
     const p = parsed.get(r.id);
@@ -333,6 +403,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         if (name.startsWith('#')) return rowRef(Number(name.slice(1)));
         const lv = levelOf(scope, name);
         const srcs = lv.vars.get(name);
+        record({ k: 'var', scope, name, src: srcs ? srcKey(srcs[0]) : null, dup: duplicateIn(lv, name) });
         if (!srcs) return undefined;
         if (duplicateIn(lv, name)) throw new CalcError(dupMessage(lv, name));
         return valueOf(name, srcs[0]);
@@ -340,6 +411,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       getFunc(name) {
         const lv = levelOf(scope, name);
         const ids = lv.funcs.get(name);
+        record({ k: 'func', scope, name, id: ids?.[0] ?? null, dup: duplicateIn(lv, name), sig: ids ? sigOf(ids[0]) : '' });
         if (!ids) return undefined;
         if (duplicateIn(lv, name)) throw new CalcError(dupMessage(lv, name));
         const p = parsed.get(ids[0]);
@@ -351,6 +423,68 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     return env;
   }
 
+  /** The row `ans` means from a row: the nearest row above that can have an answer. */
+  function ansSource(rowId: string): string | null {
+    for (let k = rows.findIndex((x) => x.id === rowId) - 1; k >= 0; k--) {
+      const above = rows[k];
+      if (above.type !== 'expr') continue;
+      const pp = parsed.get(above.id);
+      if (!pp || (!(pp instanceof Error) && (pp.kind === 'empty' || pp.kind === 'fdef'))) continue;
+      return above.id;
+    }
+    return null;
+  }
+
+  // ── Reuse (D65): is a row's last answer still its answer? ──
+  const sigs = new Map<string, string>();
+  /** A row as read this time: its parsed form (which already reflects the names around it), folder and display unit. */
+  function sigOf(rowId: string): string {
+    let sig = sigs.get(rowId);
+    if (sig === undefined) {
+      const r = rowById.get(rowId);
+      const p = parsed.get(rowId);
+      sig = stableJson([r?.parent ?? null, r?.type === 'expr' ? (r.displayUnit ?? null) : null, p instanceof Error ? 'error: ' + p.message : (p ?? null)]);
+      sigs.set(rowId, sig);
+    }
+    return sig;
+  }
+  const clean = new Map<string, boolean>();
+  function isClean(rowId: string): boolean {
+    const known = clean.get(rowId);
+    if (known !== undefined) return known;
+    clean.set(rowId, false); // a loop is never clean
+    const e = prevEntries?.get(rowId);
+    const ok = !!e && e.sig === sigOf(rowId) && e.deps.every(depHolds);
+    clean.set(rowId, ok);
+    return ok;
+  }
+  function depHolds(d: Dep): boolean {
+    switch (d.k) {
+      case 'var': {
+        const lv = levelOf(d.scope, d.name);
+        const srcs = lv.vars.get(d.name);
+        const src = srcs ? srcKey(srcs[0]) : null;
+        if (src !== d.src || duplicateIn(lv, d.name) !== d.dup) return false;
+        // a table column is worked out afresh each time, so whatever uses it is too
+        return !srcs || (srcs[0].kind === 'row' && isClean(srcs[0].rowId));
+      }
+      case 'func': {
+        const lv = levelOf(d.scope, d.name);
+        const id = lv.funcs.get(d.name)?.[0] ?? null;
+        return id === d.id && duplicateIn(lv, d.name) === d.dup && (id === null || sigOf(id) === d.sig);
+      }
+      case 'ref': {
+        const id = rows[d.n - 1]?.id ?? null;
+        return id === d.id && (id === null || isClean(id));
+      }
+      case 'ans': {
+        if (levelOf(scopeOf(d.row), 'ans').vars.has('ans')) return false;
+        const id = ansSource(d.row);
+        return id === d.id && (id === null || isClean(id));
+      }
+    }
+  }
+
   /** The row's scope, plus `ans` = the answer of the nearest row above that has one (D33). */
   function rowEnv(rowId: string): Env {
     const scope = scopeOf(rowId);
@@ -360,18 +494,14 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       ...base,
       getVar(name) {
         if (name !== 'ans') return base.getVar(name);
-        for (let k = rows.findIndex((x) => x.id === rowId) - 1; k >= 0; k--) {
-          const prev = rows[k];
-          if (prev.type !== 'expr') continue;
-          const pp = parsed.get(prev.id);
-          if (!pp || (!(pp instanceof Error) && (pp.kind === 'empty' || pp.kind === 'fdef'))) continue;
-          try {
-            return evalRowValue(prev.id);
-          } catch {
-            throw new CalcError('“ans” is the answer of the row above, and that row has an error');
-          }
+        const above = ansSource(rowId);
+        record({ k: 'ans', row: rowId, id: above });
+        if (!above) throw new CalcError('“ans” is the answer of the row above, but no row above has one yet');
+        try {
+          return evalRowValue(above);
+        } catch {
+          throw new CalcError('“ans” is the answer of the row above, and that row has an error');
         }
-        throw new CalcError('“ans” is the answer of the row above, but no row above has one yet');
       },
     };
   }
@@ -394,8 +524,14 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       });
       const untyped = p.params.filter((name) => !typed.has(name));
       const STAND_INS: UnitExpr[] = [
-        [{ id: 'A', power: 1 }, { id: 'cd', power: 2 }],
-        [{ id: 'mol', power: 1 }, { id: 'cd', power: -3 }],
+        [
+          { id: 'A', power: 1 },
+          { id: 'cd', power: 2 },
+        ],
+        [
+          { id: 'mol', power: 1 },
+          { id: 'cd', power: -3 },
+        ],
       ];
       const runs = (untyped.length ? STAND_INS : [[]]).map((stand) => {
         const known = new Map(typed);
@@ -410,16 +546,39 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
   }
 
   /** Evaluate an expr row's value with its display unit applied (what dependents inherit). */
-  const rowValueCache = new Map<string, { value: Value; auto: UnitExpr; unitError?: string; unitNote?: string }>();
+  const rowValueCache = new Map<string, RowFull>();
   const rowNotes = new Map<string, string>();
-  function evalRowFull(rowId: string) {
+  function evalRowFull(rowId: string): RowFull {
     const hit = rowValueCache.get(rowId);
     if (hit) return hit;
-    const r = rowById.get(rowId) as Extract<Row, { type: 'expr' }>;
     const p = parsed.get(rowId)!;
     if (p instanceof Error) throw p;
     if (p.kind === 'empty' || p.kind === 'fdef') throw new CalcError('This row has no value');
-    const run = collectNotes(() => evaluate(p.expr, rowEnv(rowId)));
+    if (isClean(rowId)) {
+      const e = prevEntries!.get(rowId)!;
+      entries.set(rowId, e);
+      if (e.note) rowNotes.set(rowId, e.note);
+      if ('err' in e.outcome) throw e.outcome.err;
+      rowValueCache.set(rowId, e.outcome.ok);
+      return e.outcome.ok;
+    }
+    const deps: Dep[] = [];
+    depStack.push(deps);
+    try {
+      const out = workOutRow(rowId, p.expr);
+      entries.set(rowId, { sig: sigOf(rowId), deps, outcome: { ok: out }, note: rowNotes.get(rowId) });
+      return out;
+    } catch (e) {
+      // a loop depends on where the calculation started, so it isn't kept
+      if (!(e instanceof CycleError)) entries.set(rowId, { sig: sigOf(rowId), deps, outcome: { err: e as Error }, note: rowNotes.get(rowId) });
+      throw e;
+    } finally {
+      depStack.pop();
+    }
+  }
+  function workOutRow(rowId: string, expr: Node): RowFull {
+    const r = rowById.get(rowId) as Extract<Row, { type: 'expr' }>;
+    const run = collectNotes(() => evaluate(expr, rowEnv(rowId)));
     let value = run.value;
     if (run.notes.length) rowNotes.set(rowId, run.notes.join(' '));
     const auto = primaryQ(value)?.unit ?? [];
@@ -495,7 +654,12 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       const own = levelFor(definitionScope(r));
       if (p.kind === 'fdef') {
         if (own !== global && isGlobalName(p.name)) shadows.add(r.id);
-        results.set(r.id, duplicateIn(own, p.name) ? { kind: 'error', message: dupMessage(own, p.name), defName: p.name } : { kind: 'func', name: p.name, outUnit: outputUnit(p, r.id) });
+        results.set(
+          r.id,
+          duplicateIn(own, p.name)
+            ? { kind: 'error', message: dupMessage(own, p.name), defName: p.name }
+            : { kind: 'func', name: p.name, outUnit: outputUnit(p, r.id) },
+        );
         continue;
       }
       const defName = p.kind === 'def' ? p.name : undefined;
@@ -504,7 +668,15 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
         if (defName && duplicateIn(own, defName)) throw new CalcError(dupMessage(own, defName));
         if (defName) valueOf(defName, { kind: 'row', rowId: r.id });
         const full = evalRowFull(r.id);
-        results.set(r.id, { kind: 'value', value: full.value, defName, unitError: full.unitError, unitNote: full.unitNote, autoUnit: full.auto, literal: !!defName && isLiteral(p.expr) });
+        results.set(r.id, {
+          kind: 'value',
+          value: full.value,
+          defName,
+          unitError: full.unitError,
+          unitNote: full.unitNote,
+          autoUnit: full.auto,
+          literal: !!defName && isLiteral(p.expr),
+        });
       } catch (e) {
         results.set(r.id, { kind: 'error', message: friendly(e as Error), defName });
       }
@@ -533,7 +705,10 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     if (m && res?.kind === 'error') {
       const homes = [...locals.entries()].filter(([fid, lv]) => fid !== (r.parent ?? null) && lv.vars.has(m[1])).map(([fid]) => fid);
       if (homes.length) {
-        results.set(r.id, { ...res, message: `“${m[1]}” is only defined inside ${folderList(homes)}. Make it work everywhere, or move this row into that folder` });
+        results.set(r.id, {
+          ...res,
+          message: `“${m[1]}” is only defined inside ${folderList(homes)}. Make it work everywhere, or move this row into that folder`,
+        });
         continue;
       }
     }
@@ -553,13 +728,30 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
     for (const r of rows) {
       const p = parsed.get(r.id);
       if (!p || p instanceof Error || p.kind === 'empty' || infos.has(r.id)) continue;
-      if (degreeSensitive(p.expr)) infos.set(r.id, 'DEG mode: plain numbers in trig functions are degrees, and inverse trig answers in degrees. Switch to RAD at the top for radians.');
+      if (degreeSensitive(p.expr))
+        infos.set(r.id, 'DEG mode: plain numbers in trig functions are degrees, and inverse trig answers in degrees. Switch to RAD at the top for radians.');
     }
 
   const defined = new Set<string>([...global.vars.keys(), ...[...locals.values()].flatMap((l) => [...l.vars.keys()])]);
   for (const [id, n] of rowNotes) infos.set(id, infos.has(id) ? `${infos.get(id)} ${n}` : n);
+  // an unchanged answer keeps last time's object (D65)
+  if (prev)
+    for (const [id, res] of results) {
+      const old = prev.rows.get(id);
+      if (old && old !== res && sameResult(old, res)) results.set(id, old);
+    }
   return {
-    rows: results, columns: colResults, chips, defined, varsIn: (scope) => [...ctxFor(scope).vars].filter((v) => !reserved.includes(v) || defined.has(v)), shadows, notices, infos, packageHints, customUnitErrors,
+    cache: { settingsKey, entries },
+    rows: results,
+    columns: colResults,
+    chips,
+    defined,
+    varsIn: (scope) => [...ctxFor(scope).vars].filter((v) => !reserved.includes(v) || defined.has(v)),
+    shadows,
+    notices,
+    infos,
+    packageHints,
+    customUnitErrors,
     refs: refsByRow,
     defSpans,
     resolves(rowId, name) {
@@ -587,10 +779,9 @@ export function canDisplayIn(q: Quantity, unitText: string): string | null {
   }
 }
 
+/** The message to show for anything a row's calculation threw. */
 function friendly(e: Error): string {
-  if (e instanceof ParseError || e instanceof CalcError) return e.message;
-  if (e instanceof EvalError || e instanceof RangeError || e instanceof SyntaxError) return e.message;
-  return e.message || 'Error';
+  return e.message || 'Something went wrong with this row';
 }
 
 function safePeek(latex: string) {
@@ -656,12 +847,17 @@ export function applyChips(latex: string, chips: ChipFix[]): string {
 const TRIG = new Set(['sin', 'cos', 'tan', 'sec', 'csc', 'cot']);
 const INV_TRIG = new Set(['asin', 'acos', 'atan', 'arcsec', 'arccsc', 'arccot', 'atan2']);
 const hasUnit = (n: Node): boolean =>
-  n.k === 'unit' || Object.values(n).some((v) => (Array.isArray(v) ? v.some((x) => x && typeof x === 'object' && 'k' in x && hasUnit(x)) : v && typeof v === 'object' && 'k' in v && hasUnit(v as Node)));
+  n.k === 'unit' ||
+  Object.values(n).some((v) =>
+    Array.isArray(v) ? v.some((x) => x && typeof x === 'object' && 'k' in x && hasUnit(x)) : v && typeof v === 'object' && 'k' in v && hasUnit(v as Node),
+  );
 /** Whether the RAD/DEG mode changes this expression's value: trig of something without an angle unit, or inverse trig. */
 function degreeSensitive(n: Node): boolean {
   if (n.k === 'call' && ((TRIG.has(n.name) && !hasUnit(n.args[0])) || INV_TRIG.has(n.name))) return true;
   return Object.values(n).some((v) =>
-    Array.isArray(v) ? v.some((x) => x && typeof x === 'object' && 'k' in x && degreeSensitive(x)) : v && typeof v === 'object' && 'k' in v && degreeSensitive(v as Node),
+    Array.isArray(v)
+      ? v.some((x) => x && typeof x === 'object' && 'k' in x && degreeSensitive(x))
+      : v && typeof v === 'object' && 'k' in v && degreeSensitive(v as Node),
   );
 }
 

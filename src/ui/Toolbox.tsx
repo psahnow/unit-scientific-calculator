@@ -1,7 +1,7 @@
 // The function toolbox (DESIGN.md §3.5): a keypad-style drawer that inserts functions at the caret.
 import { useEffect, useRef, useState } from 'react';
 import { insertIntoMath } from './MathInput';
-import { useStore } from '../state/store';
+import { useStore, LS_TOOLBOX_TAB } from '../state/store';
 import { GROUPS } from './toolbox.data';
 import { UNITS } from '../engine/units/units.data';
 import { expandedUnits, getUnit } from '../engine/units/registry';
@@ -10,7 +10,15 @@ import { symbolToLatex } from '../engine/latex';
 
 export function ToolboxButton({ open, onToggle }: { open: boolean; onToggle(): void }) {
   return (
-    <button className={`text-btn ${open ? 'on' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={onToggle} aria-expanded={open} aria-controls="toolbox" aria-label="Functions toolbox" title="Functions toolbox">
+    <button
+      className={`text-btn ${open ? 'on' : ''}`}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls="toolbox"
+      aria-label="Functions toolbox"
+      title="Functions toolbox"
+    >
       <span className="tb-f">ƒ</span>(x) Functions
     </button>
   );
@@ -19,7 +27,7 @@ export function ToolboxButton({ open, onToggle }: { open: boolean; onToggle(): v
 export function Toolbox({ onClose }: { onClose(): void }) {
   const [tab, setTab] = useState(() => {
     try {
-      return localStorage.getItem('usc:toolbox-tab') ?? 'trig';
+      return localStorage.getItem(LS_TOOLBOX_TAB) ?? 'trig';
     } catch {
       return 'trig';
     }
@@ -27,7 +35,7 @@ export function Toolbox({ onClose }: { onClose(): void }) {
   const pick = (id: string) => {
     setTab(id);
     try {
-      localStorage.setItem('usc:toolbox-tab', id);
+      localStorage.setItem(LS_TOOLBOX_TAB, id);
     } catch {
       /* per-viewer convenience only */
     }
@@ -89,20 +97,20 @@ export function Toolbox({ onClose }: { onClose(): void }) {
       {group.browser === 'units' ? (
         <UnitsBrowser insert={insert} />
       ) : (
-      <div className="tb-keys" role="tabpanel">
-        {group.keys.map((k) => (
-          <button
-            key={k.label}
-            className={`tb-key ${k.wide ? 'wide' : ''}`}
-            title={k.title}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => insert(k.insert)}
-          >
-            {k.label}
-            {k.sub && <sub>{k.sub}</sub>}
-          </button>
-        ))}
-      </div>
+        <div className="tb-keys" role="tabpanel">
+          {group.keys.map((k) => (
+            <button
+              key={k.label}
+              className={`tb-key ${k.wide ? 'wide' : ''}`}
+              title={k.title}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => insert(k.insert)}
+            >
+              {k.label}
+              {k.sub && <sub>{k.sub}</sub>}
+            </button>
+          ))}
+        </div>
       )}
     </section>
   );
@@ -132,7 +140,13 @@ function UnitsBrowser({ insert }: { insert(latex: string): void }) {
   return (
     <div className="tb-units" role="tabpanel">
       <div className="tb-units-bar">
-        <input className="unit-search" placeholder="Search units, like pascal or psi" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search units" />
+        <input
+          className="unit-search"
+          placeholder="Search units, like pascal or psi"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Search units"
+        />
         <label className="tb-units-all">
           <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show units from unit sets that are off
           {!all && hidden > 0 && <span className="muted"> ({hidden} hidden)</span>}

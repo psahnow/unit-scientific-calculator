@@ -32,13 +32,7 @@ describe('#n row references', () => {
     expect(out[1]).toBe('error: Row 1 defines a: use a rather than #1');
   });
   it('notes, folders, empty rows, missing rows', () => {
-    const out = showAll([
-      { id: 'n', type: 'note', text: 'hi' },
-      expr('e', ''),
-      expr('x', r`\#1`),
-      expr('y', r`\#2`),
-      expr('z', r`\#9`),
-    ]);
+    const out = showAll([{ id: 'n', type: 'note', text: 'hi' }, expr('e', ''), expr('x', r`\#1`), expr('y', r`\#2`), expr('z', r`\#9`)]);
     expect(out[2]).toBe('error: Row 1 is a note, so #1 has no value');
     expect(out[3]).toBe('error: Row 2 is empty');
     expect(out[4]).toBe('error: There’s no row 9');

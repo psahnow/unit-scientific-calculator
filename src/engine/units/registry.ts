@@ -25,11 +25,43 @@ for (const u of UNITS) {
   for (const v of [n, n.replace(/meter$/, 'metre'), n.replace(/liter$/, 'litre')]) if (!nameMap.has(v)) nameMap.set(v, u);
 }
 for (const [k, id] of [
-  ['tonne', 't'], ['tonnes', 't'], ['feet', 'ft'], ['inches', 'in'], ['inch', 'in'], ['foot', 'ft'], ['pounds', 'lbm'], ['pound', 'lbm'], ['hours', 'h'], ['hour', 'h'],
-  ['minutes', 'min'], ['seconds', 's'], ['degrees', '°'], ['celsius', '°C'], ['centigrade', '°C'], ['fahrenheit', '°F'], ['rankine', '°R'],
-  ['gallon', 'gal'], ['gallons', 'gal'], ['atmosphere', 'atm'], ['atmospheres', 'atm'], ['horsepower', 'hp'], ['calorie', 'cal'],
-  ['calories', 'cal'], ['btu', 'BTU'], ['btus', 'BTU'], ['tons', 'ton'], ['days', 'd'], ['day', 'd'], ['weeks', 'wk'], ['week', 'wk'],
-  ['years', 'yr'], ['year', 'yr'], ['microns', 'µm'], ['micron', 'µm'], ['kips', 'kip'], ['thou', 'mil'],
+  ['tonne', 't'],
+  ['tonnes', 't'],
+  ['feet', 'ft'],
+  ['inches', 'in'],
+  ['inch', 'in'],
+  ['foot', 'ft'],
+  ['pounds', 'lbm'],
+  ['pound', 'lbm'],
+  ['hours', 'h'],
+  ['hour', 'h'],
+  ['minutes', 'min'],
+  ['seconds', 's'],
+  ['degrees', '°'],
+  ['celsius', '°C'],
+  ['centigrade', '°C'],
+  ['fahrenheit', '°F'],
+  ['rankine', '°R'],
+  ['gallon', 'gal'],
+  ['gallons', 'gal'],
+  ['atmosphere', 'atm'],
+  ['atmospheres', 'atm'],
+  ['horsepower', 'hp'],
+  ['calorie', 'cal'],
+  ['calories', 'cal'],
+  ['btu', 'BTU'],
+  ['btus', 'BTU'],
+  ['tons', 'ton'],
+  ['days', 'd'],
+  ['day', 'd'],
+  ['weeks', 'wk'],
+  ['week', 'wk'],
+  ['years', 'yr'],
+  ['year', 'yr'],
+  ['microns', 'µm'],
+  ['micron', 'µm'],
+  ['kips', 'kip'],
+  ['thou', 'mil'],
 ] as const) {
   const u = UNIT_BY_ID.get(id);
   if (u) nameMap.set(k, u);
@@ -39,7 +71,8 @@ const PREFIX_WORDS: Record<string, string> = { kilo: 'k', mega: 'M', giga: 'G', 
 function lookupName(s: string): UnitDef | undefined {
   if (s.length < 4 || !/^[a-zA-Z]+$/.test(s)) return undefined;
   const w = s.toLowerCase();
-  const one = (x: string) => nameMap.get(x) ?? (x.endsWith('s') ? nameMap.get(x.slice(0, -1)) : undefined) ?? (x.endsWith('es') ? nameMap.get(x.slice(0, -2)) : undefined);
+  const one = (x: string) =>
+    nameMap.get(x) ?? (x.endsWith('s') ? nameMap.get(x.slice(0, -1)) : undefined) ?? (x.endsWith('es') ? nameMap.get(x.slice(0, -2)) : undefined);
   const direct = one(w);
   if (direct) return direct;
   for (const [word, p] of Object.entries(PREFIX_WORDS)) {
@@ -83,9 +116,34 @@ export function lookupUnit(raw: string): UnitDef | undefined {
 }
 
 const PREFIX_NAMES: Record<string, string> = {
-  Q: 'quetta', R: 'ronna', Y: 'yotta', Z: 'zetta', E: 'exa', P: 'peta', T: 'tera', G: 'giga', M: 'mega',
-  k: 'kilo', h: 'hecto', da: 'deca', d: 'deci', c: 'centi', m: 'milli', µ: 'micro', n: 'nano', p: 'pico',
-  f: 'femto', a: 'atto', z: 'zepto', y: 'yocto', r: 'ronto', q: 'quecto', Ki: 'kibi', Mi: 'mebi', Gi: 'gibi', Ti: 'tebi',
+  Q: 'quetta',
+  R: 'ronna',
+  Y: 'yotta',
+  Z: 'zetta',
+  E: 'exa',
+  P: 'peta',
+  T: 'tera',
+  G: 'giga',
+  M: 'mega',
+  k: 'kilo',
+  h: 'hecto',
+  da: 'deca',
+  d: 'deci',
+  c: 'centi',
+  m: 'milli',
+  µ: 'micro',
+  n: 'nano',
+  p: 'pico',
+  f: 'femto',
+  a: 'atto',
+  z: 'zepto',
+  y: 'yocto',
+  r: 'ronto',
+  q: 'quecto',
+  Ki: 'kibi',
+  Mi: 'mebi',
+  Gi: 'gibi',
+  Ti: 'tebi',
 };
 
 function makePrefixed(p: string, pf: Num, base: UnitDef): UnitDef {
@@ -146,7 +204,21 @@ export function sameDim(a: UnitExpr, b: UnitExpr) {
 }
 
 // ── Formatting ───────────────────────────────────────────────────────────────
-const SUP: Record<string, string> = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻', '.': '·', '/': 'ᐟ' };
+const SUP: Record<string, string> = {
+  '0': '⁰',
+  '1': '¹',
+  '2': '²',
+  '3': '³',
+  '4': '⁴',
+  '5': '⁵',
+  '6': '⁶',
+  '7': '⁷',
+  '8': '⁸',
+  '9': '⁹',
+  '-': '⁻',
+  '.': '·',
+  '/': 'ᐟ',
+};
 export function superscript(n: number | string): string {
   const s = typeof n === 'number' ? powerString(n) : n;
   return [...s].map((c) => SUP[c] ?? c).join('');
@@ -176,9 +248,7 @@ export function formatUnit(e: UnitExpr): string {
 // ── Free-form unit-expression parsing (dropdown search, saved display units) ─
 /** Parse strings like "N/mm^2", "kip/in²", "J/(kg·K)", "lbf ft", "N*m". */
 export function parseUnitExpr(input: string): UnitExpr {
-  const s = input
-    .trim()
-    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+/g, (m) => '^' + [...m].map((c) => '0123456789-'['⁰¹²³⁴⁵⁶⁷⁸⁹⁻'.indexOf(c)]).join(''));
+  const s = input.trim().replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+/g, (m) => '^' + [...m].map((c) => '0123456789-'['⁰¹²³⁴⁵⁶⁷⁸⁹⁻'.indexOf(c)]).join(''));
   let i = 0;
   const peek = () => s[i];
   const ws = () => {
@@ -289,6 +359,10 @@ export interface CustomUnitInput {
 /**
  * Replace the worksheet's custom units. Each is defined as "<number> <unit expression>", and may use
  * units defined above it. Returns an error message per entry (undefined when fine).
+ *
+ * The catalogue is shared by the whole engine, so this changes global state. It does nothing when
+ * the definitions are the same as last time. In the app the store installs them (state/store.ts),
+ * outside rendering; evaluateWorksheet calls it too so that tests and scripts need no setup.
  */
 export function setCustomUnits(defs: readonly CustomUnitInput[]): (string | undefined)[] {
   const key = JSON.stringify(defs);
@@ -344,6 +418,11 @@ export function setCustomUnits(defs: readonly CustomUnitInput[]): (string | unde
   return customErrors;
 }
 let customErrors: (string | undefined)[] = [];
+
+/** The per-entry messages from the last setCustomUnits call: a pure read, safe during render. */
+export function getCustomUnitErrors(): (string | undefined)[] {
+  return customErrors;
+}
 
 // kg is the coherent base unit of mass.
 getUnit('kg').base = true;

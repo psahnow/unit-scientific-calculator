@@ -12,6 +12,9 @@ import { UnitButton } from './UnitDropdown';
 import { useStore } from '../state/store';
 import { varLatex } from '../engine/suggest';
 import { PACKAGE_BY_ID } from '../engine/units/packages';
+import { TipLine } from './Onboarding';
+import { Icon } from './Icon';
+import type { Tip } from './tour';
 
 export interface RowCtx {
   result?: RowResult;
@@ -25,14 +28,12 @@ export interface RowCtx {
   notice?: string;
   /** Information to show under the row (how something was read). */
   info?: string;
-  /** Rename this row's defined name everywhere it's used; returns an error message or undefined (D37). */
-  onRename?(newName: string): string | undefined;
-  /** This row uses the name defined in the focused row. */
-  usesFocus?: boolean;
+  /** Rename a row's defined name everywhere it's used; returns an error message or undefined (D37). One stable function for every row. */
+  rename?(rowId: string, newName: string): string | undefined;
   /** A unit chip on this row comes from packages that are off (D26). */
   packageHint?: { unit: string; packages: string[]; typed?: boolean };
   /** A one-time tip about this row (D60). */
-  tip?: ReactNode;
+  tip?: Tip;
   /** RAD/DEG and the letter for √−1, for writing vectors and complex numbers (D63). */
   view?: ValueView;
 }
@@ -40,8 +41,10 @@ export interface RowCtx {
 type ExprRow = Extract<Row, { type: 'expr' }>;
 
 export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
-  const s = useStore();
-  const focused = s.focusId === row.id;
+  // the store's actions never change; only this row's own focus is subscribed to, so a change
+  // elsewhere doesn't re-render it
+  const s = useStore.getState();
+  const focusNonce = useStore((st) => (st.focusId === row.id ? st.focusNonce : 0));
   const session = useRef(0);
   const r = ctx.result;
   // unit conversions default to decimal (spec §5.2); the a/b toggle still offers the fraction
@@ -118,7 +121,21 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
           <span className="eq">=</span>
           <span className="val">{typesetNumber(val)}</span>
           {/* no unit: the same quiet chip for single values and lists (D59) */}
-          {unitText ? unitBtn : <UnitButton {...{ q: menuQ ?? q, autoUnit: r.autoUnit, current: '', userChosen: !!row.displayUnit, muted: true, label: ' ', onPick: (u) => s.updateRow(row.id, { displayUnit: u }) }} />}
+          {unitText ? (
+            unitBtn
+          ) : (
+            <UnitButton
+              {...{
+                q: menuQ ?? q,
+                autoUnit: r.autoUnit,
+                current: '',
+                userChosen: !!row.displayUnit,
+                muted: true,
+                label: ' ',
+                onPick: (u) => s.updateRow(row.id, { displayUnit: u }),
+              }}
+            />
+          )}
           {r.unitError && (
             <HoverTip text={r.unitError} kind="warn">
               <span className="warn">⚠</span>
@@ -155,11 +172,11 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
             }
           }}
         >
-          ⟷
+          <Icon name="slider" />
         </button>
       )}
       {copyText && <CopyButton text={copyText} />}
-      {ctx.onRename && defName && <RenameButton name={defName} onRename={ctx.onRename} />}
+      {ctx.rename && defName && <RenameButton name={defName} onRename={(n) => ctx.rename!(row.id, n)} />}
       <RowMenu id={row.id} />
     </div>
   );
@@ -171,7 +188,7 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
           <MathInput
             latex={row.latex}
             vars={ctx.vars}
-            focusNonce={focused ? s.focusNonce : 0}
+            focusNonce={focusNonce}
             ariaLabel={`Expression ${ctx.number}`}
             onChange={(latex) => {
               if (latex !== row.latex) s.updateRow(row.id, { latex }, `edit-${row.id}-${session.current}`);
@@ -196,8 +213,8 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       {resultEl && <div className="row-result">{resultEl}</div>}
       {ctx.packageHint && (
         <div className="row-notice" role="note">
-          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is in the{' '}
-          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')} unit set, which is off for this worksheet.{' '}
+          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is in the {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')} unit
+          set, which is off for this worksheet.{' '}
           {ctx.packageHint.typed ? 'Turn it on to use it here.' : 'It still works here, but won’t be suggested as you type.'}{' '}
           {ctx.packageHint.packages.map((id) => (
             <button
@@ -223,10 +240,8 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
           <span aria-hidden>⚠</span> {ctx.notice}
         </div>
       )}
-      {ctx.tip}
-      {row.slider && sliderMatch && (
-        <Slider row={row} match={sliderMatch} unit={r?.kind === 'value' ? formatUnit(r.autoUnit) : ''} />
-      )}
+      {ctx.tip && <TipLine tip={ctx.tip} />}
+      {row.slider && sliderMatch && <Slider row={row} match={sliderMatch} unit={r?.kind === 'value' ? formatUnit(r.autoUnit) : ''} />}
     </div>
   );
 }
@@ -253,12 +268,26 @@ export function HoverTip({ text, kind, align = 'right', children }: { text: stri
  * The row's switches, in the margin under its number (D57):
  * - scope, for a definition inside a folder: a globe when the name is visible everywhere, a
  *   highlighted folder when it is kept inside this folder;
- * - a/b, when the answer has a fraction form: fraction or decimal.
- * They show on hover and while the row is edited; a folder scope or a fraction stays visible.
+ * - a/b, when the answer has a fraction form: fraction or decimal;
+ * - î or ∠, for a vector or complex answer: its other written form (D63).
+ * They are faint at rest, so they can be found (D64), and full strength on hover, while the row is
+ * edited, or when switched on. Printing keeps only the ones switched on.
  */
-export function GutterTools({ row, ctx, folderTitle }: { row: ExprRow; ctx: RowCtx; folderTitle?: string }) {
-  const s = useStore();
-  const r = ctx.result;
+export function GutterTools({
+  row,
+  result: r,
+  fmt,
+  shadows,
+  folderTitle,
+}: {
+  row: ExprRow;
+  result?: RowResult;
+  fmt: FormatOptions;
+  shadows?: boolean;
+  folderTitle?: string;
+}) {
+  const s = useStore.getState();
+  const ctx = { fmt, shadows };
   const mode = row.displayMode ?? (row.displayUnit ? 'decimal' : ctx.fmt.mode);
   const q = r?.kind === 'value' && r.value.t === 'q' ? r.value.q : undefined;
   const fracAvail = r?.kind === 'value' && r.value.t === 'q' && !!q && hasFractionForm(displayValue(q));
@@ -368,7 +397,7 @@ function RenameButton({ name, onRename }: { name: string; onRename(n: string): s
   return (
     <>
       <button className="icon-btn" title={`Rename ${name} everywhere`} aria-label="Rename" onClick={() => (setOpen(!open), setValue(name), setErr(undefined))}>
-        ✎
+        <Icon name="pencil" />
       </button>
       {open && (
         <div className="rename-pop" role="dialog" aria-label={`Rename ${name}`}>
@@ -415,7 +444,7 @@ function CopyButton({ text }: { text: string }) {
         }
       }}
     >
-      {done ? '✓' : '⎘'}
+      <Icon name={done ? 'check' : 'copy'} />
     </button>
   );
 }
@@ -435,7 +464,7 @@ function tidyBound(v: number): number {
 }
 
 function Slider({ row, match, unit }: { row: ExprRow; match: RegExpExecArray; unit: string }) {
-  const s = useStore();
+  const s = useStore.getState();
   const cfg = row.slider!;
   const drag = useRef(0);
   const val = Number(match[2]);
@@ -450,9 +479,10 @@ function Slider({ row, match, unit }: { row: ExprRow; match: RegExpExecArray; un
   useEffect(() => {
     const [lo, hi] = [Number(cfg.min), Number(cfg.max)];
     if (!Number.isFinite(val) || !Number.isFinite(lo) || !Number.isFinite(hi)) return;
-    if (val > hi) s.updateRow(row.id, { slider: { ...cfg, max: String(tidyBound(val * 1.5)) } }, `slider-range-${row.id}`);
-    else if (val < lo) s.updateRow(row.id, { slider: { ...cfg, min: String(-tidyBound(-val * 1.5)) } }, `slider-range-${row.id}`);
-  }, [val, cfg.min, cfg.max]);
+    const { updateRow } = useStore.getState();
+    if (val > hi) updateRow(row.id, { slider: { ...cfg, max: String(tidyBound(val * 1.5)) } }, `slider-range-${row.id}`);
+    else if (val < lo) updateRow(row.id, { slider: { ...cfg, min: String(-tidyBound(-val * 1.5)) } }, `slider-range-${row.id}`);
+  }, [val, cfg, row.id]);
   return (
     <div className="slider">
       <input className="bound" value={cfg.min} onChange={(e) => bound('min', e.target.value)} aria-label="Slider minimum" />
@@ -476,23 +506,23 @@ function Slider({ row, match, unit }: { row: ExprRow; match: RegExpExecArray; un
 }
 
 export function RowMenu({ id }: { id: string }) {
-  const s = useStore();
+  const s = useStore.getState();
   return (
     <>
       <button className="icon-btn" title="Duplicate" aria-label="Duplicate row" onClick={() => s.duplicateRow(id)}>
-        ⧉
+        <Icon name="duplicate" />
       </button>
       <button className="icon-btn danger" title="Delete" aria-label="Delete row" onClick={() => s.deleteRow(id)}>
-        ✕
+        <Icon name="trash" />
       </button>
     </>
   );
 }
 
 export function NoteRow({ row }: { row: Extract<Row, { type: 'note' }> }) {
-  const s = useStore();
+  const s = useStore.getState();
   const ref = useRef<HTMLTextAreaElement>(null);
-  const focused = s.focusId === row.id;
+  const focusNonce = useStore((st) => (st.focusId === row.id ? st.focusNonce : 0));
   return (
     <div className="row-body note-body">
       <div className="row-line">
@@ -502,7 +532,7 @@ export function NoteRow({ row }: { row: Extract<Row, { type: 'note' }> }) {
             if (el) {
               el.style.height = 'auto';
               el.style.height = el.scrollHeight + 'px';
-              if (focused && document.activeElement !== el && s.focusNonce) el.focus();
+              if (focusNonce && document.activeElement !== el) el.focus();
             }
           }}
           className="note-input"
@@ -550,7 +580,7 @@ export function NoteRow({ row }: { row: Extract<Row, { type: 'note' }> }) {
 }
 
 export function FolderRow({ row, count }: { row: Extract<Row, { type: 'folder' }>; count: number }) {
-  const s = useStore();
+  const s = useStore.getState();
   return (
     <div className="row-body folder-body">
       <div className="row-line">
@@ -563,7 +593,13 @@ export function FolderRow({ row, count }: { row: Extract<Row, { type: 'folder' }
           {row.collapsed ? '▸' : '▾'}
         </button>
         <svg className="folder-icon" viewBox="0 0 20 16" aria-hidden focusable="false">
-          <path d="M1.5 3.5a1 1 0 0 1 1-1h4.6l1.8 2h8.6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+          <path
+            d="M1.5 3.5a1 1 0 0 1 1-1h4.6l1.8 2h8.6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinejoin="round"
+          />
         </svg>
         <input
           className="folder-title"
@@ -571,11 +607,20 @@ export function FolderRow({ row, count }: { row: Extract<Row, { type: 'folder' }
           onChange={(e) => s.updateRow(row.id, { title: e.target.value }, `folder-${row.id}`)}
           aria-label="Folder title"
         />
-        {row.collapsed && <span className="folder-count">{count} item{count === 1 ? '' : 's'}</span>}
+        {row.collapsed && (
+          <span className="folder-count">
+            {count} item{count === 1 ? '' : 's'}
+          </span>
+        )}
       </div>
       <div className="row-actions">
-        <button className="icon-btn" title="Add a row to this folder" aria-label="Add a row to this folder" onClick={() => s.addRow('expr', row.id, { parent: row.id })}>
-          +
+        <button
+          className="icon-btn"
+          title="Add a row to this folder"
+          aria-label="Add a row to this folder"
+          onClick={() => s.addRow('expr', row.id, { parent: row.id })}
+        >
+          <Icon name="plus" />
         </button>
         <RowMenu id={row.id} />
       </div>

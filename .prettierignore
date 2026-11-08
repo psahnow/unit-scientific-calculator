@@ -1,0 +1,11 @@
+dist
+node_modules
+test-results
+playwright-report
+package-lock.json
+public
+*.md
+src/styles.css
+src/engine/units/*.data.ts
+src/ui/toolbox.data.ts
+tests/correctness.test.ts

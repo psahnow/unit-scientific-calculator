@@ -5,7 +5,9 @@ import { formatQuantity } from '../src/engine/format';
 
 const r = String.raw;
 function show(lines: (string | { latex: string; unit?: string })[], packages: string[] = []) {
-  const rows: Row[] = lines.map((l, i) => (typeof l === 'string' ? { id: 'r' + i, type: 'expr', latex: l } : { id: 'r' + i, type: 'expr', latex: l.latex, displayUnit: l.unit }));
+  const rows: Row[] = lines.map((l, i) =>
+    typeof l === 'string' ? { id: 'r' + i, type: 'expr', latex: l } : { id: 'r' + i, type: 'expr', latex: l.latex, displayUnit: l.unit },
+  );
   const res = evaluateWorksheet(rows, { angle: 'rad', packages });
   const v = res.rows.get('r' + (lines.length - 1));
   if (!v || v.kind !== 'value') return v?.kind === 'error' ? 'error: ' + v.message : String(v?.kind);

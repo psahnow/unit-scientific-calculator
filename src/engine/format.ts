@@ -31,15 +31,13 @@ export function hasFractionForm(n: Num): boolean {
 
 export function formatNum(n: Num, o: FormatOptions = DEFAULT_FORMAT): string {
   if (n.kind === 'exact') {
-    const wantFraction =
-      o.mode === 'fraction' ? hasFractionForm(n) : o.mode === 'auto' && n.d !== 1n && n.d <= 1000n && !terminates(n.d);
+    const wantFraction = o.mode === 'fraction' ? hasFractionForm(n) : o.mode === 'auto' && n.d !== 1n && n.d <= 1000n && !terminates(n.d);
     if (wantFraction) return `${n.n < 0n ? '−' : ''}${n.n < 0n ? -n.n : n.n}/${n.d}`;
     if (n.d === 1n) {
       const s = (n.n < 0n ? -n.n : n.n).toString();
       const above = o.sciAbove ?? 12;
       // a whole number with more digits than the significant figures is rounded like any other (D59)
-      if (o.notation === 'auto' && s.length <= above && s.replace(/0+$/, '').length <= o.sigFigs)
-        return (n.n < 0n ? '−' : '') + s;
+      if (o.notation === 'auto' && s.length <= above && s.replace(/0+$/, '').length <= o.sigFigs) return (n.n < 0n ? '−' : '') + s;
     }
   }
   return formatFloat(N.toNumber(n), o);
@@ -89,11 +87,7 @@ export interface ValueView {
   imag?: 'i' | 'j';
 }
 
-type AnyValue =
-  | { t: 'q'; q: Quantity }
-  | { t: 'list'; items: Quantity[] }
-  | { t: 'vec'; items: Quantity[] }
-  | { t: 'cx'; re: Quantity; im: Quantity };
+type AnyValue = { t: 'q'; q: Quantity } | { t: 'list'; items: Quantity[] } | { t: 'vec'; items: Quantity[] } | { t: 'cx'; re: Quantity; im: Quantity };
 
 const BASIS = ['î', 'ĵ', 'k̂'];
 const SUB_DIGITS = '₀₁₂₃₄₅₆₇₈₉';

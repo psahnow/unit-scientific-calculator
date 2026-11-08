@@ -11,8 +11,16 @@ async function freshSheet(page: Page) {
 }
 
 /** The math field of row n (1-based). */
-const field = (page: Page, n: number) => page.locator('.row').nth(n - 1).locator('math-field');
-const result = (page: Page, n: number) => page.locator('.row').nth(n - 1).locator('.row-result .result');
+const field = (page: Page, n: number) =>
+  page
+    .locator('.row')
+    .nth(n - 1)
+    .locator('math-field');
+const result = (page: Page, n: number) =>
+  page
+    .locator('.row')
+    .nth(n - 1)
+    .locator('.row-result .result');
 
 async function typeRow(page: Page, n: number, keys: string) {
   await field(page, n).click();
@@ -207,7 +215,10 @@ test('wide screens list the variables in the margin; clicking one goes to its ro
   // collapse the folder, then jump to a variable inside it: the folder opens and the row has the caret
   await page.getByRole('button', { name: /Collapse folders/ }).click();
   await panel.locator('.var-item').filter({ hasText: 'A' }).first().click();
-  const row = page.locator('.row').filter({ has: page.locator('math-field') }).nth(1);
+  const row = page
+    .locator('.row')
+    .filter({ has: page.locator('math-field') })
+    .nth(1);
   await expect(row.locator('math-field')).toBeFocused();
   await expect(row.locator('math-field')).toHaveJSProperty('value', 'A=20\\unit{mm}^2');
   // narrower: no panel
@@ -364,7 +375,9 @@ test('keys typed straight after Enter go into the new row (review #23)', async (
   }
   await page.keyboard.type('7');
   await expect
-    .poll(() => page.evaluate(() => [...document.querySelectorAll('.row math-field')].map((x) => (x as unknown as { value: string }).value)), { timeout: 10_000 })
+    .poll(() => page.evaluate(() => [...document.querySelectorAll('.row math-field')].map((x) => (x as unknown as { value: string }).value)), {
+      timeout: 10_000,
+    })
     .toEqual(['1', '2', '3', '4', '5', '6', '7']);
 });
 
@@ -458,6 +471,7 @@ test('export and import round-trip', async ({ page }) => {
   await page.locator('.title-input').fill('Round trip');
   await typeRow(page, 1, 'G=3m');
   await page.locator('.title-input').click();
+  await page.getByRole('button', { name: 'Worksheets' }).click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Export/ }).click()]);
   expect(download.suggestedFilename()).toBe('Round trip.dimensional.json');
   const path = await download.path();
@@ -511,7 +525,7 @@ test('a first visit: an empty sheet with the start card; an example goes into th
 test('the tour: every step done with Show me, then Finish goes back and removes the Tour sheet', async ({ page }) => {
   await page.goto('/');
   await typeRow(page, 1, '2+2');
-  await page.getByRole('button', { name: 'Worksheets' }).click();
+  await page.getByRole('button', { name: 'Help' }).click();
   await page.getByRole('button', { name: 'Take the tour' }).click();
   const coach = page.getByRole('dialog', { name: 'Tour' });
   await expect(page.locator('.title-input')).toHaveValue('Tour');
@@ -558,6 +572,12 @@ test('the tour moves on by itself once a step is done, and ✕ ends it', async (
   await expect(page.getByRole('region', { name: 'Getting started' })).toBeVisible();
 });
 
+test('the footer names the version and the commit it was built from', async ({ page }) => {
+  await page.goto('/');
+  // v0.1.0 (1a2b3c4), with a + for a local build with uncommitted changes, or (dev) without git
+  await expect(page.locator('.footer-build')).toHaveText(/^v\d+\.\d+\.\d+ \(([0-9a-f]{7}\+?|dev)\)$/);
+});
+
 test('nothing moves after the first paint (no layout shift)', async ({ page }) => {
   await page.addInitScript(() => {
     (window as unknown as { __cls: number }).__cls = 0;
@@ -581,7 +601,11 @@ test.describe('phone', () => {
     // edit a row with the on-screen keyboard, then leave it by tapping the title: no new row
     await page.locator('.row math-field').nth(2).tap();
     await expect(page.locator('.ML__keyboard.is-visible')).toBeVisible();
-    await page.locator('.MLK__layer.is-visible div[tabindex="-1"]').filter({ has: page.locator('span.ML__cmr', { hasText: /^7$/ }) }).last().tap();
+    await page
+      .locator('.MLK__layer.is-visible div[tabindex="-1"]')
+      .filter({ has: page.locator('span.ML__cmr', { hasText: /^7$/ }) })
+      .last()
+      .tap();
     await page.locator('.title-input').tap();
     await expect(rows).toHaveCount(before);
     // ↵ on the keyboard: exactly one new row
@@ -717,7 +741,11 @@ test.describe('phone ÷', () => {
     await page.locator('.row math-field').first().tap();
     const key = (sel: string, text?: RegExp) =>
       (text ? page.locator(`.MLK__layer.is-visible ${sel}`).filter({ hasText: text }) : page.locator(`.MLK__layer.is-visible ${sel}`)).first();
-    await page.locator('.MLK__layer.is-visible div[tabindex="-1"]').filter({ has: page.locator('span.ML__cmr', { hasText: /^5$/ }) }).last().tap();
+    await page
+      .locator('.MLK__layer.is-visible div[tabindex="-1"]')
+      .filter({ has: page.locator('span.ML__cmr', { hasText: /^5$/ }) })
+      .last()
+      .tap();
     // switch keyboard page, retrying until it shows (a tab tap is sometimes lost under load)
     const tab = async (label: RegExp, shows: () => ReturnType<typeof key>) =>
       expect(async () => {
@@ -732,4 +760,75 @@ test.describe('phone ÷', () => {
     await key('div[tabindex="-1"]', /^s$/).tap();
     await expect(page.locator('.row math-field').first()).toHaveJSProperty('value', String.raw`5\frac{\unit{m}}{\unit{s}}`);
   });
+});
+
+test('menus: file actions under ☰ Worksheets, the tour and About under ? Help, appearance in Settings', async ({ page }) => {
+  await freshSheet(page);
+  const menu = page.locator('.popover');
+  await page.getByRole('button', { name: 'Worksheets' }).click();
+  for (const name of ['+ New worksheet', 'Export…', 'Import…', 'Print / save as PDF…']) await expect(menu.getByRole('button', { name })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Take the tour' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Help' }).click();
+  for (const name of ['Take the tour', 'About Dimensional']) await expect(menu.getByRole('button', { name })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Export…' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'About Dimensional' }).click();
+  await expect(page.getByRole('dialog', { name: /Dimensional/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.mouse.click(5, 300);
+  // Settings: grouped, with the theme choice in it (and no theme button in the bar)
+  await expect(page.locator('.topbar').getByRole('button', { name: /^Theme/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const legends = await page.locator('.settings legend').allTextContents();
+  expect(legends).toEqual(['Number format', 'Unit sets', 'Custom units', 'Vectors and complex numbers', 'Appearance']);
+  await page.getByRole('group', { name: 'Theme' }).getByRole('button', { name: 'Dark' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('typing in one row leaves rows whose answer did not change alone', async ({ page }) => {
+  await openSample(page);
+  // the note (r4), the function definition (r7), the table (t) and the empty last row (r10) do not depend on F
+  await page.evaluate(() => {
+    const w = window as unknown as { __mut: number };
+    w.__mut = 0;
+    const obs = new MutationObserver((list) => (w.__mut += list.length));
+    for (const id of ['r4', 'r7', 't', 'r10'])
+      obs.observe(document.querySelector(`[data-row-id="${id}"]`)!, { subtree: true, childList: true, attributes: true, characterData: true });
+  });
+  // row 2 is "F = 6 kN": editing it changes F, and so the rows that use it (σ, M…)
+  await field(page, 2).click();
+  await expect(field(page, 2)).toBeFocused();
+  // F = 6 kN becomes F = 16 kN, so σ = F / A goes from 300 MPa to 800 MPa
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.type('1', { delay: 30 });
+  await expect(field(page, 2)).toHaveJSProperty('value', String.raw`F=16\unit{kN}`);
+  await expect(result(page, 6)).toContainText('800');
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => (window as unknown as { __mut: number }).__mut)).toBe(0);
+});
+
+test('saved worksheets from before the rename (usc: keys) are moved to the new names', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('dimensional:current') || localStorage.getItem('usc:ws:old')) return;
+    const ws = {
+      schema: 1,
+      id: 'old',
+      title: 'Old sheet',
+      updated: 1,
+      settings: { angle: 'rad', sigFigs: 10, notation: 'auto', sciAbove: 12, packages: [], exactDefault: true, units: [] },
+      rows: [{ id: 'a', type: 'expr', latex: String.raw`G=3\unit{m}` }],
+    };
+    localStorage.setItem('usc:ws:old', JSON.stringify(ws));
+    localStorage.setItem('usc:worksheets', JSON.stringify([{ id: 'old', title: 'Old sheet', updated: 1 }]));
+    localStorage.setItem('usc:current', 'old');
+  });
+  await page.goto('/');
+  await expect(page.locator('.title-input')).toHaveValue('Old sheet');
+  const keys = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('usc:')));
+  expect(keys).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('dimensional:current'))).toBe('old');
 });

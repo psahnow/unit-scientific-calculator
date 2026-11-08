@@ -13,7 +13,16 @@ import './styles.css';
 
 // Nothing should move after the first paint (D39): wait for the maths editor and the fonts that set
 // row heights and text widths, then render once. Capped, so a slow network still shows the page.
-const fonts = ['400 15px "IBM Plex Sans"', '500 15px "IBM Plex Sans"', '600 16px "IBM Plex Sans"', '400 11px "IBM Plex Mono"', '21px KaTeX_Main', 'italic 21px KaTeX_Main', 'italic 21px KaTeX_Math', '21px KaTeX_Size1'];
+const fonts = [
+  '400 15px "IBM Plex Sans"',
+  '500 15px "IBM Plex Sans"',
+  '600 16px "IBM Plex Sans"',
+  '400 11px "IBM Plex Mono"',
+  '21px KaTeX_Main',
+  'italic 21px KaTeX_Main',
+  'italic 21px KaTeX_Math',
+  '21px KaTeX_Size1',
+];
 const ready = Promise.all([loadMathLive(), ...fonts.map((f) => document.fonts?.load(f).catch(() => undefined))]);
 const cap = new Promise((r) => setTimeout(r, 2500));
 void Promise.race([ready, cap]).finally(() =>

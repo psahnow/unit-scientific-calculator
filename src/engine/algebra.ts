@@ -213,8 +213,10 @@ function floatRoots(cs: number[]): number[] {
     // a turning point that touches zero is a repeated root
     if (i > 0 && i < pts.length - 1 && Math.abs(evalFloat(cs, x)) <= 1e-12 * size(x)) out.push(x);
     if (i === pts.length - 1) break;
-    let a = x, b = pts[i + 1];
-    let fa = evalFloat(cs, a), fb = evalFloat(cs, b);
+    let a = x,
+      b = pts[i + 1];
+    let fa = evalFloat(cs, a),
+      fb = evalFloat(cs, b);
     if (fa === 0 || fb === 0 || Math.sign(fa) === Math.sign(fb)) continue;
     for (let k = 0; k < 300 && b - a > 0; k++) {
       const m = (a + b) / 2;

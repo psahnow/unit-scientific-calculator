@@ -34,12 +34,65 @@ export interface NameRef {
 
 /** Functions callable by a plain letter run followed by "(". */
 export const LETTER_FUNCS = new Set([
-  'abs', 'sqrt', 'exp', 'ln', 'log', 'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'asin', 'acos', 'atan', 'atan2',
-  'arcsin', 'arccos', 'arctan', 'sinh', 'cosh', 'tanh', 'min', 'max', 'mod', 'round', 'floor', 'ceil', 'sign',
-  'sum', 'mean', 'median', 'stdev', 'var', 'count', 'length', 'nthroot', 'hypot', 'total',
-  'asinh', 'acosh', 'atanh', 'arsinh', 'arcosh', 'artanh', 'gamma', 'erf', 'erfc', 'nCr', 'nPr', 'gcd', 'lcm',
+  'abs',
+  'sqrt',
+  'exp',
+  'ln',
+  'log',
+  'sin',
+  'cos',
+  'tan',
+  'sec',
+  'csc',
+  'cot',
+  'asin',
+  'acos',
+  'atan',
+  'atan2',
+  'arcsin',
+  'arccos',
+  'arctan',
+  'sinh',
+  'cosh',
+  'tanh',
+  'min',
+  'max',
+  'mod',
+  'round',
+  'floor',
+  'ceil',
+  'sign',
+  'sum',
+  'mean',
+  'median',
+  'stdev',
+  'var',
+  'count',
+  'length',
+  'nthroot',
+  'hypot',
+  'total',
+  'asinh',
+  'acosh',
+  'atanh',
+  'arsinh',
+  'arcosh',
+  'artanh',
+  'gamma',
+  'erf',
+  'erfc',
+  'nCr',
+  'nPr',
+  'gcd',
+  'lcm',
   // vectors and complex numbers (D63)
-  'dot', 'cross', 'norm', 're', 'im', 'conj', 'arg',
+  'dot',
+  'cross',
+  'norm',
+  're',
+  'im',
+  'conj',
+  'arg',
 ]);
 /** LaTeX commands that are functions (\sin, \operatorname{abs}, …). */
 const CMD_FUNCS = new Set([...LETTER_FUNCS, 'arcsec', 'arccsc', 'arccot', 'lg', 'sgn', 'operatorname']);
@@ -47,7 +100,7 @@ const CMD_FUNCS = new Set([...LETTER_FUNCS, 'arcsec', 'arccsc', 'arccot', 'lg', 
 const CMP_OPS = new Set(['<', '>', '≤', '≥', '=', '≠']);
 
 const CLOSERS: Record<string, string> = { ')': '(', ']': '[', '}': '{', '⟩': '⟨' };
-const NAMES: Record<string, string> = { '*': '×', '/': '÷', '^': 'power', '_': 'subscript' };
+const NAMES: Record<string, string> = { '*': '×', '/': '÷', '^': 'power', _: 'subscript' };
 
 /** A plain-language message for a token that can't go where it is (D28). */
 function unexpected(t: Tok): string {
@@ -86,7 +139,6 @@ function unexpected(t: Tok): string {
 }
 
 const INCOMPLETE = "Something's missing: finish the expression";
-
 
 export interface ParseResult {
   row: ParsedRow;
@@ -219,24 +271,28 @@ function parseRowInner(latex: string, ctx: ParseContext, blocked: string[]): Par
     const p = new Parser(rhsToks, local, chips, blocked, refs);
     const expr = p.parseAll();
     // declared input units: letters are units here, not names
-    const paramUnits = lhs.kind === 'func' ? lhs.params.map((name, k) => {
-      const tt = lhs.paramTypes?.[k];
-      if (!tt) return undefined;
-      if (!tt.length) throw new ParseError(`Put a unit after “${name}:”, like ${name}: m`);
-      // real: a plain number, no units (D54)
-      if (tt.every((t) => t.t === 'letter') && tt.map((t) => t.v).join('') === 'real') return { k: 'num', v: ONE } as Node;
-      const unitCtx: ParseContext = { ...ctx, vars: new Set(), bound: new Set() };
-      const node = new Parser(tt, unitCtx, chips, blocked, refs).parseAll();
-      if (!isUnitOnly(node)) throw new ParseError(`After “${name}:” put a unit, like ${name}: m or ${name}: N/mm², or real for a plain number`);
-      return node;
-    }) : [];
+    const paramUnits =
+      lhs.kind === 'func'
+        ? lhs.params.map((name, k) => {
+            const tt = lhs.paramTypes?.[k];
+            if (!tt) return undefined;
+            if (!tt.length) throw new ParseError(`Put a unit after “${name}:”, like ${name}: m`);
+            // real: a plain number, no units (D54)
+            if (tt.every((t) => t.t === 'letter') && tt.map((t) => t.v).join('') === 'real') return { k: 'num', v: ONE } as Node;
+            const unitCtx: ParseContext = { ...ctx, vars: new Set(), bound: new Set() };
+            const node = new Parser(tt, unitCtx, chips, blocked, refs).parseAll();
+            if (!isUnitOnly(node)) throw new ParseError(`After “${name}:” put a unit, like ${name}: m or ${name}: N/mm², or real for a plain number`);
+            return node;
+          })
+        : [];
     // the defined name: its first letter, plus a subscript if it has one
     const nameEnd = toks[1]?.t === 'op' && toks[1].v === '_' ? readSub(toks, 1)[1] : 1;
     const defSpan = toks[0].s >= 0 && toks[nameEnd - 1].e >= 0 ? { s: toks[0].s, e: toks[nameEnd - 1].e } : undefined;
     return {
-      row: lhs.kind === 'func'
-        ? { kind: 'fdef', name: lhs.name, params: lhs.params, ...(paramUnits.some(Boolean) ? { paramUnits } : {}), expr }
-        : { kind: 'def', name: lhs.name, expr },
+      row:
+        lhs.kind === 'func'
+          ? { kind: 'fdef', name: lhs.name, params: lhs.params, ...(paramUnits.some(Boolean) ? { paramUnits } : {}), expr }
+          : { kind: 'def', name: lhs.name, expr },
       chips,
       blocked,
       refs,
@@ -628,7 +684,6 @@ class Parser {
     return { k: 'call', name, args, base, power };
   }
 
-
   // ── calculus & piecewise (D27) ──────────────────────────────────────────────
 
   /** Tokens inside a {…} group starting at the current '{'; moves past the '}'. */
@@ -659,7 +714,13 @@ class Parser {
   sub(toks: Tok[], bound?: string): Node {
     if (!toks.length) throw new ParseError(INCOMPLETE);
     const ctx = bound ? { ...this.ctx, vars: new Set([...this.ctx.vars, bound]) } : this.ctx;
-    return new Parser(bound ? toks : toks, bound ? { ...ctx, bound: new Set([...(ctx.bound ?? []), bound]) } : ctx, this.chips, this.blocked, this.refs).parseAll();
+    return new Parser(
+      bound ? toks : toks,
+      bound ? { ...ctx, bound: new Set([...(ctx.bound ?? []), bound]) } : ctx,
+      this.chips,
+      this.blocked,
+      this.refs,
+    ).parseAll();
   }
 
   /** Parse with `v` treated as a variable (so x, t, s… aren't read as units). */
@@ -739,8 +800,7 @@ class Parser {
         hi = this.takeGroup();
       }
     }
-    if (!lo || !lo.length || !hi || !hi.length)
-      throw new ParseError('This integral needs a start and an end: type them below and above the ∫');
+    if (!lo || !lo.length || !hi || !hi.length) throw new ParseError('This integral needs a start and an end: type them below and above the ∫');
     // find the differential "dx" that ends the integrand
     let depth = 0;
     for (let j = this.i; j < this.toks.length; j++) {
@@ -807,7 +867,13 @@ class Parser {
     let dir: '+' | '-' | undefined;
     const plain = target.filter((t) => !(t.t === 'open' && t.v === '{') && !(t.t === 'close' && t.v === '}'));
     const n = plain.length;
-    if (n >= 3 && plain[n - 2].t === 'op' && (plain[n - 2] as { v: string }).v === '^' && plain[n - 1].t === 'op' && '+-'.includes((plain[n - 1] as { v: string }).v)) {
+    if (
+      n >= 3 &&
+      plain[n - 2].t === 'op' &&
+      (plain[n - 2] as { v: string }).v === '^' &&
+      plain[n - 1].t === 'op' &&
+      '+-'.includes((plain[n - 1] as { v: string }).v)
+    ) {
       dir = (plain[n - 1] as { v: string }).v as '+' | '-';
       const caret = target.findIndex((t) => t === plain[n - 2]);
       target = target.slice(0, caret);
@@ -964,10 +1030,19 @@ class Parser {
           // "2slug" with Mechanical off: say so instead of reading s·L·µg (D31)
           // (a word whose letters each stand alone, like VA → V·A, may still be read letter by letter)
           const lettersStandAlone = () =>
-            seg.every((r) => isVar(r.v) || (() => { const l = lookupUnit(r.v); return !!l && (!this.ctx.units || this.ctx.units(l)); })());
+            seg.every(
+              (r) =>
+                isVar(r.v) ||
+                (() => {
+                  const l = lookupUnit(r.v);
+                  return !!l && (!this.ctx.units || this.ctx.units(l));
+                })(),
+            );
           if (found && !u && i === 0 && j === run.length - 1 && seg.length > 1 && !allVars && !lettersStandAlone()) {
             const pk = packagesOf(found).map((id) => PACKAGE_BY_ID.get(id)?.name ?? id);
-            throw Object.assign(new ParseError(`“${segName}” is in the ${pk.join(' / ')} unit set, which is off for this worksheet`), { blocked: [...this.blocked] });
+            throw Object.assign(new ParseError(`“${segName}” is in the ${pk.join(' / ')} unit set, which is off for this worksheet`), {
+              blocked: [...this.blocked],
+            });
           }
           const prevVal = prevIsValue || nodes.length > 0;
           if (u && (!allVars || (prevVal && seg.length > 1))) {
@@ -1006,8 +1081,16 @@ class Parser {
 
 function normalizeFn(n: string): string {
   const map: Record<string, string> = {
-    arcsin: 'asin', arccos: 'acos', arctan: 'atan', lg: 'log', sgn: 'sign', total: 'sum', length: 'count',
-    arsinh: 'asinh', arcosh: 'acosh', artanh: 'atanh',
+    arcsin: 'asin',
+    arccos: 'acos',
+    arctan: 'atan',
+    lg: 'log',
+    sgn: 'sign',
+    total: 'sum',
+    length: 'count',
+    arsinh: 'asinh',
+    arcosh: 'acosh',
+    artanh: 'atanh',
   };
   return map[n] ?? n;
 }

@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { TipLine } from './Onboarding';
+import type { Tip } from './tour';
 import type { Row, ColumnResult, TableColumn } from '../engine/worksheet';
 import { formatQuantity, type FormatOptions } from '../engine/format';
 import { formatUnit, parseUnitExpr } from '../engine/units/registry';
@@ -9,17 +10,16 @@ import { RowMenu } from './rows';
 
 type TableRowT = Extract<Row, { type: 'table' }>;
 
-export function TableRow({ row, cols, fmt, vars, tip }: { row: TableRowT; cols: Map<string, ColumnResult>; fmt: FormatOptions; vars: string[]; tip?: ReactNode }) {
-  const s = useStore();
-  const setCols = (columns: TableColumn[], merge?: string) => s.updateRow(row.id, { columns }, merge);
-  const nRows = Math.max(
-    ...row.columns.map((c) => (cols.get(c.id)?.isInput ? c.values.length : (cols.get(c.id)?.values?.length ?? 0))),
-    1,
-  );
+export function TableRow({ row, cols, fmt, vars, tip }: { row: TableRowT; cols: Map<string, ColumnResult>; fmt: FormatOptions; vars: string[]; tip?: Tip }) {
+  const setCols = (columns: TableColumn[], merge?: string) => useStore.getState().updateRow(row.id, { columns }, merge);
+  const nRows = Math.max(...row.columns.map((c) => (cols.get(c.id)?.isInput ? c.values.length : (cols.get(c.id)?.values?.length ?? 0))), 1);
 
   /** Paste rows of tab-, comma- or semicolon-separated values (from a spreadsheet or CSV), starting at a cell (D34). */
   const pasteBlock = (ci: number, ri: number, text: string) => {
-    const lines = text.replace(/\r/g, '').split('\n').filter((l, i, a) => l.trim() || i < a.length - 1);
+    const lines = text
+      .replace(/\r/g, '')
+      .split('\n')
+      .filter((l, i, a) => l.trim() || i < a.length - 1);
     const sep = /\t/.test(text) ? '\t' : /;/.test(text) ? ';' : ',';
     const grid = lines.map((l) => l.split(sep).map((v) => v.trim()));
     const inputCols = row.columns.map((c, i) => ({ c, i })).filter(({ c }) => cols.get(c.id)?.isInput !== false);
@@ -77,7 +77,11 @@ export function TableRow({ row, cols, fmt, vars, tip }: { row: TableRowT; cols: 
                         vars={vars}
                         ariaLabel={`Column ${ci + 1} header`}
                         onChange={(latex) =>
-                          latex !== c.header && setCols(row.columns.map((x) => (x.id === c.id ? { ...x, header: latex } : x)), `hdr-${c.id}`)
+                          latex !== c.header &&
+                          setCols(
+                            row.columns.map((x) => (x.id === c.id ? { ...x, header: latex } : x)),
+                            `hdr-${c.id}`,
+                          )
                         }
                         onEnter={() => {}}
                         onMoveOut={() => {}}
@@ -96,16 +100,16 @@ export function TableRow({ row, cols, fmt, vars, tip }: { row: TableRowT; cols: 
                         onPick={(u) => setCols(row.columns.map((x) => (x.id === c.id ? { ...x, unit: u } : x)))}
                       />
                       {row.columns.length > 1 && (
-                        <button
-                          className="icon-btn small"
-                          title="Remove column"
-                          onClick={() => setCols(row.columns.filter((x) => x.id !== c.id))}
-                        >
+                        <button className="icon-btn small" title="Remove column" onClick={() => setCols(row.columns.filter((x) => x.id !== c.id))}>
                           ✕
                         </button>
                       )}
                     </div>
-                    {res?.error && <div className="col-error" title={res.error}>⚠ {res.error}</div>}
+                    {res?.error && (
+                      <div className="col-error" title={res.error}>
+                        ⚠ {res.error}
+                      </div>
+                    )}
                   </th>
                 );
               })}
@@ -155,7 +159,7 @@ export function TableRow({ row, cols, fmt, vars, tip }: { row: TableRowT; cols: 
           </tbody>
         </table>
       </div>
-      {tip}
+      {tip && <TipLine tip={tip} />}
       <div className="row-actions">
         <RowMenu id={row.id} />
       </div>

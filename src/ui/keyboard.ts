@@ -9,7 +9,13 @@ const unit = (sym: string, latex = sym, tooltip?: string): Key => {
   const [base, pow] = latex.split('^');
   return { label: sym, insert: `\\unit{${base}}` + (pow ? `^{${pow}}` : ''), class: 'small', tooltip: tooltip ?? sym };
 };
-const fn = (label: string, insert: string, tooltip: string, extra: Partial<VirtualKeyboardKeycap> = {}): Key => ({ label, insert, class: 'small', tooltip, ...extra });
+const fn = (label: string, insert: string, tooltip: string, extra: Partial<VirtualKeyboardKeycap> = {}): Key => ({
+  label,
+  insert,
+  class: 'small',
+  tooltip,
+  ...extra,
+});
 const op = (name: string, cmd = `\\operatorname{${name}}`) => `${cmd}\\left(#0\\right)`;
 
 /**
@@ -26,7 +32,7 @@ const NAV: Key[] = [
   fn('x₁', '_{#0}', 'Subscript, as in F₁ (on a keyboard, type _)'),
   { label: '⌫', class: 'action dim-backspace', command: 'performWithFeedback(deleteBackward)', width: 1.5, tooltip: 'Delete' },
   { label: '↵', class: 'action dim-return', command: 'performWithFeedback(commit)', width: 1.5, tooltip: 'New row' /* handled by setReturnHandler */ },
-]
+];
 const DIGITS: Key[] = ['[1]', '[2]', '[3]', '[4]', '[5]', '[6]', '[7]', '[8]', '[9]', '[0]'];
 /** ÷: a fraction of what's before the caret; after unit chips, handled by setDivideHandler. */
 const DIVIDE: Key = { latex: '\\frac{#@}{#?}', label: '÷', class: 'big-op dim-divide', tooltip: 'Divide' };
@@ -56,7 +62,12 @@ if (typeof document !== 'undefined') {
       const t = e.target as Element | null;
       // an on-screen key that types something (not a digit, an arrow, ⌫, ⇧ or a page key)
       const cap = t?.closest?.('.MLK__layer div[tabindex="-1"]');
-      if (cap && !cap.matches('.action, .shift, .dim-page, .dim-return, .dim-hide-kb') && !/^[0-9]$/.test((cap.getAttribute('aria-label') ?? cap.textContent ?? '').trim())) onBeforeKey?.();
+      if (
+        cap &&
+        !cap.matches('.action, .shift, .dim-page, .dim-return, .dim-hide-kb') &&
+        !/^[0-9]$/.test((cap.getAttribute('aria-label') ?? cap.textContent ?? '').trim())
+      )
+        onBeforeKey?.();
       if (t?.closest?.('.dim-return') && onReturn) {
         e.preventDefault();
         e.stopPropagation();
@@ -106,14 +117,24 @@ if (typeof document !== 'undefined') {
     true,
   );
   // the browser took the touch for a scroll
-  document.addEventListener('pointercancel', (e) => {
-    if (pendingTap?.id === e.pointerId) pendingTap = null;
-  }, true);
+  document.addEventListener(
+    'pointercancel',
+    (e) => {
+      if (pendingTap?.id === e.pointerId) pendingTap = null;
+    },
+    true,
+  );
 }
 
 /** Pixels a finger may drift and still count as a tap. */
 const TAP_SLOP = 10;
-let pendingTap: { mf: HTMLElement & { getOffsetFromPoint?(x: number, y: number): number; position: number }; id: number; x: number; y: number; at: number } | null = null;
+let pendingTap: {
+  mf: HTMLElement & { getOffsetFromPoint?(x: number, y: number): number; position: number };
+  id: number;
+  x: number;
+  y: number;
+  at: number;
+} | null = null;
 
 let keyboardRef: { hide?(): void } | undefined;
 /** Close the on-screen keyboard and stop editing (the "hide keyboard" button). */
@@ -162,10 +183,54 @@ const NUMBERS: VirtualKeyboardLayout = {
   label: '123',
   tooltip: 'Numbers',
   rows: [
-    ['[7]', '[8]', '[9]', DIVIDE, { latex: '\\sqrt{#0}', tooltip: 'Square root' }, { latex: '#@^{2}', tooltip: 'Square' }, { latex: '#@^{#?}', tooltip: 'Power' }, { latex: '\\pi', tooltip: 'π' }, { label: 'e', insert: 'e', tooltip: "Euler's number" }, fn('×10ⁿ', '\\cdot10^{#0}', 'Times ten to the power')],
-    ['[4]', '[5]', '[6]', '[*]', fn('%', '\\%', 'Percent'), { latex: '\\left|#0\\right|', tooltip: 'Absolute value' }, fn('°', '\\unit{\\degree}', 'Degrees'), fn('ans', 'ans', 'The answer of the row above'), fn('f(x)', '#@\\left(#0\\right)', 'Brackets after a name: f(x)'), fn('n!', '!', 'Factorial')],
-    ['[1]', '[2]', '[3]', '[-]', trig('sin', '\\sin', 'Sine'), trig('cos', '\\cos', 'Cosine'), trig('tan', '\\tan', 'Tangent'), trig('ln', '\\ln', 'Natural log'), trig('log', '\\log', 'Log base 10'), fn('eˣ', 'e^{#0}', 'e to the power')],
-    ['[0]', '[.]', '[+]', fn('[ ]', '\\left[#0\\right]', 'List'), fn('∫', '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', 'Definite integral'), fn('d/dx', '\\frac{\\mathrm{d}}{\\mathrm{d}#?}#0', 'Derivative: choose the variable, then the expression'), fn('lim', '\\lim_{x\\to#0}#?', 'Limit'), fn('Σ', '\\sum_{n=#0}^{#?}#?', 'Sum'), fn('solve', '\\operatorname{solve}\\left(#0=#?,x\\right)', 'Solve an equation for x'), fn('∞', '\\infty', 'Infinity')],
+    [
+      '[7]',
+      '[8]',
+      '[9]',
+      DIVIDE,
+      { latex: '\\sqrt{#0}', tooltip: 'Square root' },
+      { latex: '#@^{2}', tooltip: 'Square' },
+      { latex: '#@^{#?}', tooltip: 'Power' },
+      { latex: '\\pi', tooltip: 'π' },
+      { label: 'e', insert: 'e', tooltip: "Euler's number" },
+      fn('×10ⁿ', '\\cdot10^{#0}', 'Times ten to the power'),
+    ],
+    [
+      '[4]',
+      '[5]',
+      '[6]',
+      '[*]',
+      fn('%', '\\%', 'Percent'),
+      { latex: '\\left|#0\\right|', tooltip: 'Absolute value' },
+      fn('°', '\\unit{\\degree}', 'Degrees'),
+      fn('ans', 'ans', 'The answer of the row above'),
+      fn('f(x)', '#@\\left(#0\\right)', 'Brackets after a name: f(x)'),
+      fn('n!', '!', 'Factorial'),
+    ],
+    [
+      '[1]',
+      '[2]',
+      '[3]',
+      '[-]',
+      trig('sin', '\\sin', 'Sine'),
+      trig('cos', '\\cos', 'Cosine'),
+      trig('tan', '\\tan', 'Tangent'),
+      trig('ln', '\\ln', 'Natural log'),
+      trig('log', '\\log', 'Log base 10'),
+      fn('eˣ', 'e^{#0}', 'e to the power'),
+    ],
+    [
+      '[0]',
+      '[.]',
+      '[+]',
+      fn('[ ]', '\\left[#0\\right]', 'List'),
+      fn('∫', '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', 'Definite integral'),
+      fn('d/dx', '\\frac{\\mathrm{d}}{\\mathrm{d}#?}#0', 'Derivative: choose the variable, then the expression'),
+      fn('lim', '\\lim_{x\\to#0}#?', 'Limit'),
+      fn('Σ', '\\sum_{n=#0}^{#?}#?', 'Sum'),
+      fn('solve', '\\operatorname{solve}\\left(#0=#?,x\\right)', 'Solve an equation for x'),
+      fn('∞', '\\infty', 'Infinity'),
+    ],
     NAV,
   ],
 };
@@ -186,17 +251,72 @@ const UNITS: VirtualKeyboardLayout = {
         [unit('mm'), unit('cm'), unit('m'), unit('km'), unit('in'), unit('ft'), unit('mm²', 'mm^2'), unit('m²', 'm^2'), unit('L'), unit('m³', 'm^3')],
         [unit('g'), unit('kg'), unit('lbm'), unit('N'), unit('kN'), unit('lbf'), unit('Pa'), unit('kPa'), unit('MPa'), unit('psi')],
         [unit('J'), unit('kJ'), unit('W'), unit('kW'), unit('hp'), unit('bar'), unit('gal'), unit('Hz'), unit('rad'), unit('°', '\\degree')],
-        [unit('s'), unit('min'), unit('h'), unit('°C', '\\degree C'), unit('°F', '\\degree F'), unit('K'), unit('Δ°C', '\\Delta\\degree C', 'Temperature difference'), unit('V'), unit('A'), page('more ›', 'dim-units-2', 'More units')],
+        [
+          unit('s'),
+          unit('min'),
+          unit('h'),
+          unit('°C', '\\degree C'),
+          unit('°F', '\\degree F'),
+          unit('K'),
+          unit('Δ°C', '\\Delta\\degree C', 'Temperature difference'),
+          unit('V'),
+          unit('A'),
+          page('more ›', 'dim-units-2', 'More units'),
+        ],
         NAV,
       ],
     },
     {
       id: 'dim-units-2',
       rows: [
-        [unit('µm', '\\mu m'), unit('nm'), unit('yd'), unit('mi'), unit('mL'), unit('ha'), unit('acre'), unit('cm²', 'cm^2'), unit('in²', 'in^2'), unit('ft²', 'ft^2')],
-        [unit('mg'), unit('t'), unit('oz'), unit('MN'), unit('GPa'), unit('atm'), cu('N·m', '\\unit{N}\\cdot\\unit{m}', 'Newton-meters (torque)'), cu('kN·m', '\\unit{kN}\\cdot\\unit{m}'), cu('W/m²', '\\unit{W}/\\unit{m}^{2}'), cu('kg/m³', '\\unit{kg}/\\unit{m}^{3}', 'Density')],
-        [unit('Wh'), unit('kWh'), unit('cal'), unit('mph'), cu('km/h', '\\unit{km}/\\unit{h}'), cu('m/s', '\\unit{m}/\\unit{s}'), cu('ft/s', '\\unit{ft}/\\unit{s}'), cu('m/s²', '\\unit{m}/\\unit{s}^{2}', 'Acceleration'), cu('rad/s', '\\unit{rad}/\\unit{s}', 'Angular velocity'), unit('Ω', '\\Omega')],
-        [unit('mA'), unit('kV'), unit('mV'), unit('d', 'd', 'day'), unit('wk'), unit('yr'), unit('%', '\\%', 'percent'), unit('ppm'), unit('kHz'), page('‹ back', 'dim-units-1', 'Common units')],
+        [
+          unit('µm', '\\mu m'),
+          unit('nm'),
+          unit('yd'),
+          unit('mi'),
+          unit('mL'),
+          unit('ha'),
+          unit('acre'),
+          unit('cm²', 'cm^2'),
+          unit('in²', 'in^2'),
+          unit('ft²', 'ft^2'),
+        ],
+        [
+          unit('mg'),
+          unit('t'),
+          unit('oz'),
+          unit('MN'),
+          unit('GPa'),
+          unit('atm'),
+          cu('N·m', '\\unit{N}\\cdot\\unit{m}', 'Newton-meters (torque)'),
+          cu('kN·m', '\\unit{kN}\\cdot\\unit{m}'),
+          cu('W/m²', '\\unit{W}/\\unit{m}^{2}'),
+          cu('kg/m³', '\\unit{kg}/\\unit{m}^{3}', 'Density'),
+        ],
+        [
+          unit('Wh'),
+          unit('kWh'),
+          unit('cal'),
+          unit('mph'),
+          cu('km/h', '\\unit{km}/\\unit{h}'),
+          cu('m/s', '\\unit{m}/\\unit{s}'),
+          cu('ft/s', '\\unit{ft}/\\unit{s}'),
+          cu('m/s²', '\\unit{m}/\\unit{s}^{2}', 'Acceleration'),
+          cu('rad/s', '\\unit{rad}/\\unit{s}', 'Angular velocity'),
+          unit('Ω', '\\Omega'),
+        ],
+        [
+          unit('mA'),
+          unit('kV'),
+          unit('mV'),
+          unit('d', 'd', 'day'),
+          unit('wk'),
+          unit('yr'),
+          unit('%', '\\%', 'percent'),
+          unit('ppm'),
+          unit('kHz'),
+          page('‹ back', 'dim-units-1', 'Common units'),
+        ],
         NAV,
       ],
     },
@@ -208,10 +328,54 @@ const FUNCTIONS: VirtualKeyboardLayout = {
   label: 'ƒ(x)',
   tooltip: 'Functions',
   rows: [
-    [trig('sin', '\\sin', 'Sine'), trig('cos', '\\cos', 'Cosine'), trig('tan', '\\tan', 'Tangent'), trig('ln', '\\ln', 'Natural log'), trig('log', '\\log', 'Log base 10'), fn('eˣ', 'e^{#0}', 'e to the power'), fn('10ˣ', '10^{#0}', 'Ten to the power'), fn('ⁿ√', '\\sqrt[#0]{#?}', 'n-th root'), fn('min', op('min', '\\min'), 'Smallest'), fn('max', op('max', '\\max'), 'Largest')],
-    [fn('sin⁻¹', op('arcsin', '\\arcsin'), 'Inverse sine'), fn('cos⁻¹', op('arccos', '\\arccos'), 'Inverse cosine'), fn('tan⁻¹', op('arctan', '\\arctan'), 'Inverse tangent'), trig('sinh', '\\sinh', 'Hyperbolic sine'), trig('cosh', '\\cosh', 'Hyperbolic cosine'), trig('tanh', '\\tanh', 'Hyperbolic tangent'), fn('n!', '!', 'Factorial'), fn('Γ', '\\Gamma\\left(#0\\right)', 'Gamma function'), fn('round', op('round'), 'Round'), fn('mean', op('mean'), 'Average of a list')],
-    [fn('∫', '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', 'Definite integral'), fn('d/dx', '\\frac{\\mathrm{d}}{\\mathrm{d}#?}#0', 'Derivative: choose the variable, then the expression'), fn('d²/dx²', '\\frac{\\mathrm{d}^2}{\\mathrm{d}#?^2}#0', 'Second derivative: choose the variable, then the expression'), fn('lim', '\\lim_{x\\to#0}#?', 'Limit'), fn('Σ', '\\sum_{n=#0}^{#?}#?', 'Sum'), fn('Π', '\\prod_{n=#0}^{#?}#?', 'Product'), fn('solve', '\\operatorname{solve}\\left(#0=#?,x\\right)', 'Solve an equation for x'), fn('[ ]', '\\left[#0\\right]', 'List'), fn('{ : }', '\\left\\{x<#0:#?,#?\\right\\}', 'Piecewise'), fn('∞', '\\infty', 'Infinity')],
-    [fn('<', '<', 'Less than'), fn('≤', '\\le', 'Less or equal'), fn('>', '>', 'Greater than'), fn('≥', '\\ge', 'Greater or equal'), fn('mod', op('mod') .replace('#0', '#0,#?'), 'Remainder: mod(7, 3) = 1'), fn('gcd', op('gcd').replace('#0', '#0,#?'), 'Greatest common divisor'), fn('lcm', op('lcm').replace('#0', '#0,#?'), 'Least common multiple'), fn('nCr', op('nCr').replace('#0', '#0,#?'), 'Combinations'), fn('nPr', op('nPr').replace('#0', '#0,#?'), 'Permutations'), fn('erf', op('erf'), 'Error function')],
+    [
+      trig('sin', '\\sin', 'Sine'),
+      trig('cos', '\\cos', 'Cosine'),
+      trig('tan', '\\tan', 'Tangent'),
+      trig('ln', '\\ln', 'Natural log'),
+      trig('log', '\\log', 'Log base 10'),
+      fn('eˣ', 'e^{#0}', 'e to the power'),
+      fn('10ˣ', '10^{#0}', 'Ten to the power'),
+      fn('ⁿ√', '\\sqrt[#0]{#?}', 'n-th root'),
+      fn('min', op('min', '\\min'), 'Smallest'),
+      fn('max', op('max', '\\max'), 'Largest'),
+    ],
+    [
+      fn('sin⁻¹', op('arcsin', '\\arcsin'), 'Inverse sine'),
+      fn('cos⁻¹', op('arccos', '\\arccos'), 'Inverse cosine'),
+      fn('tan⁻¹', op('arctan', '\\arctan'), 'Inverse tangent'),
+      trig('sinh', '\\sinh', 'Hyperbolic sine'),
+      trig('cosh', '\\cosh', 'Hyperbolic cosine'),
+      trig('tanh', '\\tanh', 'Hyperbolic tangent'),
+      fn('n!', '!', 'Factorial'),
+      fn('Γ', '\\Gamma\\left(#0\\right)', 'Gamma function'),
+      fn('round', op('round'), 'Round'),
+      fn('mean', op('mean'), 'Average of a list'),
+    ],
+    [
+      fn('∫', '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', 'Definite integral'),
+      fn('d/dx', '\\frac{\\mathrm{d}}{\\mathrm{d}#?}#0', 'Derivative: choose the variable, then the expression'),
+      fn('d²/dx²', '\\frac{\\mathrm{d}^2}{\\mathrm{d}#?^2}#0', 'Second derivative: choose the variable, then the expression'),
+      fn('lim', '\\lim_{x\\to#0}#?', 'Limit'),
+      fn('Σ', '\\sum_{n=#0}^{#?}#?', 'Sum'),
+      fn('Π', '\\prod_{n=#0}^{#?}#?', 'Product'),
+      fn('solve', '\\operatorname{solve}\\left(#0=#?,x\\right)', 'Solve an equation for x'),
+      fn('[ ]', '\\left[#0\\right]', 'List'),
+      fn('{ : }', '\\left\\{x<#0:#?,#?\\right\\}', 'Piecewise'),
+      fn('∞', '\\infty', 'Infinity'),
+    ],
+    [
+      fn('<', '<', 'Less than'),
+      fn('≤', '\\le', 'Less or equal'),
+      fn('>', '>', 'Greater than'),
+      fn('≥', '\\ge', 'Greater or equal'),
+      fn('mod', op('mod').replace('#0', '#0,#?'), 'Remainder: mod(7, 3) = 1'),
+      fn('gcd', op('gcd').replace('#0', '#0,#?'), 'Greatest common divisor'),
+      fn('lcm', op('lcm').replace('#0', '#0,#?'), 'Least common multiple'),
+      fn('nCr', op('nCr').replace('#0', '#0,#?'), 'Combinations'),
+      fn('nPr', op('nPr').replace('#0', '#0,#?'), 'Permutations'),
+      fn('erf', op('erf'), 'Error function'),
+    ],
     NAV,
   ],
 };

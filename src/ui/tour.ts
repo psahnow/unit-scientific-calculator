@@ -57,8 +57,7 @@ export const TOUR: TourStep[] = [
   {
     id: 'units',
     title: 'Numbers carry units',
-    body: () =>
-      'Type `F = 6 kN`. As you type the unit, a suggestion appears: press Tab (or just keep typing) and it becomes a unit chip.',
+    body: () => 'Type `F = 6 kN`. As you type the unit, a suggestion appears: press Tab (or just keep typing) and it becomes a unit chip.',
     goal: (c) => !!defines(c, 'F', FORCE),
     target: (c) => at(lastEmpty(c)) ?? at(rowWith(c, (_, x) => /^F\s*=/.test(x.latex))?.id),
     showMe: (_, api) => api.put(r`F=6\unit{kN}`),
@@ -132,8 +131,7 @@ export const TOUR: TourStep[] = [
   {
     id: 'functions',
     title: 'Functions and constants',
-    body: () =>
-      'Open ƒ(x) Functions: trig, logs, calculus, solve and roots, and physical constants like g and c. Click one to put it where your cursor is.',
+    body: () => 'Open ƒ(x) Functions: trig, logs, calculus, solve and roots, and physical constants like g and c. Click one to put it where your cursor is.',
     goal: (c) => c.toolbox,
     target: () => '[aria-controls="toolbox"]',
     showMe: (_, api) => api.openToolbox(),
@@ -142,7 +140,7 @@ export const TOUR: TourStep[] = [
     id: 'done',
     title: 'That’s the tour',
     body: () =>
-      '+ Add makes notes, folders and tables. ⚙ turns on more unit sets and defines your own units. Ctrl / lists shortcuts. Worksheets are saved in this browser: Export keeps a copy.',
+      '+ Add makes notes, folders and tables. ⚙ turns on more unit sets and defines your own units. Ctrl / lists shortcuts. Worksheets are saved in this browser: ☰ → Export keeps a copy.',
   },
 ];
 

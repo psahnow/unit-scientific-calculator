@@ -141,9 +141,7 @@ function UnitMenu(p: Props & { close(): void; anchor: RefObject<HTMLButtonElemen
     searchRef.current?.focus();
   }, [style.visibility]);
   const lq = qtrim.toLowerCase();
-  const filtered = groups
-    .map((g) => ({ ...g, items: g.items.filter((c) => !lq || c.text.toLowerCase().includes(lq)) }))
-    .filter((g) => g.items.length);
+  const filtered = groups.map((g) => ({ ...g, items: g.items.filter((c) => !lq || c.text.toLowerCase().includes(lq)) })).filter((g) => g.items.length);
   const flat = filtered.flatMap((g) => g.items.map((c) => c.text));
   const pick = (t: string | undefined) => {
     p.onPick(t);

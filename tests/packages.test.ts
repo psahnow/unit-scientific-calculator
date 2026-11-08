@@ -14,7 +14,14 @@ function calc(latex: string, packages: string[], extra: Row[] = []) {
   const rows: Row[] = [...extra, { id: 'x', type: 'expr', latex }];
   const res = evaluateWorksheet(rows, { angle: 'rad', packages });
   const v = res.rows.get('x');
-  const shown = !v || v.kind !== 'value' ? (v?.kind === 'error' ? 'error: ' + v.message : String(v?.kind)) : v.value.t === 'q' ? `${formatQuantity(v.value.q).value} ${formatQuantity(v.value.q).unit}`.trim() : 'list';
+  const shown =
+    !v || v.kind !== 'value'
+      ? v?.kind === 'error'
+        ? 'error: ' + v.message
+        : String(v?.kind)
+      : v.value.t === 'q'
+        ? `${formatQuantity(v.value.q).value} ${formatQuantity(v.value.q).unit}`.trim()
+        : 'list';
   return { shown, hint: res.packageHints.get('x'), chips: res.chips.get('x') };
 }
 
@@ -26,7 +33,32 @@ describe('unit packages (D26)', () => {
   });
 
   it('the base set keeps everyday units', () => {
-    for (const id of ['m', 'kg', 's', 'N', 'Pa', 'MPa', 'J', 'W', 'kWh', 'psi', 'lbf', 'ft', 'in', '°C', '°F', 'L', 'gal', 'V', 'A', 'Ω', 'Hz', 'bar', 'atm', 'mph'])
+    for (const id of [
+      'm',
+      'kg',
+      's',
+      'N',
+      'Pa',
+      'MPa',
+      'J',
+      'W',
+      'kWh',
+      'psi',
+      'lbf',
+      'ft',
+      'in',
+      '°C',
+      '°F',
+      'L',
+      'gal',
+      'V',
+      'A',
+      'Ω',
+      'Hz',
+      'bar',
+      'atm',
+      'mph',
+    ])
       expect(packagesOf(getUnit(id)), id).toEqual([]);
   });
 

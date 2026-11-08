@@ -52,7 +52,13 @@ describe('dotted names', () => {
     expect(show(res, 'f')).toBe('8 kg/s');
   });
   it('double dots, Greek letters and subscripts', () => {
-    const res = ev([e('a', r`\ddot{x}=9.8\unit{m}/\unit{s}^{2}`), e('b', r`\dot{\theta}=2`), e('c', r`\dot{\theta}\cdot\ddot{x}`), e('d', r`\dot{m}_{1}=5`), e('g', r`\dot{m}_{1}+1`)]);
+    const res = ev([
+      e('a', r`\ddot{x}=9.8\unit{m}/\unit{s}^{2}`),
+      e('b', r`\dot{\theta}=2`),
+      e('c', r`\dot{\theta}\cdot\ddot{x}`),
+      e('d', r`\dot{m}_{1}=5`),
+      e('g', r`\dot{m}_{1}+1`),
+    ]);
     expect(show(res, 'c')).toBe('19.6 m/s²');
     expect(show(res, 'g')).toBe('6');
     expect(res.varsIn(null)).toEqual(expect.arrayContaining(['ẍ', 'θ̇', 'ṁ_1']));

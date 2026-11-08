@@ -12,14 +12,67 @@ export type Tok =
   | { t: 'rowref'; v: string; s: number; e: number }; // #3: the value of row 3 (D56)
 
 export const GREEK: Record<string, string> = {
-  alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ϵ', varepsilon: 'ε', zeta: 'ζ', eta: 'η', theta: 'θ',
-  vartheta: 'ϑ', iota: 'ι', kappa: 'κ', lambda: 'λ', mu: 'μ', nu: 'ν', xi: 'ξ', rho: 'ρ', sigma: 'σ',
-  tau: 'τ', upsilon: 'υ', phi: 'ϕ', varphi: 'φ', chi: 'χ', psi: 'ψ', omega: 'ω', Gamma: 'Γ', Delta: 'Δ',
-  Theta: 'Θ', Lambda: 'Λ', Xi: 'Ξ', Pi: 'Π', Sigma: 'Σ', Upsilon: 'Υ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω', hbar: 'ħ',
+  alpha: 'α',
+  beta: 'β',
+  gamma: 'γ',
+  delta: 'δ',
+  epsilon: 'ϵ',
+  varepsilon: 'ε',
+  zeta: 'ζ',
+  eta: 'η',
+  theta: 'θ',
+  vartheta: 'ϑ',
+  iota: 'ι',
+  kappa: 'κ',
+  lambda: 'λ',
+  mu: 'μ',
+  nu: 'ν',
+  xi: 'ξ',
+  rho: 'ρ',
+  sigma: 'σ',
+  tau: 'τ',
+  upsilon: 'υ',
+  phi: 'ϕ',
+  varphi: 'φ',
+  chi: 'χ',
+  psi: 'ψ',
+  omega: 'ω',
+  Gamma: 'Γ',
+  Delta: 'Δ',
+  Theta: 'Θ',
+  Lambda: 'Λ',
+  Xi: 'Ξ',
+  Pi: 'Π',
+  Sigma: 'Σ',
+  Upsilon: 'Υ',
+  Phi: 'Φ',
+  Psi: 'Ψ',
+  Omega: 'Ω',
+  hbar: 'ħ',
 };
 const GREEK_TO_CMD: Record<string, string> = Object.fromEntries(Object.entries(GREEK).map(([k, v]) => [v, k]));
 
-const SKIP = new Set([',', ';', ':', '!', ' ', 'quad', 'qquad', 'displaystyle', 'textstyle', 'limits', 'nolimits', 'bigl', 'bigr', 'Bigl', 'Bigr', 'left', 'right', 'mleft', 'mright']);
+const SKIP = new Set([
+  ',',
+  ';',
+  ':',
+  '!',
+  ' ',
+  'quad',
+  'qquad',
+  'displaystyle',
+  'textstyle',
+  'limits',
+  'nolimits',
+  'bigl',
+  'bigr',
+  'Bigl',
+  'Bigr',
+  'left',
+  'right',
+  'mleft',
+  'mright',
+]);
 const TIMES = new Set(['cdot', 'times', 'ast', 'cdotp']);
 /** Comparison commands → operator tokens (piecewise conditions, D27). */
 const CMP_CMDS: Record<string, string> = { lt: '<', gt: '>', le: '≤', leq: '≤', leqslant: '≤', ge: '≥', geq: '≥', geqslant: '≥', ne: '≠', neq: '≠' };
@@ -117,7 +170,16 @@ export function tokenize(src: string): Tok[] {
       }
       const name = m[1];
       let j = i + m[0].length;
-      if (name === 'unit' || name === 'const' || name === 'operatorname' || name === 'mathrm' || name === 'text' || name === 'mathit' || name === 'mathbf' || name === 'placeholder') {
+      if (
+        name === 'unit' ||
+        name === 'const' ||
+        name === 'operatorname' ||
+        name === 'mathrm' ||
+        name === 'text' ||
+        name === 'mathit' ||
+        name === 'mathbf' ||
+        name === 'placeholder'
+      ) {
         while (src[j] === ' ') j++;
         let content = '';
         if (src[j] === '{') {

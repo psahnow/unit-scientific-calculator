@@ -2,15 +2,7 @@
 import * as N from './num';
 import { type Num } from './num';
 import { type Dim, DIMLESS, dimMul, dimDiv, dimPow, dimEq, isDimlessLoose, kindOf } from './dim';
-import {
-  type UnitExpr,
-  unitDim,
-  unitFactor,
-  offsetUnit,
-  getUnit,
-  formatUnit,
-  combine,
-} from './units/registry';
+import { type UnitExpr, unitDim, unitFactor, offsetUnit, getUnit, formatUnit, combine } from './units/registry';
 import { simplify } from './simplify';
 
 export type TempKind = 'absolute' | 'delta';
@@ -81,8 +73,7 @@ export function checkConvertible(q: Quantity, unit: UnitExpr): string | null {
   const ud = unitDim(unit);
   if (!dimEq(ud, q.dim)) return `Can't show ${kindOf(q.dim) ?? 'this value'} in ${formatUnit(unit)}, which is ${kindOf(ud) ?? 'something else'}`;
   const single = unit.length === 1 && unit[0].power === 1 ? getUnit(unit[0].id) : undefined;
-  if (q.tempKind === 'absolute' && single?.tempKind === 'delta')
-    return 'This is a temperature: show it in K, °C, °F or °R';
+  if (q.tempKind === 'absolute' && single?.tempKind === 'delta') return 'This is a temperature: show it in K, °C, °F or °R';
   if (q.tempKind !== 'absolute' && single?.tempKind === 'absolute' && dimEq(q.dim, single.dim))
     return 'This is a temperature difference: show it in K, Δ°C, Δ°F or °R';
   return null;
@@ -95,8 +86,7 @@ export function convertTo(q: Quantity, unit: UnitExpr): Quantity {
   return { ...q, unit };
 }
 
-const ABS_TEMP_MSG = (op: string) =>
-  `Can't ${op} a temperature in °C or °F. Use K, or a temperature difference (Δ°C)`;
+const ABS_TEMP_MSG = (op: string) => `Can't ${op} a temperature in °C or °F. Use K, or a temperature difference (Δ°C)`;
 
 function deltaOf(unit: UnitExpr): UnitExpr {
   const off = offsetUnit(unit);
@@ -151,11 +141,7 @@ export function mul(a: Quantity, b: Quantity): Quantity {
 
 export function div(a: Quantity, b: Quantity): Quantity {
   if (a.tempKind === 'absolute' || b.tempKind === 'absolute') throw new CalcError(ABS_TEMP_MSG('divide'));
-  return finishProduct(
-    N.div(a.si, b.si),
-    dimDiv(a.dim, b.dim),
-    noRatio(a.unit).concat(noRatio(b.unit).map((t) => ({ id: t.id, power: -t.power }))),
-  );
+  return finishProduct(N.div(a.si, b.si), dimDiv(a.dim, b.dim), noRatio(a.unit).concat(noRatio(b.unit).map((t) => ({ id: t.id, power: -t.power }))));
 }
 
 function finishProduct(si: Num, d: Dim, unit: UnitExpr): Quantity {
@@ -171,7 +157,11 @@ export function pow(a: Quantity, e: Quantity): Quantity {
   const fr = N.toFraction(p);
   if (!fr) throw new CalcError('A value with units can only be raised to a simple fractional power, like 2 or 1/2');
   const si = N.powRational(a.si, fr[0], fr[1]);
-  return finishProduct(si, dimPow(a.dim, p), a.unit.map((t) => ({ id: t.id, power: t.power * p })));
+  return finishProduct(
+    si,
+    dimPow(a.dim, p),
+    a.unit.map((t) => ({ id: t.id, power: t.power * p })),
+  );
 }
 
 export function root(a: Quantity, n: number): Quantity {

@@ -26,20 +26,63 @@ export const MACROS = {
 };
 
 const GREEK_SHORTCUTS = [
-  'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'varepsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda',
-  'mu', 'nu', 'xi', 'rho', 'sigma', 'tau', 'upsilon', 'phi', 'varphi', 'chi', 'psi', 'omega', 'Gamma', 'Delta',
-  'Theta', 'Lambda', 'Xi', 'Sigma', 'Phi', 'Psi', 'Omega',
+  'alpha',
+  'beta',
+  'gamma',
+  'delta',
+  'epsilon',
+  'varepsilon',
+  'zeta',
+  'eta',
+  'theta',
+  'iota',
+  'kappa',
+  'lambda',
+  'mu',
+  'nu',
+  'xi',
+  'rho',
+  'sigma',
+  'tau',
+  'upsilon',
+  'phi',
+  'varphi',
+  'chi',
+  'psi',
+  'omega',
+  'Gamma',
+  'Delta',
+  'Theta',
+  'Lambda',
+  'Xi',
+  'Sigma',
+  'Phi',
+  'Psi',
+  'Omega',
 ];
 /** Curated shortcuts: no "in" → ∈ etc., which would clash with units. */
 export const INLINE_SHORTCUTS: Record<string, string> = {
   ...Object.fromEntries(GREEK_SHORTCUTS.map((g) => [g, `\\${g}`])),
   pi: '\\pi',
   sqrt: '\\sqrt{#0}',
-  sin: '\\sin', cos: '\\cos', tan: '\\tan', sec: '\\sec', csc: '\\csc', cot: '\\cot',
-  arcsin: '\\arcsin', arccos: '\\arccos', arctan: '\\arctan', sinh: '\\sinh', cosh: '\\cosh', tanh: '\\tanh',
-  ln: '\\ln', log: '\\log', exp: '\\exp',
+  sin: '\\sin',
+  cos: '\\cos',
+  tan: '\\tan',
+  sec: '\\sec',
+  csc: '\\csc',
+  cot: '\\cot',
+  arcsin: '\\arcsin',
+  arccos: '\\arccos',
+  arctan: '\\arctan',
+  sinh: '\\sinh',
+  cosh: '\\cosh',
+  tanh: '\\tanh',
+  ln: '\\ln',
+  log: '\\log',
+  exp: '\\exp',
   '*': '\\cdot',
-  '>=': '\\ge', '<=': '\\le',
+  '>=': '\\ge',
+  '<=': '\\le',
 };
 
 // ── Toolbox insertion: the most recently focused field receives function keys ──
@@ -98,7 +141,8 @@ export function insertIntoMath(latex: string, opts: { pending?: boolean } = {}):
  * the caret isn't after a chip, so the usual "/" applies.
  */
 /** A single letter as MathLive returns it: T, x, \alpha, \Omega … */
-const LETTER = /^(?:[A-Za-z]|\\(?:alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|vartheta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega))$/;
+const LETTER =
+  /^(?:[A-Za-z]|\\(?:alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|vartheta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega))$/;
 const DIGIT = /^[0-9]$/;
 const at = (mf: MathfieldElement, k: number) => (k < 0 ? '' : mf.getValue(k, k + 1, 'latex'));
 
@@ -233,6 +277,8 @@ function atomCount(latex: string): number {
 export function MathInput(p: Props) {
   const host = useRef<HTMLDivElement>(null);
   const mfRef = useRef<MathfieldElement | null>(null);
+  /** Inserts a suggestion for the letters before the caret (set up with the field, used by the list's clicks). */
+  const acceptRef = useRef<((picked?: Suggestion, chosen?: boolean) => boolean) | null>(null);
   const props = useRef(p);
   props.current = p;
   const [pop, setPop] = useState<Popover | null>(null);
@@ -246,244 +292,245 @@ export function MathInput(p: Props) {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
     const create = ({ MathfieldElement }: typeof import('mathlive')) => {
-    if (cancelled || !host.current) return;
-    const mf = new MathfieldElement();
-    host.current!.appendChild(mf);
-    // MathLive resets its options when the element is moved in the page (dragging rows reorders
-    // them), which made chips show as raw LaTeX. Apply them on every (re)connection.
-    const applyOptions = () => {
-      mf.macros = { ...mf.macros, ...MACROS };
-      mf.inlineShortcuts = INLINE_SHORTCUTS;
-      // phones and tablets: MathLive's on-screen maths keyboard; mouse and keyboard: none (D7, D37)
-      mf.mathVirtualKeyboardPolicy = window.matchMedia?.('(pointer: coarse)').matches ? 'auto' : 'manual';
-      mf.smartFence = true;
-      mf.smartSuperscript = false; // 10^23: keep typing digits in the exponent
-      mf.popoverPolicy = 'off';
-      mf.menuItems = [];
-      mf.setValue(props.current.latex, { silenceNotifications: true });
-    };
-    applyOptions();
-    if (p.ariaLabel) mf.setAttribute('aria-label', p.ariaLabel);
-    mfRef.current = mf;
-    const onMount = () => applyOptions();
-    mf.addEventListener('mount', onMount);
+      if (cancelled || !host.current) return;
+      const mf = new MathfieldElement();
+      host.current!.appendChild(mf);
+      // MathLive resets its options when the element is moved in the page (dragging rows reorders
+      // them), which made chips show as raw LaTeX. Apply them on every (re)connection.
+      const applyOptions = () => {
+        mf.macros = { ...mf.macros, ...MACROS };
+        mf.inlineShortcuts = INLINE_SHORTCUTS;
+        // phones and tablets: MathLive's on-screen maths keyboard; mouse and keyboard: none (D7, D37)
+        mf.mathVirtualKeyboardPolicy = window.matchMedia?.('(pointer: coarse)').matches ? 'auto' : 'manual';
+        mf.smartFence = true;
+        mf.smartSuperscript = false; // 10^23: keep typing digits in the exponent
+        mf.popoverPolicy = 'off';
+        mf.menuItems = [];
+        mf.setValue(props.current.latex, { silenceNotifications: true });
+      };
+      applyOptions();
+      if (p.ariaLabel) mf.setAttribute('aria-label', p.ariaLabel);
+      mfRef.current = mf;
+      const onMount = () => applyOptions();
+      mf.addEventListener('mount', onMount);
 
-    const refreshPopover = () => {
-      const pos = mf.position;
-      const before = mf.getValue(0, pos, 'latex');
-      const run = trailingRun(before);
-      if (!run) return setPop(null);
-      const items = suggestionsFor(latexToSymbol(run.latex), props.current.vars, run.afterNumber);
-      setPop(items.length ? { items, sel: 0, navigated: false, prefixLatex: run.latex } : null);
-    };
+      const refreshPopover = () => {
+        const pos = mf.position;
+        const before = mf.getValue(0, pos, 'latex');
+        const run = trailingRun(before);
+        if (!run) return setPop(null);
+        const items = suggestionsFor(latexToSymbol(run.latex), props.current.vars, run.afterNumber);
+        setPop(items.length ? { items, sel: 0, navigated: false, prefixLatex: run.latex } : null);
+      };
 
-    /**
-     * Insert a suggestion for the letters before the caret. Works from the text as it is now, not
-     * the list on screen, which can be a keystroke behind when typing fast (m, m, Tab): the user's
-     * own pick (arrow keys or a click) is kept if it still fits, otherwise the best match for what
-     * is actually typed. Returns false if nothing fits.
-     */
-    const accept = (picked?: Suggestion, chosen = false): boolean => {
-      const run = trailingRun(mf.getValue(0, mf.position, 'latex'));
-      const items = run ? suggestionsFor(latexToSymbol(run.latex), props.current.vars, run.afterNumber) : [];
-      if (!run || !items.length) {
-        setPop(null);
-        return false;
-      }
-      const s = (chosen && picked && items.find((i) => i.insert === picked.insert)) || items[0];
-      const n = atomCount(run.latex);
-      for (let i = 0; i < n; i++) mf.executeCommand('deleteBackward');
-      mf.executeCommand(['insert', s.insert, { insertionMode: 'replaceSelection', selectionMode: 'placeholder', format: 'latex' }]);
-      setPop(null);
-      props.current.onChange(mf.getValue('latex'));
-      return true;
-    };
-
-    const onInput = (e: Event) => {
-      const ie = e as InputEvent;
-      if (ie.inputType === 'insertText' && ie.data && DIGIT.test(ie.data)) autoSubscript(mf);
-      // the on-screen "." (a physical "." is handled before it goes in): m. → ṁ (D61)
-      if (ie.inputType === 'insertText' && ie.data === '.' && at(mf, mf.position - 1) === '.') {
-        mf.executeCommand('deleteBackward');
-        if (!dotLetter(mf)) mf.executeCommand(['insert', '.', { format: 'latex' }]);
-      }
-      props.current.onChange(mf.getValue('latex'));
-      refreshPopover();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      const pv = popRef.current;
-      if (pv) {
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-          e.preventDefault();
-          e.stopPropagation();
-          const d = e.key === 'ArrowDown' ? 1 : -1;
-          setPop({ ...pv, sel: (pv.sel + d + pv.items.length) % pv.items.length, navigated: true });
-          return;
-        }
-        if (e.key === 'Tab' || (e.key === 'Enter' && pv.navigated)) {
-          e.preventDefault();
-          e.stopPropagation();
-          accept(pv.items[pv.sel], pv.navigated);
-          return;
-        }
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
+      /**
+       * Insert a suggestion for the letters before the caret. Works from the text as it is now, not
+       * the list on screen, which can be a keystroke behind when typing fast (m, m, Tab): the user's
+       * own pick (arrow keys or a click) is kept if it still fits, otherwise the best match for what
+       * is actually typed. Returns false if nothing fits.
+       */
+      const accept = (picked?: Suggestion, chosen = false): boolean => {
+        const run = trailingRun(mf.getValue(0, mf.position, 'latex'));
+        const items = run ? suggestionsFor(latexToSymbol(run.latex), props.current.vars, run.afterNumber) : [];
+        if (!run || !items.length) {
           setPop(null);
-          return;
+          return false;
         }
-      }
-      if (e.key === 'Tab' && !e.shiftKey && !pv && accept()) {
-        // the list hadn't appeared yet: Tab still completes what was typed, rather than leaving the field
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      if (e.key === 'Escape') {
-        // MathLive would otherwise enter raw-LaTeX mode, which is confusing here
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      // typing on after T₁₂: leave the subscript first (D47)
-      if (e.key.length === 1 && !DIGIT.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) leaveDigitSubscript(mf);
-      if (e.key === '.' && !e.ctrlKey && !e.metaKey && !e.altKey && dotLetter(mf)) {
-        e.preventDefault();
-        e.stopPropagation();
+        const s = (chosen && picked && items.find((i) => i.insert === picked.insert)) || items[0];
+        const n = atomCount(run.latex);
+        for (let i = 0; i < n; i++) mf.executeCommand('deleteBackward');
+        mf.executeCommand(['insert', s.insert, { insertionMode: 'replaceSelection', selectionMode: 'placeholder', format: 'latex' }]);
+        setPop(null);
+        props.current.onChange(mf.getValue('latex'));
+        return true;
+      };
+
+      const onInput = (e: Event) => {
+        const ie = e as InputEvent;
+        if (ie.inputType === 'insertText' && ie.data && DIGIT.test(ie.data)) autoSubscript(mf);
+        // the on-screen "." (a physical "." is handled before it goes in): m. → ṁ (D61)
+        if (ie.inputType === 'insertText' && ie.data === '.' && at(mf, mf.position - 1) === '.') {
+          mf.executeCommand('deleteBackward');
+          if (!dotLetter(mf)) mf.executeCommand(['insert', '.', { format: 'latex' }]);
+        }
         props.current.onChange(mf.getValue('latex'));
         refreshPopover();
-        return;
-      }
-      if (e.key === '/' && !e.ctrlKey && !e.metaKey && divideAfterChips(mf)) {
-        e.preventDefault();
-        e.stopPropagation();
-        props.current.onChange(mf.getValue('latex'));
-        return;
-      }
-      if (e.key === '*' && !e.ctrlKey && !e.metaKey) {
-        // typeset multiplication as a centred dot, never an asterisk
-        e.preventDefault();
-        e.stopPropagation();
-        mf.executeCommand(['insert', '\\cdot', { format: 'latex' }]);
-        props.current.onChange(mf.getValue('latex'));
-        return;
-      }
-      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && props.current.onMoveRow) {
-        e.preventDefault();
-        e.stopPropagation();
-        props.current.onMoveRow(e.key === 'ArrowUp' ? -1 : 1);
-        return;
-      }
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        e.stopPropagation();
-        setPop(null);
-        props.current.onEnter();
-        // normally the new row already has the caret; if not, hold what is typed until it does
-        if (document.activeElement === mf) {
-          holdKeys();
-          mf.blur();
-        }
-        return;
-      }
-      if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey) {
-        if (mf.getValue('latex') === '') {
-          e.preventDefault();
-          e.stopPropagation();
-          props.current.onDeleteEmpty();
-          return;
-        }
-        // Backspace on a unit chip turns it back into plain letters (spec §4.2 step 4)
-        const pos = mf.position;
-        const sel = mf.selection;
-        if (pos > 0 && sel.ranges.length === 1 && sel.ranges[0][0] === sel.ranges[0][1]) {
-          // a chip counts as several caret positions, so look at the text before the caret
-          const before = mf.getValue(0, pos, 'latex');
-          const m = /\\(unit|const)\{((?:[^{}]|\{[^{}]*\})*)\}$/.exec(before);
-          if (m) {
+      };
+      const onKey = (e: KeyboardEvent) => {
+        const pv = popRef.current;
+        if (pv) {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             e.stopPropagation();
-            mf.executeCommand('deleteBackward');
-            mf.executeCommand(['insert', m[2], { format: 'latex' }]);
-            props.current.onChange(mf.getValue('latex'));
+            const d = e.key === 'ArrowDown' ? 1 : -1;
+            setPop({ ...pv, sel: (pv.sel + d + pv.items.length) % pv.items.length, navigated: true });
+            return;
+          }
+          if (e.key === 'Tab' || (e.key === 'Enter' && pv.navigated)) {
+            e.preventDefault();
+            e.stopPropagation();
+            accept(pv.items[pv.sel], pv.navigated);
+            return;
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            setPop(null);
             return;
           }
         }
-      }
-      if ((e.key === 'z' || e.key === 'y') && (e.ctrlKey || e.metaKey)) {
-        // let the app-level undo handle it
-        e.preventDefault();
-        e.stopPropagation();
-        window.dispatchEvent(new CustomEvent('usc-undo', { detail: e.key === 'y' || e.shiftKey ? 'redo' : 'undo' }));
-      }
-    };
-    const onMoveOut = (e: Event) => {
-      const dir = (e as CustomEvent).detail?.direction;
-      if (dir === 'upward' || dir === 'downward') {
-        e.preventDefault();
-        props.current.onMoveOut(dir === 'upward' ? 'up' : 'down');
-      }
-    };
-    const onFocus = () => {
-      lastField = mf;
-      if (pendingKeys) {
-        // replayed at once, in order: nothing typed meanwhile can slip in between
-        const keys = pendingKeys;
-        pendingKeys = null;
-        clearTimeout(pendingTimer);
-        const nlAt = keys.indexOf(ENTER);
-        for (const ch of nlAt < 0 ? keys : keys.slice(0, nlAt)) {
-          if (ch === 'Tab') accept(); // complete the unit or name typed so far, as Tab does
-          else if (ch === 'Backspace') mf.executeCommand('deleteBackward');
-          else if (ch === '*') mf.executeCommand(['insert', String.raw`\cdot`, { format: 'latex' }]);
-          else mf.executeCommand(['typedText', ch]);
-        }
-        if (nlAt > 0) props.current.onChange(mf.getValue('latex'));
-        else if (nlAt < 0 && keys.length) props.current.onChange(mf.getValue('latex'));
-        if (nlAt >= 0) {
-          // another Enter was typed: the rest goes to the row after this one
-          holdKeys(keys.slice(nlAt + 1));
-          props.current.onEnter();
-          mf.blur();
+        if (e.key === 'Tab' && !e.shiftKey && !pv && accept()) {
+          // the list hadn't appeared yet: Tab still completes what was typed, rather than leaving the field
+          e.preventDefault();
+          e.stopPropagation();
           return;
         }
-      }
-      setReturnHandler(() => props.current.onEnter());
-      setBeforeKeyHandler(() => leaveDigitSubscript(mf));
-      setDivideHandler(() => {
-        const done = divideAfterChips(mf);
-        if (done) props.current.onChange(mf.getValue('latex'));
-        return done;
-      });
-      props.current.onFocus();
-      if (pendingInsert) {
-        const l = pendingInsert;
-        pendingInsert = null;
-        setTimeout(() => insertInto(mf, l), 0);
-      }
-    };
-    const onBlur = () => {
-      setTimeout(() => setPop(null), 150);
-      props.current.onBlur();
-    };
-    mf.addEventListener('input', onInput);
-    mf.addEventListener('keydown', onKey, { capture: true });
-    mf.addEventListener('move-out', onMoveOut);
-    mf.addEventListener('focus', onFocus);
-    mf.addEventListener('blur', onBlur);
-    (mf as unknown as { __accept: typeof accept }).__accept = accept;
-    if (p.autoFocus) requestAnimationFrame(() => mf.focus());
-    setReady(true);
-    cleanup = () => {
-      mf.removeEventListener('input', onInput);
-      mf.removeEventListener('keydown', onKey, { capture: true });
-      mf.removeEventListener('move-out', onMoveOut);
-      mf.removeEventListener('focus', onFocus);
-      mf.removeEventListener('blur', onBlur);
-      mf.removeEventListener('mount', onMount);
-      if (lastField === mf) lastField = null;
-      mf.remove();
-    };
+        if (e.key === 'Escape') {
+          // MathLive would otherwise enter raw-LaTeX mode, which is confusing here
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        // typing on after T₁₂: leave the subscript first (D47)
+        if (e.key.length === 1 && !DIGIT.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) leaveDigitSubscript(mf);
+        if (e.key === '.' && !e.ctrlKey && !e.metaKey && !e.altKey && dotLetter(mf)) {
+          e.preventDefault();
+          e.stopPropagation();
+          props.current.onChange(mf.getValue('latex'));
+          refreshPopover();
+          return;
+        }
+        if (e.key === '/' && !e.ctrlKey && !e.metaKey && divideAfterChips(mf)) {
+          e.preventDefault();
+          e.stopPropagation();
+          props.current.onChange(mf.getValue('latex'));
+          return;
+        }
+        if (e.key === '*' && !e.ctrlKey && !e.metaKey) {
+          // typeset multiplication as a centred dot, never an asterisk
+          e.preventDefault();
+          e.stopPropagation();
+          mf.executeCommand(['insert', '\\cdot', { format: 'latex' }]);
+          props.current.onChange(mf.getValue('latex'));
+          return;
+        }
+        if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && props.current.onMoveRow) {
+          e.preventDefault();
+          e.stopPropagation();
+          props.current.onMoveRow(e.key === 'ArrowUp' ? -1 : 1);
+          return;
+        }
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          setPop(null);
+          props.current.onEnter();
+          // normally the new row already has the caret; if not, hold what is typed until it does
+          if (document.activeElement === mf) {
+            holdKeys();
+            mf.blur();
+          }
+          return;
+        }
+        if (e.key === 'Backspace' && !e.ctrlKey && !e.metaKey) {
+          if (mf.getValue('latex') === '') {
+            e.preventDefault();
+            e.stopPropagation();
+            props.current.onDeleteEmpty();
+            return;
+          }
+          // Backspace on a unit chip turns it back into plain letters (spec §4.2 step 4)
+          const pos = mf.position;
+          const sel = mf.selection;
+          if (pos > 0 && sel.ranges.length === 1 && sel.ranges[0][0] === sel.ranges[0][1]) {
+            // a chip counts as several caret positions, so look at the text before the caret
+            const before = mf.getValue(0, pos, 'latex');
+            const m = /\\(unit|const)\{((?:[^{}]|\{[^{}]*\})*)\}$/.exec(before);
+            if (m) {
+              e.preventDefault();
+              e.stopPropagation();
+              mf.executeCommand('deleteBackward');
+              mf.executeCommand(['insert', m[2], { format: 'latex' }]);
+              props.current.onChange(mf.getValue('latex'));
+              return;
+            }
+          }
+        }
+        if ((e.key === 'z' || e.key === 'y') && (e.ctrlKey || e.metaKey)) {
+          // let the app-level undo handle it
+          e.preventDefault();
+          e.stopPropagation();
+          window.dispatchEvent(new CustomEvent('dimensional-undo', { detail: e.key === 'y' || e.shiftKey ? 'redo' : 'undo' }));
+        }
+      };
+      const onMoveOut = (e: Event) => {
+        const dir = (e as CustomEvent).detail?.direction;
+        if (dir === 'upward' || dir === 'downward') {
+          e.preventDefault();
+          props.current.onMoveOut(dir === 'upward' ? 'up' : 'down');
+        }
+      };
+      const onFocus = () => {
+        lastField = mf;
+        if (pendingKeys) {
+          // replayed at once, in order: nothing typed meanwhile can slip in between
+          const keys = pendingKeys;
+          pendingKeys = null;
+          clearTimeout(pendingTimer);
+          const nlAt = keys.indexOf(ENTER);
+          for (const ch of nlAt < 0 ? keys : keys.slice(0, nlAt)) {
+            if (ch === 'Tab')
+              accept(); // complete the unit or name typed so far, as Tab does
+            else if (ch === 'Backspace') mf.executeCommand('deleteBackward');
+            else if (ch === '*') mf.executeCommand(['insert', String.raw`\cdot`, { format: 'latex' }]);
+            else mf.executeCommand(['typedText', ch]);
+          }
+          if (nlAt > 0) props.current.onChange(mf.getValue('latex'));
+          else if (nlAt < 0 && keys.length) props.current.onChange(mf.getValue('latex'));
+          if (nlAt >= 0) {
+            // another Enter was typed: the rest goes to the row after this one
+            holdKeys(keys.slice(nlAt + 1));
+            props.current.onEnter();
+            mf.blur();
+            return;
+          }
+        }
+        setReturnHandler(() => props.current.onEnter());
+        setBeforeKeyHandler(() => leaveDigitSubscript(mf));
+        setDivideHandler(() => {
+          const done = divideAfterChips(mf);
+          if (done) props.current.onChange(mf.getValue('latex'));
+          return done;
+        });
+        props.current.onFocus();
+        if (pendingInsert) {
+          const l = pendingInsert;
+          pendingInsert = null;
+          setTimeout(() => insertInto(mf, l), 0);
+        }
+      };
+      const onBlur = () => {
+        setTimeout(() => setPop(null), 150);
+        props.current.onBlur();
+      };
+      mf.addEventListener('input', onInput);
+      mf.addEventListener('keydown', onKey, { capture: true });
+      mf.addEventListener('move-out', onMoveOut);
+      mf.addEventListener('focus', onFocus);
+      mf.addEventListener('blur', onBlur);
+      acceptRef.current = accept;
+      if (p.autoFocus) requestAnimationFrame(() => mf.focus());
+      setReady(true);
+      cleanup = () => {
+        mf.removeEventListener('input', onInput);
+        mf.removeEventListener('keydown', onKey, { capture: true });
+        mf.removeEventListener('move-out', onMoveOut);
+        mf.removeEventListener('focus', onFocus);
+        mf.removeEventListener('blur', onBlur);
+        mf.removeEventListener('mount', onMount);
+        if (lastField === mf) lastField = null;
+        mf.remove();
+      };
     };
     if (mathliveModule) create(mathliveModule);
     else void loadMathLive().then(create);
@@ -527,7 +574,7 @@ export function MathInput(p: Props) {
               className={i === pop.sel ? 'sel' : ''}
               onMouseDown={(e) => {
                 e.preventDefault();
-                (mfRef.current as unknown as { __accept: (s: Suggestion, chosen: boolean) => boolean }).__accept(s, true);
+                acceptRef.current?.(s, true);
                 mfRef.current?.focus();
               }}
             >

@@ -1,3 +1,4 @@
+/* oxlint-disable no-loss-of-precision -- reference values are copied from NIST/CODATA with all their digits */
 // Correctness suite (D43): every number the calculator shows is checked against an oracle that does
 // not share code with the engine — published reference values (NIST SP 811, CODATA 2022), closed
 // forms, identities, or plain JavaScript floating point — over thousands of seeded random cases.

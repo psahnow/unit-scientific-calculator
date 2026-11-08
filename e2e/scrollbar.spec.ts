@@ -19,7 +19,11 @@ test('the page keeps its width when a long sheet brings in the scrollbar', async
   const short = await width();
   expect(await scrolls()).toBe(false);
   // enough rows to scroll
-  const field = (n: number) => page.locator('.row').nth(n - 1).locator('math-field');
+  const field = (n: number) =>
+    page
+      .locator('.row')
+      .nth(n - 1)
+      .locator('math-field');
   await field(1).click();
   await expect(field(1)).toBeFocused();
   await page.keyboard.type('1');
@@ -33,7 +37,10 @@ test('the page keeps its width when a long sheet brings in the scrollbar', async
 });
 
 test('the footer sits at the bottom of the window on a short sheet', async ({ page }) => {
-  for (const [w, h] of [[1100, 800], [1920, 1080]]) {
+  for (const [w, h] of [
+    [1100, 800],
+    [1920, 1080],
+  ]) {
     await page.setViewportSize({ width: w, height: h });
     await page.goto('/');
     await page.waitForSelector('.row math-field');

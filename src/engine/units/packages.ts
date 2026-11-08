@@ -16,8 +16,32 @@ export const PACKAGES: UnitPackage[] = [
     name: 'Mechanical engineering',
     description: 'kip, ksi, psf, slug, BTU, °R, rpm, gpm, cfm, inH₂O, refrigeration tons, viscosity',
     units: [
-      'kip', 'ksi', 'psf', 'tonf', 'ozf', 'pdl', 'slug', 'kgf', 'ton', 'mil', 'µin', 'inHg', 'inH2O', 'rpm', 'gpm', 'cfm',
-      'TR', 'BTU', 'thm', 'hp_M', '°R', 'µε', 'P', 'St', 'bbl', 'grad',
+      'kip',
+      'ksi',
+      'psf',
+      'tonf',
+      'ozf',
+      'pdl',
+      'slug',
+      'kgf',
+      'ton',
+      'mil',
+      'µin',
+      'inHg',
+      'inH2O',
+      'rpm',
+      'gpm',
+      'cfm',
+      'TR',
+      'BTU',
+      'thm',
+      'hp_M',
+      '°R',
+      'µε',
+      'P',
+      'St',
+      'bbl',
+      'grad',
     ],
   },
   {
@@ -31,8 +55,32 @@ export const PACKAGES: UnitPackage[] = [
     name: 'Physics',
     description: 'eV, Å, au, light-years, parsecs, dalton, CGS (dyn, erg, Gal, P, St), radiation, barn, EM units',
     units: [
-      'eV', 'Å', 'au', 'ly', 'pc', 'Da', 'dyn', 'erg', 'Gal', 'P', 'St', 'Gy', 'Sv', 'Bq', 'Ci', 'b', 'Torr', 'mmHg',
-      'F', 'H', 'S', 'Wb', 'T', 'Gs', 'lm', 'lx',
+      'eV',
+      'Å',
+      'au',
+      'ly',
+      'pc',
+      'Da',
+      'dyn',
+      'erg',
+      'Gal',
+      'P',
+      'St',
+      'Gy',
+      'Sv',
+      'Bq',
+      'Ci',
+      'b',
+      'Torr',
+      'mmHg',
+      'F',
+      'H',
+      'S',
+      'Wb',
+      'T',
+      'Gs',
+      'lm',
+      'lx',
     ],
   },
   {
@@ -80,6 +128,8 @@ export function availability(enabled: readonly string[] | undefined): Availabili
 }
 
 // The UI's current worksheet packages (autocomplete and dropdowns read this; the engine is passed it).
+// Installed by the store whenever the worksheet's packages change (state/store.ts), never while
+// rendering, so every render sees the same value.
 let current: Availability = availability([]);
 export function setCurrentPackages(enabled: readonly string[]) {
   current = availability(enabled);

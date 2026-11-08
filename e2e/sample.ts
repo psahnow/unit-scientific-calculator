@@ -35,10 +35,10 @@ export const SAMPLE = {
 /** Open the app on a given worksheet, with the one-time tips already dismissed. */
 export async function openSheet(page: Page, sheet: { id: string; title: string }) {
   await page.addInitScript((ws) => {
-    if (localStorage.getItem('usc:ws:' + ws.id)) return;
-    localStorage.setItem('usc:ws:' + ws.id, JSON.stringify(ws));
-    localStorage.setItem('usc:worksheets', JSON.stringify([{ id: ws.id, title: ws.title, updated: 1 }]));
-    localStorage.setItem('usc:current', ws.id);
+    if (localStorage.getItem('dimensional:ws:' + ws.id)) return;
+    localStorage.setItem('dimensional:ws:' + ws.id, JSON.stringify(ws));
+    localStorage.setItem('dimensional:worksheets', JSON.stringify([{ id: ws.id, title: ws.title, updated: 1 }]));
+    localStorage.setItem('dimensional:current', ws.id);
     localStorage.setItem('dimensional:tips', JSON.stringify(['unit', 'func', 'folder', 'table', 'ref']));
   }, sheet);
   await page.goto('/');

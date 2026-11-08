@@ -6,13 +6,22 @@ import { EXAMPLES, TOUR, isEmptySheet, type TourApi, type TourCtx, type Tip } fr
 
 /** `code` in backticks becomes something to type. */
 function rich(text: string): ReactNode {
-  return text.split('`').map((part, i) => (i % 2 ? <code key={i} className="eg">{part}</code> : <Fragment key={i}>{part}</Fragment>));
+  return text.split('`').map((part, i) =>
+    i % 2 ? (
+      <code key={i} className="eg">
+        {part}
+      </code>
+    ) : (
+      <Fragment key={i}>{part}</Fragment>
+    ),
+  );
 }
 
 /** On an empty worksheet: what this is, examples to try, and the tour. */
 export function StartCard() {
-  const s = useStore();
-  if (s.tour || !isEmptySheet(s.ws.rows)) return null;
+  // one yes/no from the store: the card is not re-rendered by typing in the rows
+  const show = useStore((s) => !s.tour && isEmptySheet(s.ws.rows));
+  if (!show) return null;
   const tryIt = (e: (typeof EXAMPLES)[number]) => {
     const st = useStore.getState();
     const last = st.ws.rows[st.ws.rows.length - 1];
@@ -34,7 +43,7 @@ export function StartCard() {
         ))}
       </div>
       <div className="start-foot">
-        <button className="text-btn strong" onClick={() => s.startTour()}>
+        <button className="text-btn strong" onClick={() => useStore.getState().startTour()}>
           ▶ Take the 2-minute tour
         </button>
         <span className="muted">
@@ -88,12 +97,14 @@ function Spotlight({ selector }: { selector: string | null }) {
 const MANUAL = new Set(['mistakes']);
 
 export function Coach({ result, toolbox, openToolbox }: { result: WorksheetResult; toolbox: boolean; openToolbox(): void }) {
-  const s = useStore();
-  const tour = s.tour;
-  const active = !!tour && s.ws.id === tour.wsId;
+  const tour = useStore((s) => s.tour);
+  const wsId = useStore((s) => s.ws.id);
+  const rows = useStore((s) => s.ws.rows);
+  const s = useStore.getState(); // the actions never change
+  const active = !!tour && wsId === tour.wsId;
   const i = tour?.step ?? 0;
   const step = TOUR[i];
-  const ctx: TourCtx = { rows: s.ws.rows, result, toolbox };
+  const ctx: TourCtx = { rows, result, toolbox };
   const met = active && !!step.goal?.(ctx);
   const last = i === TOUR.length - 1;
   const [shown, setShown] = useState(false);
@@ -138,7 +149,7 @@ export function Coach({ result, toolbox, openToolbox }: { result: WorksheetResul
     if (!met || last || MANUAL.has(step.id)) return;
     const t = setTimeout(() => goRef.current(i + 1), 1400);
     return () => clearTimeout(t);
-  }, [met, last, step.id, i, s.ws.rows]);
+  }, [met, last, step.id, i, rows]);
 
   if (!active) return null;
   return (

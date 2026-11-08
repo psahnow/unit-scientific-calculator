@@ -161,7 +161,10 @@ export function evaluate(n: Node, env: Env): Value {
       const v = env.getVar(n.name) ?? builtinName(n.name, env);
       if (!v) {
         // i and j are often meant as √−1 or unit vectors: say where those are (D63)
-        const hint = (n.name === 'i' || n.name === 'j') && !env.imaginary && !env.vectors ? '. For √−1 or a unit vector, turn on complex numbers or vectors in ⚙ Settings' : '';
+        const hint =
+          (n.name === 'i' || n.name === 'j') && !env.imaginary && !env.vectors
+            ? '. For √−1 or a unit vector, turn on complex numbers or vectors in ⚙ Settings'
+            : '';
         throw new CalcError(`“${n.name}” isn't defined yet: add a row like ${n.name} = 5${hint}`);
       }
       return v;
@@ -217,9 +220,7 @@ export function evaluate(n: Node, env: Env): Value {
       const inv = scalar(N.div(N.ONE, k.si));
       if (x0.t === 'cx') return VX.binOp('^', x0, qv(inv)) as Value;
       if (env.imaginary && x0.t === 'q' && VX.needsComplexPow(x0.q, inv)) return VX.complexPow(x0.q, inv) as Value;
-      return broadcast1(x0, (x) =>
-        Number.isInteger(kn) && kn > 0 ? Q.root(x, kn) : Q.pow(x, scalar(N.div(N.ONE, k.si))),
-      );
+      return broadcast1(x0, (x) => (Number.isInteger(kn) && kn > 0 ? Q.root(x, kn) : Q.pow(x, scalar(N.div(N.ONE, k.si)))));
     }
     case 'list': {
       const items = n.items.map((it) => asQ(evaluate(it, env), 'item (nested lists are not supported)'));
@@ -228,9 +229,9 @@ export function evaluate(n: Node, env: Env): Value {
     case 'ucall': {
       const fd = env.getFunc(n.name);
       if (!fd) throw new CalcError(`“${n.name}” isn't a function: define it like ${n.name}(x) = …`);
-      if (fd.params.length !== n.args.length)
-        throw new CalcError(`${n.name} needs ${fd.params.length} input${fd.params.length === 1 ? '' : 's'}`);
-      if ((env.depth ?? 0) > 200) throw new RecursionError(`“${n.name}” keeps calling itself and never stops. Give it a case that doesn't call ${n.name}, using { } cases`);
+      if (fd.params.length !== n.args.length) throw new CalcError(`${n.name} needs ${fd.params.length} input${fd.params.length === 1 ? '' : 's'}`);
+      if ((env.depth ?? 0) > 200)
+        throw new RecursionError(`“${n.name}” keeps calling itself and never stops. Give it a case that doesn't call ${n.name}, using { } cases`);
       const locals = new Map(env.locals ?? []);
       fd.params.forEach((p, i) => {
         const arg = evaluate(n.args[i], env);
@@ -310,7 +311,8 @@ function sampler(body: Node, env: Env, v: string, like: Quantity, what: string) 
   const at = (x: number): Quantity => {
     const r = evaluate(body, bind(env, v, { si: N.float(x), dim: like.dim, unit: like.unit }));
     const q = asQ(r, `value from the ${what}`);
-    if (dimRef && !dimEq(q.dim, dimRef.dim)) throw new CalcError(`The ${what} changes its kind of unit along the way: ${describe(dimRef)}, then ${describe(q)}`);
+    if (dimRef && !dimEq(q.dim, dimRef.dim))
+      throw new CalcError(`The ${what} changes its kind of unit along the way: ${describe(dimRef)}, then ${describe(q)}`);
     dimRef ??= q;
     return q;
   };
@@ -336,7 +338,8 @@ function evalIntegral(n: CalcNode<'integral'>, env: Env): Quantity {
   // the variable takes the units of the limits; 0 and ∞ fit any unit
   const like = isZeroOrInf(lo) ? hi : lo;
   for (const b of [lo, hi])
-    if (!isZeroOrInf(b) && !dimEq(b.dim, like.dim)) throw new CalcError(`The integral's start and end need the same kind of unit: ${describe(lo)} and ${describe(hi)}`);
+    if (!isZeroOrInf(b) && !dimEq(b.dim, like.dim))
+      throw new CalcError(`The integral's start and end need the same kind of unit: ${describe(lo)} and ${describe(hi)}`);
   const a = N.toNumber(lo.si);
   const b = N.toNumber(hi.si);
   const s = sampler(n.body, env, n.v, like, 'integrand');
@@ -416,8 +419,7 @@ function agree(sym: Quantity, unitOf: Quantity, numericValue: number, tol: numbe
 
 function evalDerivative(n: CalcNode<'deriv'>, env: Env): Quantity {
   const cur = env.locals?.get(n.v) ?? env.getVar(n.v);
-  if (!cur)
-    throw new CalcError(`d/d${n.v} is taken at the current value of ${n.v}: define ${n.v}, or use it in a function like g(${n.v}) = d/d${n.v} …`);
+  if (!cur) throw new CalcError(`d/d${n.v} is taken at the current value of ${n.v}: define ${n.v}, or use it in a function like g(${n.v}) = d/d${n.v} …`);
   const x0 = asQ(cur, `value of ${n.v}`);
   const s = sampler(n.body, env, n.v, x0, 'expression');
   const sample = s.at(N.toNumber(x0.si));
@@ -500,13 +502,15 @@ function evalSeries(n: CalcNode<'series'>, env: Env): Quantity {
 function evalSolve(n: CalcNode<'solve'>, env: Env): Value {
   const hints = n.hints.map((h) => asQ(evaluate(h, env), 'guess'));
   // the variable's units: from the guess/range, else its current value, else worked out from the equation
-  const current = env.locals?.get(n.v) ?? (() => {
-    try {
-      return env.getVar(n.v);
-    } catch {
-      return undefined;
-    }
-  })();
+  const current =
+    env.locals?.get(n.v) ??
+    (() => {
+      try {
+        return env.getVar(n.v);
+      } catch {
+        return undefined;
+      }
+    })();
   let like: Quantity | undefined = hints.find((h) => !isZeroOrInf(h)) ?? (current?.t === 'q' ? current.q : undefined);
   const side = (node: Node, x: Quantity) => asQ(evaluate(node, bind(env, n.v, x)), 'value');
   if (!like) like = inferUnknown(n, side);
@@ -583,7 +587,9 @@ function evalSolve(n: CalcNode<'solve'>, env: Env): Value {
           const f = formatQuantity(asRoot(r));
           return f.unit ? `${f.value} ${f.unit}` : f.value;
         };
-        note(`solve( ) gives the solution nearest the guess; ${others.length === 1 ? 'there is another' : 'there are others'}: ${others.map(show).join(', ')}. roots( ) lists them all.`);
+        note(
+          `solve( ) gives the solution nearest the guess; ${others.length === 1 ? 'there is another' : 'there are others'}: ${others.map(show).join(', ')}. roots( ) lists them all.`,
+        );
       }
       return qv(asRoot(best));
     }
@@ -594,7 +600,7 @@ function evalSolve(n: CalcNode<'solve'>, env: Env): Value {
 
 /** 1.9999999999997 → 2 when that's within rounding of the solver. */
 function snapRoot(x: number, scale: number): number {
-  const r = Math.round(x / scale * 1e9) / 1e9 * scale;
+  const r = (Math.round((x / scale) * 1e9) / 1e9) * scale;
   return Math.abs(r - x) <= 1e-12 * Math.max(Math.abs(x), scale) ? r : x;
 }
 
@@ -617,7 +623,16 @@ function inferUnknown(n: CalcNode<'solve'>, side: (node: Node, x: Quantity) => Q
 
 /** A plain SI unit expression for a dimension (m², N, …). */
 function siUnitFor(d: Dim): UnitExpr {
-  const base: [keyof Dim, string][] = [['L', 'm'], ['M', 'kg'], ['T', 's'], ['I', 'A'], ['K', 'K'], ['N', 'mol'], ['J', 'cd'], ['A', 'rad']];
+  const base: [keyof Dim, string][] = [
+    ['L', 'm'],
+    ['M', 'kg'],
+    ['T', 's'],
+    ['I', 'A'],
+    ['K', 'K'],
+    ['N', 'mol'],
+    ['J', 'cd'],
+    ['A', 'rad'],
+  ];
   const raw = base.filter(([k]) => d[k] !== 0).map(([k, id]) => ({ id, power: d[k] }));
   return Q.mul({ si: N.ONE, dim: d, unit: raw }, scalar(N.ONE)).unit;
 }
@@ -659,8 +674,26 @@ function exactTrig(fn: string, rad: number): N.Num | null {
   const k = Math.round(deg);
   if (Math.abs(deg - k) > 1e-9) return null;
   const m = ((k % 360) + 360) % 360;
-  const sinT: Record<number, N.Num> = { 0: N.ZERO, 30: N.exact(1n, 2n), 90: N.ONE, 150: N.exact(1n, 2n), 180: N.ZERO, 210: N.exact(-1n, 2n), 270: N.exact(-1n), 330: N.exact(-1n, 2n) };
-  const cosT: Record<number, N.Num> = { 0: N.ONE, 60: N.exact(1n, 2n), 90: N.ZERO, 120: N.exact(-1n, 2n), 180: N.exact(-1n), 240: N.exact(-1n, 2n), 270: N.ZERO, 300: N.exact(1n, 2n) };
+  const sinT: Record<number, N.Num> = {
+    0: N.ZERO,
+    30: N.exact(1n, 2n),
+    90: N.ONE,
+    150: N.exact(1n, 2n),
+    180: N.ZERO,
+    210: N.exact(-1n, 2n),
+    270: N.exact(-1n),
+    330: N.exact(-1n, 2n),
+  };
+  const cosT: Record<number, N.Num> = {
+    0: N.ONE,
+    60: N.exact(1n, 2n),
+    90: N.ZERO,
+    120: N.exact(-1n, 2n),
+    180: N.exact(-1n),
+    240: N.exact(-1n, 2n),
+    270: N.ZERO,
+    300: N.exact(1n, 2n),
+  };
   const tanT: Record<number, N.Num> = { 0: N.ZERO, 45: N.ONE, 135: N.exact(-1n), 180: N.ZERO, 225: N.ONE, 315: N.exact(-1n) };
   if (fn === 'sin') return sinT[m] ?? null;
   if (fn === 'cos') return cosT[m] ?? null;
@@ -692,8 +725,7 @@ function flatten(args: Value[]): Quantity[] {
 
 function sameDimAll(xs: Quantity[], fn: string) {
   if (!xs.length) throw new CalcError(`${fn} needs at least one value`);
-  for (const x of xs)
-    if (!dimEq(x.dim, xs[0].dim)) throw new CalcError(`${fn}: can't mix ${describe(xs[0])} and ${describe(x)}`);
+  for (const x of xs) if (!dimEq(x.dim, xs[0].dim)) throw new CalcError(`${fn}: can't mix ${describe(xs[0])} and ${describe(x)}`);
 }
 
 function inUnitOf(q: Quantity, like: Quantity): Quantity {
@@ -701,8 +733,35 @@ function inUnitOf(q: Quantity, like: Quantity): Quantity {
 }
 
 const ELEMENTWISE = new Set([
-  'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'asin', 'acos', 'atan', 'arcsec', 'arccsc', 'arccot', 'sinh', 'cosh', 'tanh',
-  'asinh', 'acosh', 'atanh', 'exp', 'ln', 'log', 'sqrt', 'abs', 'floor', 'ceil', 'sign', 'gamma', 'erf', 'erfc',
+  'sin',
+  'cos',
+  'tan',
+  'sec',
+  'csc',
+  'cot',
+  'asin',
+  'acos',
+  'atan',
+  'arcsec',
+  'arccsc',
+  'arccot',
+  'sinh',
+  'cosh',
+  'tanh',
+  'asinh',
+  'acosh',
+  'atanh',
+  'exp',
+  'ln',
+  'log',
+  'sqrt',
+  'abs',
+  'floor',
+  'ceil',
+  'sign',
+  'gamma',
+  'erf',
+  'erfc',
 ]);
 
 /** Non-negative integer argument (exact), for combinatorics and number theory. */
@@ -724,8 +783,8 @@ function bigGcd(a: bigint, b: bigint): bigint {
 }
 
 const LANCZOS = [
-  0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
-  12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
+  0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012,
+  9.9843695780195716e-6, 1.5056327351493116e-7,
 ];
 /** Γ(x) for real x (Lanczos, g = 7; reflection for x < ½). */
 export function gammaReal(x: number): number {
@@ -803,7 +862,7 @@ function callBuiltin(name: string, args: Value[], env: Env, base: Quantity | und
       const xs = flatten(args);
       sameDimAll(xs, name);
       let best = xs[0];
-      for (const x of xs) if ((name === 'min' ? N.cmp(x.si, best.si) < 0 : N.cmp(x.si, best.si) > 0)) best = x;
+      for (const x of xs) if (name === 'min' ? N.cmp(x.si, best.si) < 0 : N.cmp(x.si, best.si) > 0) best = x;
       return qv(inUnitOf(best, xs[0]));
     }
     case 'sum': {
@@ -922,8 +981,17 @@ function elementwise(name: string, x: Quantity, env: Env, base?: Quantity): Quan
     case 'arccot': {
       const v = requireDimless(x, name);
       const r =
-        name === 'asin' ? Math.asin(v) : name === 'acos' ? Math.acos(v) : name === 'atan' ? Math.atan(v)
-        : name === 'arcsec' ? Math.acos(1 / v) : name === 'arccsc' ? Math.asin(1 / v) : Math.atan(1 / v);
+        name === 'asin'
+          ? Math.asin(v)
+          : name === 'acos'
+            ? Math.acos(v)
+            : name === 'atan'
+              ? Math.atan(v)
+              : name === 'arcsec'
+                ? Math.acos(1 / v)
+                : name === 'arccsc'
+                  ? Math.asin(1 / v)
+                  : Math.atan(1 / v);
       if (Number.isNaN(r)) throw new CalcError(`${name} isn't defined for that value`);
       return angleResult(r, env);
     }
@@ -972,8 +1040,7 @@ function elementwise(name: string, x: Quantity, env: Env, base?: Quantity): Quan
       // exact for integer powers of the base
       const r = Math.log(v) / Math.log(b);
       const ri = Math.round(r);
-      if (Math.abs(r - ri) < 1e-12 && N.isExact(x.si) && N.cmp(N.powRational(N.fromNumber(b), ri), x.si) === 0)
-        return scalar(N.exact(BigInt(ri)));
+      if (Math.abs(r - ri) < 1e-12 && N.isExact(x.si) && N.cmp(N.powRational(N.fromNumber(b), ri), x.si) === 0) return scalar(N.exact(BigInt(ri)));
       return scalar(N.float(b === 10 ? Math.log10(v) : r));
     }
     case 'sqrt':
@@ -1062,7 +1129,15 @@ export function inferUnit(n: Node, env: Env, known: Map<string, Quantity>, depth
         return dimEq(a.dim, b.dim) ? a : null;
       }
       case 'call': {
-        let r = inferCall(n.name, n.args.map((a) => sub(a)), n.args, env, known, constant, uses);
+        let r = inferCall(
+          n.name,
+          n.args.map((a) => sub(a)),
+          n.args,
+          env,
+          known,
+          constant,
+          uses,
+        );
         if (r && n.power) {
           const e = uses(n.power) ? null : constant(n.power);
           r = e ? Q.pow(r, e) : null;
@@ -1083,10 +1158,12 @@ export function inferUnit(n: Node, env: Env, known: Map<string, Quantity>, depth
         return body ? Q.mul(body, one(v)) : null;
       }
       case 'deriv': {
-        const v = known.get(n.v) ?? (() => {
-          const c = constant({ k: 'var', name: n.v });
-          return c && one(c);
-        })();
+        const v =
+          known.get(n.v) ??
+          (() => {
+            const c = constant({ k: 'var', name: n.v });
+            return c && one(c);
+          })();
         if (!v) return null;
         let r = sub(n.body, new Map(known).set(n.v, v));
         for (let k = 0; k < n.order && r; k++) r = Q.div(r, v);
@@ -1106,8 +1183,30 @@ export function inferUnit(n: Node, env: Env, known: Map<string, Quantity>, depth
 }
 
 const PLAIN_FUNCS = new Set([
-  'sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh', 'exp', 'ln', 'log',
-  'sign', 'gamma', 'erf', 'erfc', 'nCr', 'nPr', 'gcd', 'lcm', 'count',
+  'sin',
+  'cos',
+  'tan',
+  'sec',
+  'csc',
+  'cot',
+  'sinh',
+  'cosh',
+  'tanh',
+  'asinh',
+  'acosh',
+  'atanh',
+  'exp',
+  'ln',
+  'log',
+  'sign',
+  'gamma',
+  'erf',
+  'erfc',
+  'nCr',
+  'nPr',
+  'gcd',
+  'lcm',
+  'count',
 ]);
 const SAME_FUNCS = new Set(['abs', 'floor', 'ceil', 'round', 'min', 'max', 'sum', 'mean', 'median', 'stdev', 'hypot', 'mod']);
 

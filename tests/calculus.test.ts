@@ -77,7 +77,10 @@ describe('symbolic first, numeric fallback (D44)', () => {
     // 1/x across 0 has no antiderivative over the range: numeric reports it
     expect(calc(r`\int_{-1}^{1}\frac{1}{x}dx`)).toMatch(/^error/);
     // degree mode trig: numeric
-    const rows = [{ id: 'a', type: 'expr' as const, latex: 'x=30' }, { id: 'b', type: 'expr' as const, latex: r`\frac{d}{dx}\sin\left(x\right)` }];
+    const rows = [
+      { id: 'a', type: 'expr' as const, latex: 'x=30' },
+      { id: 'b', type: 'expr' as const, latex: r`\frac{d}{dx}\sin\left(x\right)` },
+    ];
     const res = evaluateWorksheet(rows, { angle: 'deg' }).rows.get('b')!;
     expect(res.kind === 'value' && res.value.t === 'q' && formatQuantity(res.value.q).value).toBe('0.0151149947'); // cos 30° · π/180, numeric rounded to its trusted digits
     // |x|/x has no limit at 0 either way

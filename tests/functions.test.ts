@@ -40,4 +40,3 @@ describe('toolbox functions', () => {
     expect(calc(op('nCr', '5.5,2'))).toMatch(/^error/);
   });
 });
-

@@ -18,7 +18,11 @@ const e = (id: string, latex: string, extra: Partial<Row> = {}): Row => ({ id, t
 
 describe('review fixes', () => {
   it('#2 a folder-only name used outside its folder is an error, not a unit', () => {
-    const rows: Row[] = [{ id: 'f', type: 'folder', title: 'Beam inputs' }, e('l', r`L=1.5\unit{m}`, { parent: 'f', scope: 'folder' } as Partial<Row>), e('m', r`M=6\unit{kN}\cdot L`)];
+    const rows: Row[] = [
+      { id: 'f', type: 'folder', title: 'Beam inputs' },
+      e('l', r`L=1.5\unit{m}`, { parent: 'f', scope: 'folder' } as Partial<Row>),
+      e('m', r`M=6\unit{kN}\cdot L`),
+    ];
     expect(show(evalRows(rows), 'm')).toMatch(/^error: L is only defined inside “Beam inputs”/);
   });
   it('#3 a variable written right after a number says it is the variable, not the unit', () => {
@@ -65,7 +69,13 @@ describe('review fixes', () => {
     expect(show(evalRows([e('a', '2Nmm')]), 'a')).toBe('2 N·mm');
   });
   it('#7 rounding is symmetric: half away from zero', () => {
-    for (const [x, want] of [['2.5', '3'], ['-2.5', '−3'], ['-0.5', '−1'], ['1.49', '1'], ['-1.49', '−1']])
+    for (const [x, want] of [
+      ['2.5', '3'],
+      ['-2.5', '−3'],
+      ['-0.5', '−1'],
+      ['1.49', '1'],
+      ['-1.49', '−1'],
+    ])
       expect(show(evalRows([e('a', r`\operatorname{round}\left(${x}\right)`)]), 'a'), x).toBe(want);
   });
 });

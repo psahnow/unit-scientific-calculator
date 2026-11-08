@@ -1,6 +1,7 @@
 // Crash safety (D32): a crash in one row shows a note in that row; a crash elsewhere shows a
 // recovery screen that can still export the saved worksheet, instead of a blank page.
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { LS_CURRENT, lsWs } from '../state/store';
 
 interface State {
   error: Error | null;
@@ -9,8 +10,8 @@ interface State {
 /** Export the last saved copy straight from browser storage (works even if the app state is broken). */
 function exportSaved() {
   try {
-    const id = localStorage.getItem('usc:current');
-    const raw = id ? localStorage.getItem(`usc:ws:${id}`) : null;
+    const id = localStorage.getItem(LS_CURRENT);
+    const raw = id ? localStorage.getItem(lsWs(id)) : null;
     if (!raw) return alert('No saved worksheet was found in this browser.');
     const title = (JSON.parse(raw).title as string | undefined)?.replace(/[^\w\- ]+/g, '').trim() || 'worksheet';
     const a = document.createElement('a');

@@ -11,7 +11,7 @@ None of these blocks the worksheet or moves it around. Everything can be dismiss
 ## 1. First visit
 
 ```
-┌ ☰ Dimensional / Untitled worksheet ──────────── ↶ ↷ RAD|DEG ☀ ⚙ ⤓ ⤒ ┐
+┌ ☰ Dimensional / Untitled worksheet ──────────── ↶ ↷ RAD|DEG ⚙ ?  ┐
 │ + Add ▾                                                ƒ(x) Functions │
 ├───────────────────────────────────────────────────────────────────────┤
 │ 1 │ |                                                                 │
@@ -34,7 +34,7 @@ None of these blocks the worksheet or moves it around. Everything can be dismiss
   - mixed systems;
   - a conversion.
 - "Take the 2-minute tour" starts the tour (§3).
-- It is also in ☰ as "Take the tour".
+- It is also in ? Help as "Take the tour".
 
 ## 2. Inline tips (one each, ever)
 
@@ -97,7 +97,7 @@ Settings gets short help lines where the meaning isn't obvious:
 | 5 | Change one, update all | Change F to 8 kN: every result follows | F ≠ 6 kN | F's row |
 | 6 | Reuse an answer | Type `#n · 2`, where n is F / A's row number (given in the card) | a row uses #n and has a value | the newest empty row |
 | 7 | Functions and constants | Open ƒ(x) Functions: trig, calculus, solve, roots, physical constants | the drawer is open | the ƒ(x) button |
-| 8 | That's it | Pointers: + Add for notes, folders and tables · ⚙ for unit packages and custom units · Ctrl / for shortcuts · Export keeps a copy. [Keep the Tour sheet] [Delete it and go back] | — | — |
+| 8 | That's it | Pointers: + Add for notes, folders and tables · ⚙ for unit sets and custom units · Ctrl / for shortcuts · ☰ → Export keeps a copy. [Keep the Tour sheet] [Delete it and go back] | — | — |
 
 "Show me" inserts the step's rows (or opens the unit menu / drawer) and leaves the caret at the end.
 

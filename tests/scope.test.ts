@@ -22,8 +22,12 @@ describe('folder scope (D24)', () => {
     const a = expr(r`2F`, { parent: 'A' });
     const b = expr(r`2F`, { parent: 'B' });
     const rows = [
-      folder('A'), expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }), a,
-      folder('B'), expr(r`F=5\unit{N}`, { parent: 'B', scope: 'folder' }), b,
+      folder('A'),
+      expr(r`F=3\unit{N}`, { parent: 'A', scope: 'folder' }),
+      a,
+      folder('B'),
+      expr(r`F=5\unit{N}`, { parent: 'B', scope: 'folder' }),
+      b,
     ];
     expect(show(rows, a.id)).toBe('6 N');
     expect(show(rows, b.id)).toBe('10 N');
@@ -62,8 +66,12 @@ describe('folder scope (D24)', () => {
   it('functions see the scope they were defined in', () => {
     const call = expr(r`f(2)`, { parent: 'B' });
     const rows = [
-      folder('A'), expr(r`k=10`, { parent: 'A', scope: 'folder' }), expr(r`f(x)=k\cdot x`, { parent: 'A' }),
-      folder('B'), expr(r`k=1`, { parent: 'B', scope: 'folder' }), call,
+      folder('A'),
+      expr(r`k=10`, { parent: 'A', scope: 'folder' }),
+      expr(r`f(x)=k\cdot x`, { parent: 'A' }),
+      folder('B'),
+      expr(r`k=1`, { parent: 'B', scope: 'folder' }),
+      call,
     ];
     expect(show(rows, call.id)).toBe('20');
   });
