@@ -530,7 +530,7 @@ export function evaluateWorksheet(rows: Row[], settings: EvalSettings): Workshee
       packageHints.set(r.id, { unit: u.id, packages: packagesOf(u), typed: true });
       // "2Torr" fails as T·o·r·r: say it's a unit that is switched off instead
       if (res?.kind === 'error' && u.id.length > 1 && /isn't defined yet/.test(res.message))
-        results.set(r.id, { ...res, message: `“${u.id}” is from a unit package that is off for this worksheet` });
+        results.set(r.id, { ...res, message: `“${u.id}” is from a unit set that is off for this worksheet` });
     }
   }
 

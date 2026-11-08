@@ -70,7 +70,7 @@ test('a period after a letter dots it: m. is ṁ, x.. is ẍ, and 2.5 m stays a 
   await page.keyboard.type('3m', { delay: 25 });
   const items = page.locator('.ac-pop [role="option"]');
   await expect(items.nth(1)).toContainText('ṁ'); // ṁ as a letter and a combining dot
-  await expect(items.nth(0)).toContainText('metre');
+  await expect(items.nth(0)).toContainText('meter');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Tab');
   await expect(field(page, 5)).toHaveJSProperty('value', String.raw`3\cdot\dot{m}`);

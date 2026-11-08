@@ -194,7 +194,7 @@ const UNITS: VirtualKeyboardLayout = {
       id: 'dim-units-2',
       rows: [
         [unit('µm', '\\mu m'), unit('nm'), unit('yd'), unit('mi'), unit('mL'), unit('ha'), unit('acre'), unit('cm²', 'cm^2'), unit('in²', 'in^2'), unit('ft²', 'ft^2')],
-        [unit('mg'), unit('t'), unit('oz'), unit('MN'), unit('GPa'), unit('atm'), cu('N·m', '\\unit{N}\\cdot\\unit{m}', 'Newton-metres (torque)'), cu('kN·m', '\\unit{kN}\\cdot\\unit{m}'), cu('W/m²', '\\unit{W}/\\unit{m}^{2}'), cu('kg/m³', '\\unit{kg}/\\unit{m}^{3}', 'Density')],
+        [unit('mg'), unit('t'), unit('oz'), unit('MN'), unit('GPa'), unit('atm'), cu('N·m', '\\unit{N}\\cdot\\unit{m}', 'Newton-meters (torque)'), cu('kN·m', '\\unit{kN}\\cdot\\unit{m}'), cu('W/m²', '\\unit{W}/\\unit{m}^{2}'), cu('kg/m³', '\\unit{kg}/\\unit{m}^{3}', 'Density')],
         [unit('Wh'), unit('kWh'), unit('cal'), unit('mph'), cu('km/h', '\\unit{km}/\\unit{h}'), cu('m/s', '\\unit{m}/\\unit{s}'), cu('ft/s', '\\unit{ft}/\\unit{s}'), cu('m/s²', '\\unit{m}/\\unit{s}^{2}', 'Acceleration'), cu('rad/s', '\\unit{rad}/\\unit{s}', 'Angular velocity'), unit('Ω', '\\Omega')],
         [unit('mA'), unit('kV'), unit('mV'), unit('d', 'd', 'day'), unit('wk'), unit('yr'), unit('%', '\\%', 'percent'), unit('ppm'), unit('kHz'), page('‹ back', 'dim-units-1', 'Common units')],
         NAV,

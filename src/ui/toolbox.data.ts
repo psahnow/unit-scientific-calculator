@@ -139,7 +139,7 @@ export const GROUPS: { id: string; label: string; keys: Key[]; browser?: 'units'
       { label: 'solve', insert: '\\operatorname{solve}\\left(#0=#?,x\\right)', title: 'Solve an equation: solve(x² = 2, x). Add a guess, solve(…, x, 1), or a range, solve(…, x, 0, 10). Units work too: solve(F/A = 250 MPa, A) gives an area', wide: true },
       { label: 'roots', insert: '\\operatorname{roots}\\left(#0,x\\right)', title: 'Every solution, as a list: roots(x³ − x, x) = [−1, 0, 1]. For equations that aren’t polynomials, give a range: roots(sin(x), x, 0, 10)', wide: true },
       { label: 'ans', insert: 'ans', title: 'The answer of the row above' },
-      { label: '∫ₐᵇ dx', insert: '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', title: 'Integral from a to b. Units carry through: ∫ F dx over metres gives N·m. The ends can be ±∞', wide: true },
+      { label: '∫ₐᵇ dx', insert: '\\int_{#0}^{#?}#?\\,\\mathrm{d}x', title: 'Integral from a to b. Units carry through: ∫ F dx over meters gives N·m. The ends can be ±∞', wide: true },
       { label: '∫₀^∞ dx', insert: '\\int_{0}^{\\infty}#0\\,\\mathrm{d}x', title: 'Integral from 0 to infinity', wide: true },
       { label: 'd/dx', insert: '\\frac{\\mathrm{d}}{\\mathrm{d}#?}#0', title: 'Derivative, at the variable’s current value. Define the variable first (x = 2), or use it in a function: g(x) = d/dx …' },
       { label: 'd²/dx²', insert: '\\frac{\\mathrm{d}^2}{\\mathrm{d}#?^2}#0', title: 'Second derivative, at the variable’s current value' },

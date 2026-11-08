@@ -22,10 +22,10 @@ const nameMap = new Map<string, UnitDef>();
 for (const u of UNITS) {
   const n = u.name.toLowerCase();
   if (!/^[a-zå]+$/.test(n) || n.length < 4) continue;
-  for (const v of [n, n.replace(/metre$/, 'meter'), n.replace(/litre$/, 'liter')]) if (!nameMap.has(v)) nameMap.set(v, u);
+  for (const v of [n, n.replace(/meter$/, 'metre'), n.replace(/liter$/, 'litre')]) if (!nameMap.has(v)) nameMap.set(v, u);
 }
 for (const [k, id] of [
-  ['feet', 'ft'], ['inches', 'in'], ['inch', 'in'], ['foot', 'ft'], ['pounds', 'lbm'], ['pound', 'lbm'], ['hours', 'h'], ['hour', 'h'],
+  ['tonne', 't'], ['tonnes', 't'], ['feet', 'ft'], ['inches', 'in'], ['inch', 'in'], ['foot', 'ft'], ['pounds', 'lbm'], ['pound', 'lbm'], ['hours', 'h'], ['hour', 'h'],
   ['minutes', 'min'], ['seconds', 's'], ['degrees', '°'], ['celsius', '°C'], ['centigrade', '°C'], ['fahrenheit', '°F'], ['rankine', '°R'],
   ['gallon', 'gal'], ['gallons', 'gal'], ['atmosphere', 'atm'], ['atmospheres', 'atm'], ['horsepower', 'hp'], ['calorie', 'cal'],
   ['calories', 'cal'], ['btu', 'BTU'], ['btus', 'BTU'], ['tons', 'ton'], ['days', 'd'], ['day', 'd'], ['weeks', 'wk'], ['week', 'wk'],

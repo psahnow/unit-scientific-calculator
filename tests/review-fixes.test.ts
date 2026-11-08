@@ -24,14 +24,14 @@ describe('review fixes', () => {
   it('#3 a variable written right after a number says it is the variable, not the unit', () => {
     const res = evalRows([e('a', 'm=5'), e('b', '3m')]);
     expect(show(res, 'b')).toBe('15');
-    expect(res.infos.get('b')).toMatch(/m is your variable m, not the unit metre/);
+    expect(res.infos.get('b')).toMatch(/m is your variable m, not the unit meter/);
     // a name that is also a unit, used as a name, gets no note
     expect(evalRows([e('a', r`A=2\unit{m}^2`), e('b', r`\frac{6}{A}`)]).infos.get('b')).toBeUndefined();
   });
   it('#5 a display unit from a package that is off is refused', () => {
     const res = evalRows([e('a', r`300\unit{MPa}`, { displayUnit: 'ksi' } as Partial<Row>)], []);
     const v = res.rows.get('a')!;
-    expect(v.kind === 'value' && v.unitError).toMatch(/ksi is a unit from Mechanical engineering, which is off/);
+    expect(v.kind === 'value' && v.unitError).toMatch(/ksi is in the Mechanical engineering unit set, which is off/);
     expect(show(res, 'a')).toBe('300 MPa');
     // …and allowed when the package is on
     expect(show(evalRows([e('a', r`300\unit{MPa}`, { displayUnit: 'ksi' } as Partial<Row>)], ['mechanical']), 'a')).toMatch(/ksi$/);

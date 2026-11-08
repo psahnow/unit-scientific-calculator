@@ -28,7 +28,7 @@ describe('E-notation', () => {
 
 describe('words from packages that are off', () => {
   it('say so instead of splitting into other units', () => {
-    expect(show(['2slug'])).toBe('error: “slug” is a unit from Mechanical engineering, which is off for this worksheet');
+    expect(show(['2slug'])).toBe('error: “slug” is in the Mechanical engineering unit set, which is off for this worksheet');
     expect(show(['2slug'], ['mechanical'])).toBe('2 slug');
   });
   it('words that read naturally letter by letter still do', () => {

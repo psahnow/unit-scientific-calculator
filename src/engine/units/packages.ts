@@ -92,7 +92,7 @@ export function offPackageMessage(unit: { id: string }[], getUnitDef: (id: strin
     const u = getUnitDef(t.id);
     if (on(u)) continue;
     const names = packagesOf(u).map((id) => PACKAGE_BY_ID.get(id)?.name ?? id);
-    return `${u.id} is a unit from ${names.join(' / ')}, which is off for this worksheet. Turn it on in ⚙ Settings, or pick another unit.`;
+    return `${u.id} is in the ${names.join(' / ')} unit set, which is off for this worksheet. Turn it on in ⚙ Settings, or pick another unit.`;
   }
   return null;
 }

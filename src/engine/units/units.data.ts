@@ -52,7 +52,7 @@ function u(def: Omit<UnitDef, 'aliases'> & { aliases?: string[] }): UnitDef {
 const PI = float(Math.PI);
 
 // ── SI base & coherent derived ───────────────────────────────────────────────
-u({ id: 'm', name: 'metre', dim: L, factor: D('1'), system: 'SI', prefixable: true, category: 'Length', base: true, commonPrefixes: ['k', 'c', 'm', 'µ', 'n'] });
+u({ id: 'm', name: 'meter', dim: L, factor: D('1'), system: 'SI', prefixable: true, category: 'Length', base: true, commonPrefixes: ['k', 'c', 'm', 'µ', 'n'] });
 u({ id: 'g', name: 'gram', dim: M, factor: D('0.001'), system: 'SI', prefixable: true, category: 'Mass', commonPrefixes: ['k', 'm', 'µ'] });
 u({ id: 's', name: 'second', dim: T, factor: D('1'), system: 'SI', prefixable: true, category: 'Time', base: true, commonPrefixes: ['m', 'µ', 'n'], aliases: ['sec'] });
 u({ id: 'A', name: 'ampere', dim: dim({ I: 1 }), factor: D('1'), system: 'SI', prefixable: true, category: 'Electrical', base: true, commonPrefixes: ['k', 'm', 'µ'] });
@@ -96,8 +96,8 @@ u({ id: 'acre', name: 'acre', dim: AREA, factor: D('4046.8564224'), system: 'US'
 u({ id: 'cmil', name: 'circular mil', dim: AREA, factor: mul(powRational(D('0.0000254'), 2), div(PI, exact(4n))), system: 'US', category: 'Area' });
 
 // ── Volume ───────────────────────────────────────────────────────────────────
-u({ id: 'L', name: 'litre', dim: VOL, factor: D('0.001'), system: 'SI-accepted', prefixable: true, category: 'Volume', commonPrefixes: ['m'], aliases: ['l', 'liter', 'litre'] });
-u({ id: 'cc', name: 'cubic centimetre', dim: VOL, factor: D('1e-6'), system: 'CGS', category: 'Volume' });
+u({ id: 'L', name: 'liter', dim: VOL, factor: D('0.001'), system: 'SI-accepted', prefixable: true, category: 'Volume', commonPrefixes: ['m'], aliases: ['l', 'liter', 'litre'] });
+u({ id: 'cc', name: 'cubic centimeter', dim: VOL, factor: D('1e-6'), system: 'CGS', category: 'Volume' });
 const GAL = mul(D('231'), powRational(D('0.0254'), 3));
 u({ id: 'gal', name: 'US gallon', dim: VOL, factor: GAL, system: 'US', category: 'Volume', aliases: ['gallon'] });
 u({ id: 'qt', name: 'US quart', dim: VOL, factor: div(GAL, exact(4n)), system: 'US', category: 'Volume' });
@@ -113,7 +113,7 @@ u({ id: 'floz_UK', name: 'imperial fluid ounce', dim: VOL, factor: div(D('0.0045
 
 // ── Mass ─────────────────────────────────────────────────────────────────────
 const LBM = D('0.45359237');
-u({ id: 't', name: 'tonne', dim: M, factor: D('1000'), system: 'SI-accepted', category: 'Mass', aliases: ['tonne'] });
+u({ id: 't', name: 'metric ton', dim: M, factor: D('1000'), system: 'SI-accepted', category: 'Mass', aliases: ['tonne'] });
 u({ id: 'lbm', name: 'pound-mass', dim: M, factor: LBM, system: 'US', category: 'Mass', aliases: ['lb', 'lbs'], ambiguous: ['lbm', 'lbf'] });
 u({ id: 'oz', name: 'ounce', dim: M, factor: div(LBM, exact(16n)), system: 'US', category: 'Mass' });
 u({ id: 'gr', name: 'grain', dim: M, factor: div(LBM, exact(7000n)), system: 'US', category: 'Mass' });
@@ -146,7 +146,7 @@ u({ id: 'atm', name: 'standard atmosphere', dim: PRESS, factor: D('101325'), sys
 u({ id: 'psi', name: 'pound per square inch', dim: PRESS, factor: div(LBF, IN2), system: 'US', category: 'Pressure' });
 u({ id: 'ksi', name: 'kip per square inch', dim: PRESS, factor: div(mul(LBF, exact(1000n)), IN2), system: 'US', category: 'Pressure' });
 u({ id: 'psf', name: 'pound per square foot', dim: PRESS, factor: div(LBF, powRational(D('0.3048'), 2)), system: 'US', category: 'Pressure' });
-u({ id: 'mmHg', name: 'millimetre of mercury', dim: PRESS, factor: D('133.322387415'), system: 'other', category: 'Pressure' });
+u({ id: 'mmHg', name: 'millimeter of mercury', dim: PRESS, factor: D('133.322387415'), system: 'other', category: 'Pressure' });
 u({ id: 'inHg', name: 'inch of mercury', dim: PRESS, factor: D('3386.389'), system: 'US', category: 'Pressure' });
 u({ id: 'inH2O', name: 'inch of water', dim: PRESS, factor: D('249.08891'), system: 'US', category: 'Pressure' });
 u({ id: 'Torr', name: 'torr', dim: PRESS, factor: div(D('101325'), exact(760n)), system: 'other', category: 'Pressure', aliases: ['torr'] });

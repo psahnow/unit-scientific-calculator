@@ -142,7 +142,7 @@ export const TOUR: TourStep[] = [
     id: 'done',
     title: 'That’s the tour',
     body: () =>
-      '+ Add makes notes, folders and tables. ⚙ turns on more unit packages and defines your own units. Ctrl / lists shortcuts. Worksheets are saved in this browser: Export keeps a copy.',
+      '+ Add makes notes, folders and tables. ⚙ turns on more unit sets and defines your own units. Ctrl / lists shortcuts. Worksheets are saved in this browser: Export keeps a copy.',
   },
 ];
 
@@ -156,7 +156,7 @@ export interface Tip {
 
 export const TIP_TEXT: Record<string, string> = {
   unit: 'Click the unit to see this answer in another one. Only the display changes; the value stays exact.',
-  func: 'Use it like f(2 m). To check an input’s unit, give it a type: f(l: m) takes any length and converts it to metres.',
+  func: 'Use it like f(2 m). To check an input’s unit, give it a type: f(l: m) takes any length and converts it to meters.',
   folder: 'Names defined in a folder work everywhere. Click 🌐 in the margin to keep one inside its folder.',
   table: 'Name a column y₁ = f(x₁) to calculate it from another column. A column’s unit button sets its unit.',
   ref: 'Every row has a number: #n uses row n’s answer, like #2 · 3. It follows the row if you move it.',

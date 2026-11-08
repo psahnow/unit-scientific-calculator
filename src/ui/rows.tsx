@@ -194,9 +194,9 @@ export function ExpressionRow({ row, ctx }: { row: ExprRow; ctx: RowCtx }) {
       {resultEl && <div className="row-result">{resultEl}</div>}
       {ctx.packageHint && (
         <div className="row-notice" role="note">
-          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is from the{' '}
-          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')} units, which are off for this worksheet.{' '}
-          {ctx.packageHint.typed ? 'Turn them on to use it here.' : 'It still works here, but won’t be suggested as you type.'}{' '}
+          <span aria-hidden>ⓘ</span> {ctx.packageHint.unit} is in the{' '}
+          {ctx.packageHint.packages.map((id) => PACKAGE_BY_ID.get(id)?.name ?? id).join(' / ')} unit set, which is off for this worksheet.{' '}
+          {ctx.packageHint.typed ? 'Turn it on to use it here.' : 'It still works here, but won’t be suggested as you type.'}{' '}
           {ctx.packageHint.packages.map((id) => (
             <button
               key={id}

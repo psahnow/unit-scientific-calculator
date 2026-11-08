@@ -146,7 +146,7 @@ export function App() {
       <div className="print-head" aria-hidden>
         <span className="print-brand">Dimensional</span>
         <span className="print-title">{s.ws.title}</span>
-        <span className="print-date">{new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        <span className="print-date">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
       </div>
       <div className="sheet-wrap">
       <VarPanel rows={calcRows} result={result} fmt={fmt} />
@@ -250,7 +250,7 @@ export function App() {
               Dimensional<span className="footer-tag">every number knows its units</span>
             </span>
             <span className="footer-meta">
-              Nothing leaves your browser · MIT licence · by{' '}
+              Nothing leaves your browser · MIT license · by{' '}
               <a href="https://perrysahnow.com" target="_blank" rel="noreferrer">
                 Perry Sahnow
               </a>

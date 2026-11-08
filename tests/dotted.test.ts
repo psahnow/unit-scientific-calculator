@@ -31,7 +31,7 @@ describe('dotted names in suggestions', () => {
   it('a defined ṁ is "variable" and still after the unit; defined ṁ₁ and m̈ follow', () => {
     const s = suggestionsFor('m', ['ṁ', 'ṁ_1', 'm̈'], false);
     expect(s.slice(0, 4).map((x) => [x.label, x.detail])).toEqual([
-      ['m', 'metre'],
+      ['m', 'meter'],
       ['ṁ', 'variable'],
       ['ṁ_1', 'variable'],
       ['m̈', 'variable'],

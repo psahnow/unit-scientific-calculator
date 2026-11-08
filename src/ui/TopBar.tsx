@@ -105,7 +105,7 @@ export function TopBar() {
               <div key={w.id} className={`menu-ws ${w.id === s.ws.id ? 'current' : ''}`}>
                 <button className="menu-item" onClick={() => (s.openWorksheet(w.id), menu.setOpen(false))}>
                   {w.id === s.ws.id ? s.ws.title : w.title}
-                  <span className="menu-date">{new Date(w.updated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  <span className="menu-date">{new Date(w.updated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 </button>
                 <button
                   className="icon-btn danger small"
@@ -193,7 +193,7 @@ export function TopBar() {
               </span>
             </label>
             <fieldset className="packages">
-              <legend>Unit packages</legend>
+              <legend>Unit sets</legend>
               <p className="pk-help">Everyday metric and US units are always on. Add more for this worksheet:</p>
               {PACKAGES.map((p) => (
                 <label key={p.id} className="check pk" title={p.description}>

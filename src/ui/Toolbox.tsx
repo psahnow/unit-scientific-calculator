@@ -126,7 +126,7 @@ function UnitsBrowser({ insert }: { insert(latex: string): void }) {
       <div className="tb-units-bar">
         <input className="unit-search" placeholder="Search units, like pascal or psi" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search units" />
         <label className="tb-units-all">
-          <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show units from packages that are off
+          <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show units from unit sets that are off
           {!all && hidden > 0 && <span className="muted"> ({hidden} hidden)</span>}
         </label>
       </div>

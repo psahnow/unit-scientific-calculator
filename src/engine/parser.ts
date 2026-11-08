@@ -946,7 +946,7 @@ class Parser {
             seg.every((r) => isVar(r.v) || (() => { const l = lookupUnit(r.v); return !!l && (!this.ctx.units || this.ctx.units(l)); })());
           if (found && !u && i === 0 && j === run.length - 1 && seg.length > 1 && !allVars && !lettersStandAlone()) {
             const pk = packagesOf(found).map((id) => PACKAGE_BY_ID.get(id)?.name ?? id);
-            throw Object.assign(new ParseError(`“${segName}” is a unit from ${pk.join(' / ')}, which is off for this worksheet`), { blocked: [...this.blocked] });
+            throw Object.assign(new ParseError(`“${segName}” is in the ${pk.join(' / ')} unit set, which is off for this worksheet`), { blocked: [...this.blocked] });
           }
           const prevVal = prevIsValue || nodes.length > 0;
           if (u && (!allVars || (prevVal && seg.length > 1))) {
